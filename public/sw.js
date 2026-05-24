@@ -1,4 +1,4 @@
-const CACHE_NAME = 'monthly-money-v1';
+const CACHE_NAME = 'monthly-money-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/login',
@@ -43,6 +43,9 @@ self.addEventListener('fetch', (event) => {
 
   // Skip chrome extension / internal requests
   if (!req.url.startsWith(self.location.origin)) return;
+
+  // Skip all real-time data API routes completely to ensure browser natively attaches secure HTTP-only cookies
+  if (req.url.includes('/api/')) return;
 
   // Ignore Hot Module Replacement or dev server polling assets
   if (req.url.includes('_next/webpack-hmr') || req.url.includes('webpack')) return;
