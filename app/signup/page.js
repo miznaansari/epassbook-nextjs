@@ -58,7 +58,17 @@ export default function Signup() {
     setLoadingState(true);
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      // Explicitly set cookie & sync session instantly from the action handler
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          name: userCredential.user.displayName,
+        }),
+      });
     } catch (err) {
       console.error('Signup error:', err);
       if (err.code === 'auth/email-already-in-use') {
@@ -77,7 +87,17 @@ export default function Signup() {
     setLoadingState(true);
 
     try {
-      await signInWithPopup(auth, googleProvider);
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      // Explicitly set cookie & sync session instantly from the action handler
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          name: userCredential.user.displayName,
+        }),
+      });
     } catch (err) {
       console.error('Google Auth Error:', err);
       if (err.code !== 'auth/popup-closed-by-user') {

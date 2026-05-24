@@ -49,8 +49,17 @@ export default function Login() {
     setLoadingState(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      // AuthContext listener will automatically trigger sync and redirect
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Explicitly set cookie & sync session instantly from the action handler
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          name: userCredential.user.displayName,
+        }),
+      });
     } catch (err) {
       console.error('Login error:', err);
       if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
@@ -69,7 +78,17 @@ export default function Login() {
     setLoadingState(true);
 
     try {
-      await signInWithPopup(auth, googleProvider);
+      const userCredential = await signInWithPopup(auth, googleProvider);
+      // Explicitly set cookie & sync session instantly from the action handler
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: userCredential.user.uid,
+          email: userCredential.user.email,
+          name: userCredential.user.displayName,
+        }),
+      });
     } catch (err) {
       console.error('Google Auth Error:', err);
       if (err.code !== 'auth/popup-closed-by-user') {
