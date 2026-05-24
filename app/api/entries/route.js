@@ -1,22 +1,23 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireUser } from '@/lib/requireUser';
 
-// GET: Fetch entries for a user, optionally filtered by type, date range, or salary month/year
+// GET: Fetch entries for the authenticated user, optionally filtered by type, date range, or salary month/year
 export async function GET(req) {
   try {
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
     const type = searchParams.get('type');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const salaryMonth = searchParams.get('salaryMonth');
     const salaryYear = searchParams.get('salaryYear');
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
-    }
-
-    const where = { userId };
+    const where = { userId: user.id };
 
     if (type) {
       where.type = type;
@@ -49,11 +50,15 @@ export async function GET(req) {
   }
 }
 
-// POST: Create a new financial entry
+// POST: Create a new financial entry for the authenticated user
 export async function POST(req) {
   try {
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const {
-      userId,
       amount,
       title,
       description,
@@ -64,7 +69,7 @@ export async function POST(req) {
       date,
     } = await req.json();
 
-    if (!userId || amount === undefined || !title || !type) {
+    if (amount === undefined || !title || !type) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
@@ -79,7 +84,7 @@ export async function POST(req) {
     }
 
     const entryData = {
-      userId,
+      userId: user.id,
       amount: parsedAmount,
       title,
       description: description || '',
@@ -108,9 +113,14 @@ export async function POST(req) {
   }
 }
 
-// DELETE: Delete a financial entry
+// DELETE: Delete a financial entry belonging to the authenticated user
 export async function DELETE(req) {
   try {
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -118,8 +128,23 @@ export async function DELETE(req) {
       return NextResponse.json({ error: 'Missing entry id' }, { status: 400 });
     }
 
+    const entryId = parseInt(id);
+
+    // Verify ownership of the financial entry before deleting
+    const existingEntry = await db.financialEntry.findUnique({
+      where: { id: entryId },
+    });
+
+    if (!existingEntry) {
+      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    }
+
+    if (existingEntry.userId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden: You do not have permission to delete this entry' }, { status: 403 });
+    }
+
     await db.financialEntry.delete({
-      where: { id: parseInt(id) },
+      where: { id: entryId },
     });
 
     return NextResponse.json({ success: true });

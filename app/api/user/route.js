@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireUser } from '@/lib/requireUser';
 
 // POST: Sync/Create user upon authentication and establish secure UserSession
 export async function POST(req) {
@@ -72,8 +73,12 @@ export async function POST(req) {
 // PUT: Update user configurations (e.g., salary cycle date, name, currency, notification preferences)
 export async function PUT(req) {
   try {
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { 
-      uid, 
       name, 
       salaryCycleDate, 
       currency, 
@@ -83,10 +88,7 @@ export async function PUT(req) {
       notifCycle 
     } = await req.json();
 
-    if (!uid) {
-      return NextResponse.json({ error: 'Missing user id' }, { status: 400 });
-    }
-
+    const uid = user.id;
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     

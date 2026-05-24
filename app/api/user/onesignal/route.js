@@ -1,24 +1,26 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireUser } from '@/lib/requireUser';
 
 export async function POST(req) {
   try {
-    const { userId, onesignalId, subscriptionId } = await req.json();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Update user record with OneSignal IDs
+    const { onesignalId, subscriptionId } = await req.json();
+
+    // Update user record with OneSignal IDs using authenticated user id
     const updatedUser = await db.user.update({
-      where: { id: userId },
+      where: { id: user.id },
       data: {
         oneSignalId: onesignalId || null,
         oneSignalSubId: subscriptionId || null,
       },
     });
 
-    console.log(`[OneSignal Sync] Updated user ${userId} with OneSignalId: ${onesignalId}, SubscriptionId: ${subscriptionId}`);
+    console.log(`[OneSignal Sync] Updated user ${user.id} with OneSignalId: ${onesignalId}, SubscriptionId: ${subscriptionId}`);
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {

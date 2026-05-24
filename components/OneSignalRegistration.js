@@ -51,7 +51,6 @@ export default function OneSignalRegistration() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                  userId: user.uid,
                   onesignalId,
                   subscriptionId,
                 }),

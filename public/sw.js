@@ -77,12 +77,17 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 2. HTML Pages & Data APIs -> Network First with Cache Fallback
+  // 2. HTML Pages & Data APIs -> Network First with 4.5s Timeout Race and Cache Fallback
+  const networkRace = Promise.race([
+    fetch(req),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 4500))
+  ]);
+
   event.respondWith(
-    fetch(req)
+    networkRace
       .then((networkResponse) => {
-        // Cache successful page/api responses
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        // Cache successful page/api responses (allow both basic and cors responses from our origin)
+        if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(req, responseToCache);
@@ -90,21 +95,24 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       })
-      .catch(() => {
-        // Fallback to cache if network is unavailable
+      .catch((error) => {
+        console.warn('[Service Worker] Fetch failed or timed out, falling back to cache:', error);
+        // Fallback to cache if network is unavailable or timed out
         return caches.match(req).then((cachedResponse) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // If a page fetch fails and is not in cache, fallback to offline shell if needed
+          // If a page fetch fails and is not in cache, fallback to offline root shell
           if (req.mode === 'navigate') {
             return caches.match('/');
           }
-          return new Response('Network error occurred and no cached data is available.', {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: new Headers({ 'Content-Type': 'text/plain' })
-          });
+          return new Response(
+            JSON.stringify({ error: 'Connection timed out or network is offline.', isOffline: true }),
+            {
+              status: 504,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
         });
       })
   );

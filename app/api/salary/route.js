@@ -1,19 +1,20 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { requireUser } from '@/lib/requireUser';
 
-// GET: Fetch salary entries for a user, optionally filtered by month and year
+// GET: Fetch salary entries for the authenticated user, optionally filtered by month and year
 export async function GET(req) {
   try {
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
     const month = searchParams.get('month');
     const year = searchParams.get('year');
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
-    }
-
-    const where = { userId };
+    const where = { userId: user.id };
     if (month) where.month = parseInt(month);
     if (year) where.year = parseInt(year);
 
@@ -32,12 +33,17 @@ export async function GET(req) {
   }
 }
 
-// POST: Add or update a salary entry month-wise
+// POST: Add or update a salary entry month-wise for the authenticated user
 export async function POST(req) {
   try {
-    const { userId, amount, month, year } = await req.json();
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (!userId || amount === undefined || !month || !year) {
+    const { amount, month, year } = await req.json();
+
+    if (amount === undefined || !month || !year) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
@@ -56,7 +62,7 @@ export async function POST(req) {
     const salary = await db.salary.upsert({
       where: {
         userId_month_year: {
-          userId,
+          userId: user.id,
           month: parsedMonth,
           year: parsedYear,
         },
@@ -65,7 +71,7 @@ export async function POST(req) {
         amount: parsedAmount,
       },
       create: {
-        userId,
+        userId: user.id,
         amount: parsedAmount,
         month: parsedMonth,
         year: parsedYear,

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { geminiTools, executeTool } from '@/lib/gemini';
+import { requireUser } from '@/lib/requireUser';
 
 // Initialize the Google Generative AI SDK
 // Uses GEMINI_API_KEY environment variable
@@ -40,11 +41,14 @@ const getFunctionCalls = (res) => {
 
 export async function POST(req) {
   try {
-    const { messages, userId } = await req.json();
-
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const { messages } = await req.json();
+    const userId = user.id;
+
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json({ error: 'Missing or invalid messages parameter' }, { status: 400 });
     }

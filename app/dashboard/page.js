@@ -33,6 +33,10 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  // Recovery Loading States
+  const [showRecovery, setShowRecovery] = useState(false);
+  const [loadingStep, setLoadingStep] = useState('Syncing secure session...');
+
   // Primary Data State
   const [data, setData] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
@@ -80,12 +84,38 @@ export default function Dashboard() {
     }
   }, [user, loading, router]);
 
+  // Loading Recovery Timer Logic for PWA / iOS Web Apps
+  useEffect(() => {
+    let stepTimer1;
+    let stepTimer2;
+    let recoveryTimer;
+
+    const isDashboardLoading = loading || !user || !data;
+
+    if (isDashboardLoading) {
+      stepTimer1 = setTimeout(() => setLoadingStep('Loading financial ledger...'), 2500);
+      stepTimer2 = setTimeout(() => setLoadingStep('Optimizing AI insights...'), 5000);
+      recoveryTimer = setTimeout(() => {
+        setShowRecovery(true);
+      }, 10000); // 10 seconds timeout for self-healing recovery actions
+    } else {
+      setShowRecovery(false);
+      setLoadingStep('Syncing secure session...');
+    }
+
+    return () => {
+      clearTimeout(stepTimer1);
+      clearTimeout(stepTimer2);
+      clearTimeout(recoveryTimer);
+    };
+  }, [loading, user, data]);
+
   // Fetch Dashboard Aggregated Data
   const fetchDashboardData = async () => {
     if (!user) return;
     setDataLoading(true);
     try {
-      let url = `/api/dashboard?userId=${user.uid}&filter=${filter}`;
+      let url = `/api/dashboard?filter=${filter}`;
       if (filter === 'custom' && customStart && customEnd) {
         url += `&startDate=${customStart}&endDate=${customEnd}`;
       }
@@ -123,7 +153,6 @@ export default function Dashboard() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.uid,
           amount: parseFloat(salAmount),
           month: parseInt(salMonth),
           year: parseInt(salYear),
@@ -164,7 +193,6 @@ export default function Dashboard() {
 
     try {
       const payload = {
-        userId: user.uid,
         amount: parseFloat(entryAmount),
         title: entryTitle.trim(),
         description: entryDesc.trim(),
@@ -216,10 +244,61 @@ export default function Dashboard() {
     }
   };
 
-  if (loading || !user) {
+  if (loading || !user || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#030712] px-6 text-center select-none relative overflow-hidden">
+        {/* Soft Background Mesh */}
+        <div className="absolute inset-0 bg-radial-gradient from-violet-600/5 via-transparent to-transparent opacity-50 blur-3xl pointer-events-none"></div>
+        
+        <div className="relative z-10 flex flex-col items-center">
+          <div className="w-14 h-14 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-6"></div>
+          
+          <h3 className="text-white font-extrabold text-lg tracking-tight mb-1">ePassbook Wallet</h3>
+          <p className="text-slate-400 text-xs font-semibold animate-pulse">{loadingStep}</p>
+
+          {showRecovery && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-10 p-6 bg-slate-900/80 border border-white/10 rounded-3xl max-w-sm text-center shadow-2xl backdrop-blur-md"
+            >
+              <AlertCircle className="w-7 h-7 text-amber-400 mx-auto mb-3 animate-bounce" />
+              <h4 className="text-white font-extrabold text-sm tracking-tight">Sync taking longer than usual</h4>
+              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-medium">
+                PWAs on iOS can experience cache lockups. Resetting the offline application can restore connection instantly.
+              </p>
+              
+              <div className="mt-5 flex flex-col gap-2.5">
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  Refresh Application
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (let registration of registrations) {
+                          await registration.unregister();
+                        }
+                      }
+                      const cacheNames = await caches.keys();
+                      await Promise.all(cacheNames.map(name => caches.delete(name)));
+                      window.location.reload();
+                    } catch (e) {
+                      window.location.reload();
+                    }
+                  }}
+                  className="w-full py-3 bg-slate-950/60 border border-white/10 hover:bg-slate-900 text-slate-300 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                >
+                  Force Clear PWA Caches
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </div>
       </div>
     );
   }

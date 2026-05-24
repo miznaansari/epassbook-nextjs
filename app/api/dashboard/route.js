@@ -1,27 +1,21 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCycleRange, getLogicalCyclePeriod, getRangeForLogicalPeriod } from '@/lib/cycle';
+import { requireUser } from '@/lib/requireUser';
 
 export async function GET(req) {
   try {
+    const user = await requireUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
+    const userId = user.id;
     const filter = searchParams.get('filter') || 'current'; // current, last, last3, last6, custom
     const customStart = searchParams.get('startDate');
     const customEnd = searchParams.get('endDate');
 
-    if (!userId) {
-      return NextResponse.json({ error: 'Missing userId parameter' }, { status: 400 });
-    }
-
-    // 1. Fetch user to check salary cycle date configuration
-    const user = await db.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
 
     const cycleDate = user.salaryCycleDate;
     const now = new Date();

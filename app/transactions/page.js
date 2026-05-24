@@ -43,9 +43,9 @@ export default function Transactions() {
     if (!user) return;
     setLoadingEntries(true);
     try {
-      let url = `/api/entries?userId=${user.uid}`;
+      let url = '/api/entries';
       if (typeFilter !== 'ALL') {
-        url += `&type=${typeFilter}`;
+        url += `?type=${typeFilter}`;
       }
 
       const res = await fetch(url);
@@ -222,6 +222,7 @@ export default function Transactions() {
                             LENDING: { text: 'text-blue-400 bg-blue-500/10 border-blue-500/20', sign: '-' },
                             LOAN: { text: 'text-orange-400 bg-orange-500/10 border-orange-500/20', sign: '+' },
                             ADVANCE: { text: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', sign: '+' },
+                            SAVINGS: { text: 'text-amber-400 bg-amber-500/10 border-amber-500/20', sign: '-' },
                           };
                           const conf = typeConfigs[entry.type];
 

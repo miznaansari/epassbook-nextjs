@@ -54,23 +54,13 @@ export default function Reports() {
       if (!user) return;
       setLoadingData(true);
       try {
-        // Fetch User settings
-        const userRes = await fetch(`/api/user`);
-        if (userRes.ok) {
-          const userPayload = await userRes.json();
-          // Find the current authenticated user's cycle date
-          // If we have to search the list of users or read specific payload:
-          // Our POST/api/user endpoint returned user record, let's look at user.salaryCycleDate
-          setCycleDate(user.salaryCycleDate || 1);
-        }
-
         // Fetch Salaries
-        const salRes = await fetch(`/api/salary?userId=${user.uid}`);
+        const salRes = await fetch('/api/salary');
         const salData = salRes.ok ? await salRes.json() : [];
         setSalaries(salData);
 
         // Fetch Entries
-        const entRes = await fetch(`/api/entries?userId=${user.uid}`);
+        const entRes = await fetch('/api/entries');
         const entData = entRes.ok ? await entRes.json() : [];
         setEntries(entData);
       } catch (err) {
