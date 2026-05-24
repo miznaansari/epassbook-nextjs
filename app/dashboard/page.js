@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
 
   // Recovery Loading States
@@ -124,6 +124,9 @@ export default function Dashboard() {
       if (res.ok) {
         const payload = await res.json();
         setData(payload);
+      } else if (res.status === 401) {
+        console.warn('Session expired (401), executing automatic logout.');
+        logout();
       }
     } catch (err) {
       console.error('Error fetching dashboard:', err);
@@ -294,6 +297,26 @@ export default function Dashboard() {
                   className="w-full py-3 bg-slate-950/60 border border-white/10 hover:bg-slate-900 text-slate-300 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
                 >
                   Force Clear PWA Caches
+                </button>
+                <button
+                  onClick={async () => {
+                    try {
+                      if ('serviceWorker' in navigator) {
+                        const registrations = await navigator.serviceWorker.getRegistrations();
+                        for (let registration of registrations) {
+                          await registration.unregister();
+                        }
+                      }
+                      const cacheNames = await caches.keys();
+                      await Promise.all(cacheNames.map(name => caches.delete(name)));
+                    } catch (e) {
+                      console.error(e);
+                    }
+                    await logout();
+                  }}
+                  className="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 rounded-xl text-xs font-black tracking-wider uppercase transition-all active:scale-95 cursor-pointer"
+                >
+                  Hard Logout & Reset PWA
                 </button>
               </div>
             </motion.div>

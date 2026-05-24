@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function Transactions() {
-  const { user, loading } = useAuth();
+  const { user, loading, logout } = useAuth();
   const router = useRouter();
 
   // Transactions State
@@ -52,6 +52,9 @@ export default function Transactions() {
       if (res.ok) {
         const payload = await res.json();
         setEntries(payload);
+      } else if (res.status === 401) {
+        console.warn('Session expired (401), redirecting to login.');
+        logout();
       }
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -75,6 +78,9 @@ export default function Transactions() {
       });
       if (res.ok) {
         await fetchEntries();
+      } else if (res.status === 401) {
+        console.warn('Session expired (401), redirecting to login.');
+        logout();
       }
     } catch (err) {
       console.error('Delete error:', err);
