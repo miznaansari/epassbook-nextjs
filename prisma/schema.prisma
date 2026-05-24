@@ -1,0 +1,55 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String           @id // Firebase UID
+  email            String           @unique
+  name             String?
+  salaryCycleDate  Int              @default(1) // Default to 1st of month (1 to 31)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  salaries         Salary[]
+  financialEntries FinancialEntry[]
+}
+
+model Salary {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(12, 2)
+  month     Int      // 1 to 12
+  year      Int      // e.g. 2026
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, month, year])
+}
+
+enum EntryType {
+  LENDING
+  LOAN
+  SPENDING
+  ADVANCE
+}
+
+model FinancialEntry {
+  id                 Int       @id @default(autoincrement())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount             Decimal   @db.Decimal(12, 2)
+  title              String
+  description        String?   @db.Text
+  type               EntryType
+  useSalaryBalance   Boolean   @default(false)
+  salaryMonth        Int?      // Month from which salary is deducted (if useSalaryBalance = true)
+  salaryYear         Int?      // Year from which salary is deducted (if useSalaryBalance = true)
+  date               DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}

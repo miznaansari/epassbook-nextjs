@@ -1,0 +1,47 @@
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
+import PWARegistration from "@/components/PWARegistration";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const viewport = {
+  themeColor: "#8b5cf6",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
+
+export const metadata = {
+  title: "Manage Monthly Money | AI-Powered E-Passbook",
+  description: "A Gen-Z styled, AI-powered smart E-Passbook for tracking month-wise salary, lending, loans, advance balance, and spending with streaming Gemini intelligence.",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "MonthlyMoney",
+  },
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        <AuthProvider>
+          <PWARegistration />
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
