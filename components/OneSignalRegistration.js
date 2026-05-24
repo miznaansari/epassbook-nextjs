@@ -67,6 +67,20 @@ export default function OneSignalRegistration() {
           // Fetch onesignalId and push subscription ID to sync to backend MySQL DB
           const onesignalId = OneSignal.User.onesignalId;
           const pushSub = OneSignal.User.pushSubscription || OneSignal.User.PushSubscription;
+          
+          // If browser notification permission is already granted, ensure they are actively opted in!
+          // This programmatically links their active subscription with the newly logged-in external ID.
+          if (OneSignal.Notifications && OneSignal.Notifications.permission === 'granted' && pushSub) {
+            if (!pushSub.optedIn) {
+              console.log("[OneSignal] Native permission is granted but subscription is not opted-in. Resolving state...");
+              try {
+                await pushSub.optIn();
+              } catch (optErr) {
+                console.error("[OneSignal] Error calling optIn programmatically:", optErr);
+              }
+            }
+          }
+
           const subscriptionId = pushSub?.id;
 
           // Initial sync

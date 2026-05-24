@@ -92,9 +92,16 @@ export async function POST(req) {
         });
         console.log(`[Broadcast Dispatch] Target User ID: ${targetUserId}, DB oneSignalId: ${userRec?.oneSignalId}, DB oneSignalSubId: ${userRec?.oneSignalSubId}`);
         
-        payload.include_aliases = {
-          external_id: [targetUserId]
-        };
+        if (userRec?.oneSignalSubId) {
+          // If we have their direct push subscription ID in the database, target it directly!
+          // This is a 100% reliable mechanism that bypasses any external_id indexing delays.
+          payload.include_subscription_ids = [userRec.oneSignalSubId];
+        } else {
+          // Otherwise, target by their authenticated external_id alias
+          payload.include_aliases = {
+            external_id: [targetUserId]
+          };
+        }
       }
 
       if (restApiKey) {
