@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-// POST: Sync/Create user upon authentication
+// POST: Sync/Create user upon authentication and establish secure UserSession
 export async function POST(req) {
   try {
     const { uid, email, name } = await req.json();
@@ -25,7 +25,44 @@ export async function POST(req) {
       });
     }
 
-    return NextResponse.json(user);
+    // Session Management: Check if a valid session cookie already exists for this user
+    const existingToken = req.cookies.get('session_token')?.value;
+    let sessionIsValid = false;
+
+    if (existingToken) {
+      const activeSession = await db.userSession.findUnique({
+        where: { token: existingToken },
+      });
+      if (activeSession && activeSession.userId === uid && activeSession.expiresAt > new Date()) {
+        sessionIsValid = true;
+      }
+    }
+
+    const response = NextResponse.json(user);
+
+    if (!sessionIsValid) {
+      // Create new session in DB
+      const token = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      await db.userSession.create({
+        data: {
+          userId: user.id,
+          token,
+          expiresAt,
+        },
+      });
+
+      response.cookies.set('session_token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        expires: expiresAt,
+      });
+    }
+
+    return response;
   } catch (error) {
     console.error('Error in /api/user POST:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

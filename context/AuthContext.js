@@ -85,6 +85,11 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     setLoading(true);
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.error('Error logging out from server session:', e);
+    }
     await signOut(auth);
     setUser(null);
     setLoading(false);

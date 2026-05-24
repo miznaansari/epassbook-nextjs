@@ -316,7 +316,7 @@ export default function Dashboard() {
         </div>
 
         {/* Row 2: KPI Metrics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-6 mb-8">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-8">
           {[
             {
               title: "Current Balance",
@@ -365,6 +365,14 @@ export default function Dashboard() {
               text: "text-cyan-400",
               icon: TrendingUp,
               desc: "Total advance deposits in cycle"
+            },
+            {
+              title: "Invested Savings (SIP)",
+              amount: formatCurrency(data?.kpis?.savings),
+              glow: "glow-savings",
+              text: "text-amber-400",
+              icon: TrendingUp,
+              desc: "Grow assets, SIPs and investments in cycle"
             }
           ].map((card, idx) => {
             const Icon = card.icon;
@@ -653,6 +661,7 @@ export default function Dashboard() {
                       <option value="LENDING">Lending Amount</option>
                       <option value="LOAN">Loan Amount</option>
                       <option value="ADVANCE">Advance Balance</option>
+                      <option value="SAVINGS">Savings / SIPs</option>
                     </select>
                   </div>
                 </div>

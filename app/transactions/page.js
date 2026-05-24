@@ -157,6 +157,7 @@ export default function Transactions() {
               <option value="LENDING">Lendings</option>
               <option value="LOAN">Loans</option>
               <option value="ADVANCE">Advances</option>
+              <option value="SAVINGS">Savings / SIPs</option>
             </select>
           </div>
         </div>

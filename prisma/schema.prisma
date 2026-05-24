@@ -17,10 +17,51 @@ model User {
   notifSalary        Boolean          @default(true) // Enable celebratory salary toast notification
   notifDaily         Boolean          @default(true) // Enable daily reminder notification
   notifCycle         Boolean          @default(true) // Enable end of cycle analysis notification
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
   salaries           Salary[]
   financialEntries   FinancialEntry[]
+  sessions           UserSession[]
+  broadcasts         NotificationBroadcast[]
+}
+
+model UserSession {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Admin {
+  id        String         @id @default(uuid())
+  email     String         @unique
+  password  String         // Store standard passwords safely
+  name      String?
+  sessions  AdminSession[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model AdminSession {
+  id        String   @id @default(uuid())
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model NotificationBroadcast {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  target    String   @default("ALL") // "ALL" or specific user id/email
+  readBy    String?  @db.Text        // Comma-separated user IDs who marked it read
+  createdAt DateTime @default(now())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Salary {
@@ -41,6 +82,7 @@ enum EntryType {
   LOAN
   SPENDING
   ADVANCE
+  SAVINGS
 }
 
 model FinancialEntry {

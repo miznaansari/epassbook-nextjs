@@ -73,7 +73,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid financial amount' }, { status: 400 });
     }
 
-    const validTypes = ['LENDING', 'LOAN', 'SPENDING', 'ADVANCE'];
+    const validTypes = ['LENDING', 'LOAN', 'SPENDING', 'ADVANCE', 'SAVINGS'];
     if (!validTypes.includes(type)) {
       return NextResponse.json({ error: 'Invalid entry type' }, { status: 400 });
     }

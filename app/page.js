@@ -81,7 +81,7 @@ export default function Home() {
           </h1>
 
           <p className="text-lg text-slate-400 font-medium">
-            Ditch the dusty passbooks. Log month-wise salaries, configure custom cycle calendars, track active debts and lending receivables, and chat with Gemini 2.0 to unlock real-time financial savings.
+            Ditch the dusty passbooks. Log month-wise salaries, configure custom cycle calendars, track active debts and lending receivables, and chat with Gemini 2.5 to unlock real-time financial savings.
           </p>
 
           <div className="mt-4 flex flex-col sm:flex-row gap-4 w-full sm:w-auto">

@@ -259,7 +259,7 @@ export default function Assistant() {
       {/* FOOTER */}
       <footer className="border-t border-white/5 py-4">
         <div className="max-w-7xl mx-auto px-6 text-slate-600 text-[10px] text-center font-medium">
-          Powered by Google Gemini 2.0 Flash with Database Tool Access.
+          Powered by Google Gemini 2.5 Flash with Database Tool Access.
         </div>
       </footer>
     </div>

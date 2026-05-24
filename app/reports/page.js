@@ -149,7 +149,7 @@ export default function Reports() {
       // Spendings + Lendings in this cycle date boundary
       const periodOutflows = entries.filter(e => {
         const d = new Date(e.date);
-        return d >= cycleStart && d <= cycleEnd && (e.type === 'SPENDING' || e.type === 'LENDING');
+        return d >= cycleStart && d <= cycleEnd && (e.type === 'SPENDING' || e.type === 'LENDING' || e.type === 'SAVINGS');
       });
       const totalOutflow = periodOutflows.reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
@@ -187,7 +187,7 @@ export default function Reports() {
 
     const currentPeriodSpending = entries.filter(e => {
       const d = new Date(e.date);
-      return d >= cycleStart && d <= cycleEnd && e.type === 'SPENDING';
+      return d >= cycleStart && d <= cycleEnd && (e.type === 'SPENDING' || e.type === 'SAVINGS');
     });
 
     if (currentPeriodSpending.length === 0) {
@@ -196,6 +196,10 @@ export default function Reports() {
 
     const groups = {};
     currentPeriodSpending.forEach(e => {
+      if (e.type === 'SAVINGS') {
+        groups['Invested Savings'] = (groups['Invested Savings'] || 0) + parseFloat(e.amount);
+        return;
+      }
       const title = e.title.trim().toLowerCase();
       let cat = 'Others';
       
@@ -222,6 +226,7 @@ export default function Reports() {
     'Transport': '#3B82F6',     // blue
     'Utilities': '#06B6D4',     // cyan
     'Shopping': '#EC4899',      // pink
+    'Invested Savings': '#F59E0B', // amber (glowing gold)
     'Others': '#64748B',         // slate
   };
 

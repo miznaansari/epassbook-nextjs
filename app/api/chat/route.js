@@ -21,9 +21,9 @@ export async function POST(req) {
     }
 
     const ai = new GoogleGenerativeAI(apiKey);
-    // Use gemini-2.0-flash as it is state of the art and super fast!
+    // Use gemini-2.5-flash as it is state of the art and super fast!
     const model = ai.getGenerativeModel({
-      model: 'gemini-2.0-flash',
+      model: 'gemini-2.5-flash',
       systemInstruction: `You are Antigravity Finance AI, a Gen-Z styled hyper-advanced monthly personal finance assistant for "Manage Monthly Money".
 You have real-time access to the user's financial ledger via database tools.
 Always maintain a premium, friendly, highly analytical, slightly witty and helpful tone. Feel free to use emojis to keep it engaging and modern!
@@ -40,10 +40,23 @@ When the user asks questions related to their expenses, salary balances, loans/l
     // 1. Format messages history for Gemini API
     // Vercel AI SDK style: { role: 'user'|'assistant', content: 'text' }
     // Gemini style: { role: 'user'|'model', parts: [{ text: '...' }] }
-    const contents = messages.map(m => ({
+    let contents = messages.map(m => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: m.content }],
     }));
+
+    // Google Generative AI SDK requirement: The first message in the history MUST be from the 'user' role.
+    // We strip out any leading model greetings to comply.
+    const firstUserIndex = contents.findIndex(m => m.role === 'user');
+    if (firstUserIndex > 0) {
+      contents = contents.slice(firstUserIndex);
+    } else if (firstUserIndex === -1) {
+      contents = [];
+    }
+
+    if (contents.length === 0) {
+      return NextResponse.json({ error: 'No user messages found in history' }, { status: 400 });
+    }
 
     // 2. Perform Gemini Call with Tool Configurations
     let chatSession = model.startChat({
@@ -89,7 +102,16 @@ When the user asks questions related to their expenses, salary balances, loans/l
     }
 
     // 4. Once all tools are processed, fetch and stream the final model response text
-    const textResponse = response.text;
+    let textResponse = '';
+    if (response.response && typeof response.response.text === 'function') {
+      textResponse = response.response.text();
+    } else if (typeof response.text === 'function') {
+      textResponse = response.text();
+    } else if (response.response && typeof response.response.text === 'string') {
+      textResponse = response.response.text;
+    } else if (typeof response.text === 'string') {
+      textResponse = response.text;
+    }
 
     // Convert standard static response to stream chunks to make UI feel highly interactive!
     const encoder = new TextEncoder();

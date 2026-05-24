@@ -78,6 +78,7 @@ export async function GET(req) {
     let totalAllTimeLending = 0;
     let totalAllTimeLoan = 0;
     let totalAllTimeAdvance = 0;
+    let totalAllTimeSavings = 0;
 
     allEntries.forEach(e => {
       const amt = parseFloat(e.amount);
@@ -85,11 +86,12 @@ export async function GET(req) {
       else if (e.type === 'LENDING') totalAllTimeLending += amt;
       else if (e.type === 'LOAN') totalAllTimeLoan += amt;
       else if (e.type === 'ADVANCE') totalAllTimeAdvance += amt;
+      else if (e.type === 'SAVINGS') totalAllTimeSavings += amt;
     });
 
     const globalCurrentBalance = 
       (totalAllTimeSalaries + totalAllTimeAdvance + totalAllTimeLoan) - 
-      (totalAllTimeSpending + totalAllTimeLending);
+      (totalAllTimeSpending + totalAllTimeLending + totalAllTimeSavings);
 
     // 3. Query records in the SELECTED cycle window
     const periodEntries = await db.financialEntry.findMany({
@@ -108,6 +110,7 @@ export async function GET(req) {
     let periodLending = 0;
     let periodLoan = 0;
     let periodAdvance = 0;
+    let periodSavings = 0;
 
     periodEntries.forEach(e => {
       const amt = parseFloat(e.amount);
@@ -115,6 +118,7 @@ export async function GET(req) {
       else if (e.type === 'LENDING') periodLending += amt;
       else if (e.type === 'LOAN') periodLoan += amt;
       else if (e.type === 'ADVANCE') periodAdvance += amt;
+      else if (e.type === 'SAVINGS') periodSavings += amt;
     });
 
     // 5. Get Salary & Salary Balance for current period
@@ -195,6 +199,7 @@ export async function GET(req) {
         lending: periodLending,
         loan: periodLoan,
         advance: periodAdvance,
+        savings: periodSavings,
         salaryTotal: periodSalaryTotal,
         salaryBalance: periodSalaryBalance,
       },
