@@ -377,11 +377,8 @@ export default function Dashboard() {
           ].map((card, idx) => {
             const Icon = card.icon;
             return (
-              <motion.div
+              <div
                 key={idx}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.4, delay: idx * 0.05 }}
                 className={`glass-card p-3 sm:p-5 border text-left flex flex-col justify-between h-32 sm:h-44 cursor-default relative group ${card.glow}`}
               >
                 <div className="flex justify-between items-start">
@@ -403,7 +400,7 @@ export default function Dashboard() {
                     <p className={`text-base sm:text-2xl font-black tracking-tight ${card.text} truncate`}>{card.amount}</p>
                   )}
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>

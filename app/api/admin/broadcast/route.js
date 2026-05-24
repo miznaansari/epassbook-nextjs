@@ -86,6 +86,12 @@ export async function POST(req) {
       if (target === 'ALL') {
         payload.included_segments = ["Subscribed Users"];
       } else if (targetUserId) {
+        const userRec = await db.user.findUnique({
+          where: { id: targetUserId },
+          select: { oneSignalId: true, oneSignalSubId: true }
+        });
+        console.log(`[Broadcast Dispatch] Target User ID: ${targetUserId}, DB oneSignalId: ${userRec?.oneSignalId}, DB oneSignalSubId: ${userRec?.oneSignalSubId}`);
+        
         payload.include_aliases = {
           external_id: [targetUserId]
         };

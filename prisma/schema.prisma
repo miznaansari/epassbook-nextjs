@@ -17,6 +17,8 @@ model User {
   notifSalary        Boolean          @default(true) // Enable celebratory salary toast notification
   notifDaily         Boolean          @default(true) // Enable daily reminder notification
   notifCycle         Boolean          @default(true) // Enable end of cycle analysis notification
+  oneSignalId        String?          // OneSignal User ID (onesignalId)
+  oneSignalSubId     String?          // OneSignal Push Subscription ID
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   salaries           Salary[]

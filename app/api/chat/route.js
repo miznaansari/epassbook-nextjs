@@ -6,6 +6,38 @@ import { geminiTools, executeTool } from '@/lib/gemini';
 // Uses GEMINI_API_KEY environment variable
 const apiKey = process.env.GEMINI_API_KEY || '';
 
+// Helper to robustly extract function calls from various SDK response formats
+const getFunctionCalls = (res) => {
+  if (!res) return undefined;
+  if (res.response) {
+    if (typeof res.response.functionCalls === 'function') {
+      const calls = res.response.functionCalls();
+      if (calls && calls.length > 0) return calls;
+    }
+    if (Array.isArray(res.response.functionCalls)) {
+      return res.response.functionCalls;
+    }
+  }
+  if (typeof res.functionCalls === 'function') {
+    const calls = res.functionCalls();
+    if (calls && calls.length > 0) return calls;
+  }
+  if (Array.isArray(res.functionCalls)) {
+    return res.functionCalls;
+  }
+  try {
+    const candidate = res.response?.candidates?.[0] || res.candidates?.[0];
+    const parts = candidate?.content?.parts;
+    if (parts) {
+      const calls = parts.filter(p => p.functionCall).map(p => p.functionCall);
+      if (calls.length > 0) return calls;
+    }
+  } catch (e) {
+    console.error("Error parsing functionCalls from candidates:", e);
+  }
+  return undefined;
+};
+
 export async function POST(req) {
   try {
     const { messages, userId } = await req.json();
@@ -68,7 +100,7 @@ When the user asks questions related to their expenses, salary balances, loans/l
     let response = await chatSession.sendMessage(lastMessage);
 
     // 3. Handle Potential Tool Calling Loop
-    let functionCalls = response.functionCalls;
+    let functionCalls = getFunctionCalls(response);
     
     // We can loop over multiple function calls if Gemini returns them
     while (functionCalls && functionCalls.length > 0) {
@@ -98,7 +130,7 @@ When the user asks questions related to their expenses, salary balances, loans/l
 
       // Send the tool execution outputs back to the Gemini conversation session
       response = await chatSession.sendMessage(toolResults);
-      functionCalls = response.functionCalls;
+      functionCalls = getFunctionCalls(response);
     }
 
     // 4. Once all tools are processed, fetch and stream the final model response text

@@ -127,9 +127,9 @@ export default function Settings() {
 
         {/* Row 2: Settings Form Container */}
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
           className="glass-card p-6 sm:p-8 border border-white/5 shadow-2xl relative overflow-hidden text-left"
         >
           {/* Top highlight bar */}

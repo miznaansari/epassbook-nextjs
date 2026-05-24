@@ -89,7 +89,10 @@ export default function Navbar() {
       </header>
 
       {/* Mobile Sticky Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#02040a]/90 backdrop-blur-xl border-t border-white/5 shadow-2xl py-2 px-3 flex items-center justify-around pb-safe">
+      <nav 
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#02040a]/90 backdrop-blur-xl border-t border-white/5 shadow-2xl pt-2.5 px-3 flex items-center justify-around"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
+      >
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.path;
