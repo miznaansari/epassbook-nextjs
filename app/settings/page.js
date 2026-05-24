@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
+import packageInfo from '@/package.json';
 import { 
   Settings as SettingsIcon, 
   User, 
@@ -328,8 +329,11 @@ export default function Settings() {
 
       {/* FOOTER */}
       <footer className="border-t border-white/5 py-6">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium">
-          © {new Date().getFullYear()} Manage Monthly Money. Configurator Settings.
+        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium flex flex-col items-center gap-1.5 justify-center">
+          <span>© {new Date().getFullYear()} Manage Monthly Money. Configurator Settings.</span>
+          <span className="text-[10px] text-slate-500 font-bold bg-white/5 border border-white/10 px-2 py-0.5 rounded-full mt-1.5 transition-colors hover:border-violet-500/30 hover:text-violet-400 select-none">
+            System UI Version: v{packageInfo.version}
+          </span>
         </div>
       </footer>
     </div>

@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, 
   ArrowUpRight, 
+  ArrowDownLeft,
   Calendar, 
   ChevronDown, 
   PlusCircle, 
@@ -20,7 +21,12 @@ import {
   HelpCircle,
   PiggyBank,
   ArrowRightLeft,
-  X
+  X,
+  Zap,
+  Search,
+  Sparkles,
+  Filter,
+  Target
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -36,9 +42,14 @@ export default function Dashboard() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
 
+  // Client-side Ledger Filter States
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('ALL');
+
   // Modals & Drawers State
   const [salaryModalOpen, setSalaryModalOpen] = useState(false);
   const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [presetsDrawerOpen, setPresetsDrawerOpen] = useState(false);
   const [salaryCelebrationOpen, setSalaryCelebrationOpen] = useState(false);
 
   // Forms State
@@ -223,6 +234,62 @@ export default function Dashboard() {
     }).format(val || 0);
   };
 
+  // Preset Generation Helper
+  const getPresetsList = () => {
+    const defaultPresets = [
+      { label: 'Dinner 🍔', title: 'Dinner', amount: 15, type: 'SPENDING', desc: 'Dining out / food' },
+      { label: 'Uber/Cab 🚗', title: 'Uber/Cab', amount: 10, type: 'SPENDING', desc: 'Transport ride' },
+      { label: 'Coffee ☕', title: 'Coffee', amount: 5, type: 'SPENDING', desc: 'Daily caffeine run' },
+      { label: 'SIP 📈', title: 'SIP', amount: 250, type: 'SAVINGS', desc: 'Invested savings / SIP' },
+      { label: 'Lending 💸', title: 'Lending', amount: 50, type: 'LENDING', desc: 'Lent money' }
+    ];
+
+    if (!data?.recentTransactions) return defaultPresets;
+
+    const uniqueMap = new Map();
+    data.recentTransactions.forEach(t => {
+      const title = t.title || 'Untitled';
+      const type = t.type || 'SPENDING';
+      const key = `${title.trim().toLowerCase()}_${type}`;
+      if (!uniqueMap.has(key)) {
+        let emoji = '💸';
+        const titleLower = title.toLowerCase();
+        if (type === 'SAVINGS' || titleLower.includes('sip') || titleLower.includes('save') || titleLower.includes('invest') || titleLower.includes('saving')) emoji = '📈';
+        else if (titleLower.includes('food') || titleLower.includes('eat') || titleLower.includes('restaurant') || titleLower.includes('cafe') || titleLower.includes('dinner') || titleLower.includes('lunch') || titleLower.includes('breakfast')) emoji = '🍔';
+        else if (titleLower.includes('uber') || titleLower.includes('cab') || titleLower.includes('taxi') || titleLower.includes('fuel') || titleLower.includes('travel') || titleLower.includes('car')) emoji = '🚗';
+        else if (titleLower.includes('coffee') || titleLower.includes('starbucks') || titleLower.includes('tea')) emoji = '☕';
+        else if (titleLower.includes('rent') || titleLower.includes('room') || titleLower.includes('flat') || titleLower.includes('home')) emoji = '🏠';
+
+        uniqueMap.set(key, {
+          label: `${title} ${emoji}`,
+          title: title,
+          amount: parseFloat(t.amount || 0),
+          type: type,
+          desc: t.description || '',
+          count: 1,
+          timestamp: new Date(t.date || Date.now()).getTime()
+        });
+      } else {
+        const existing = uniqueMap.get(key);
+        existing.count += 1;
+      }
+    });
+
+    const presets = Array.from(uniqueMap.values())
+      .sort((a, b) => b.count - a.count || b.timestamp - a.timestamp)
+      .slice(0, 6);
+
+    if (presets.length < 4) {
+      defaultPresets.forEach(def => {
+        const isDup = presets.some(p => p.type === def.type && (p.title || '').toLowerCase() === def.title.toLowerCase());
+        if (!isDup && presets.length < 6) {
+          presets.push(def);
+        }
+      });
+    }
+    return presets;
+  };
+
   const monthsList = [
     { value: 1, name: 'January' },
     { value: 2, name: 'February' },
@@ -239,25 +306,44 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#030712] text-slate-100 selection:bg-violet-500/30 overflow-x-hidden">
+      {/* Ambient Backlight Elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[50%] bg-gradient-to-br from-violet-600/10 to-cyan-500/0 rounded-full blur-[140px] pointer-events-none z-0"></div>
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[50%] bg-gradient-to-tr from-emerald-500/5 to-amber-500/0 rounded-full blur-[140px] pointer-events-none z-0"></div>
+
       <Navbar />
 
       {/* Main Dashboard Panel */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10">
         
         {/* Row 1: Header Welcome and Date Filters */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 bg-slate-950/20 border border-white/[0.04] p-6 rounded-3xl backdrop-blur-md">
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight">Financial Dashboard</h1>
-            <p className="text-slate-400 text-sm mt-1 font-medium">
-              Cycle Range:{' '}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[9px] font-black uppercase tracking-widest rounded-md">
+                ePassbook Hub v0.1.3
+              </span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Synced Ledger</span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+              Financial Overview
+            </h1>
+            <p className="text-slate-400 text-xs mt-1 font-medium flex items-center gap-1.5">
+              <Calendar className="w-3.5 h-3.5 text-slate-500" />
+              Cycle Boundaries:{' '}
               {dataLoading ? (
-                <span className="inline-block w-36 h-4 bg-white/5 rounded animate-pulse"></span>
+                <span className="inline-block w-36 h-3 bg-white/5 rounded animate-pulse"></span>
               ) : data?.startDate ? (
-                <span className="text-violet-400 font-semibold">
-                  {new Date(data.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} →{' '}
-                  {new Date(data.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  <span className="text-slate-500 text-xs ml-2">(Cycle Day: {data.cycleDate})</span>
+                <span className="text-slate-300 font-semibold">
+                  <span className="text-violet-400">
+                    {new Date(data.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </span>
+                  <span className="mx-1 text-slate-600">→</span>
+                  <span className="text-violet-400">
+                    {new Date(data.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                  <span className="text-slate-500 text-[10px] ml-2 font-bold px-1.5 py-0.5 bg-slate-950/40 rounded border border-white/5">Cycle Day: {data.cycleDate}</span>
                 </span>
               ) : (
                 <span className="text-slate-500">Not configured</span>
@@ -270,7 +356,7 @@ export default function Dashboard() {
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="bg-slate-950/60 border border-white/10 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-violet-500 font-semibold"
+              className="bg-slate-950/80 border border-white/10 hover:border-white/20 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-violet-500 font-bold cursor-pointer transition-all shadow-lg"
             >
               <option value="current">Current Cycle</option>
               <option value="last">Last Cycle</option>
@@ -280,124 +366,233 @@ export default function Dashboard() {
             </select>
 
             {filter === 'custom' && (
-              <div className="flex items-center gap-2 bg-slate-950/40 border border-white/5 rounded-xl px-3 py-1 text-xs">
+              <div className="flex items-center gap-2 bg-slate-950/60 border border-white/5 rounded-xl px-3 py-1.5 text-xs">
                 <input
                   type="date"
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
-                  className="bg-transparent text-white focus:outline-none"
+                  className="bg-transparent text-white focus:outline-none cursor-pointer font-semibold text-xs"
                 />
-                <span className="text-slate-600">to</span>
+                <span className="text-slate-600 font-bold">to</span>
                 <input
                   type="date"
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
-                  className="bg-transparent text-white focus:outline-none"
+                  className="bg-transparent text-white focus:outline-none cursor-pointer font-semibold text-xs"
                   onBlur={fetchDashboardData}
                 />
               </div>
             )}
-
-            {/* Quick Action Trigger Buttons */}
-            <button
-              onClick={() => setSalaryModalOpen(true)}
-              className="px-4 py-2 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/15 text-emerald-400 rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-lg shadow-emerald-500/5"
-            >
-              <Plus className="w-4 h-4" /> Add Salary
-            </button>
-
-            <button
-              onClick={() => setEntryModalOpen(true)}
-              className="px-4 py-2 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-sm font-bold flex items-center gap-1.5 transition-all btn-glow shadow-lg shadow-violet-600/20 cursor-pointer"
-            >
-              <PlusCircle className="w-4 h-4" /> Log Entry
-            </button>
           </div>
         </div>
 
-        {/* Row 2: KPI Metrics Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 sm:gap-4 mb-8">
+        {/* Row 2: Hero Balance Cards & Action Buttons */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          
+          {/* Main Hero Wallet Card */}
+          <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-[#131b2e] to-[#0a0f1d] border border-white/[0.08] p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col justify-between min-h-[190px]">
+            {/* Accent Glowing Orb */}
+            <div className="absolute right-0 top-0 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div className="flex justify-between items-start">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-violet-400"></span> Total Available Capital
+                </span>
+                <div className="mt-2">
+                  {dataLoading ? (
+                    <div className="w-48 h-10 bg-white/5 rounded animate-pulse"></div>
+                  ) : (
+                    <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight flex items-baseline gap-1.5">
+                      {formatCurrency(data?.kpis?.currentBalance)}
+                    </h2>
+                  )}
+                  <p className="text-[10px] text-slate-500 font-medium mt-1">Combined balance including salary and reserves</p>
+                </div>
+              </div>
+              <span className="p-3 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-2xl shadow-inner">
+                <Wallet className="w-6 h-6" />
+              </span>
+            </div>
+
+            {/* Salary Breakdown Segment */}
+            <div className="mt-6 pt-4 border-t border-white/[0.05] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Active Salary Balance</span>
+                {dataLoading ? (
+                  <div className="w-24 h-5 bg-white/5 rounded animate-pulse mt-0.5"></div>
+                ) : (
+                  <p className="text-lg font-bold text-emerald-400 mt-0.5">{formatCurrency(data?.kpis?.salaryBalance)}</p>
+                )}
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <button
+                  onClick={() => setSalaryModalOpen(true)}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Salary
+                </button>
+                <button
+                  onClick={() => setEntryModalOpen(true)}
+                  className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-violet-600/20 hover:shadow-violet-600/35 active:scale-95 cursor-pointer font-black tracking-wider uppercase"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" /> Log Entry
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Quick Stats Mini Highlight Card */}
+          <div className="bg-gradient-to-br from-[#121c2c] to-[#080d17] border border-white/[0.08] p-6 rounded-3xl flex flex-col justify-between min-h-[190px]">
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full"></span> Investments & Savings
+              </span>
+              <div className="mt-2">
+                {dataLoading ? (
+                  <div className="w-32 h-8 bg-white/5 rounded animate-pulse"></div>
+                ) : (
+                  <h3 className="text-2xl font-black text-amber-400 tracking-tight">
+                    {formatCurrency(data?.kpis?.savings)}
+                  </h3>
+                )}
+                <p className="text-[10px] text-slate-500 font-semibold mt-1">Accumulated SIP, Growth Asset allocations</p>
+              </div>
+            </div>
+
+            <div className="mt-4 p-3 bg-amber-500/5 border border-amber-500/10 rounded-2xl flex items-center gap-2.5">
+              <span className="p-1.5 bg-amber-500/10 rounded-lg text-amber-400">
+                <Target className="w-4 h-4 animate-pulse" />
+              </span>
+              <div className="text-left">
+                <span className="block text-[8px] text-slate-500 font-bold uppercase tracking-wider">Saving Goal Ratio</span>
+                <span className="block text-xs font-bold text-slate-300">Targeting 30% Monthly SIP Ratio</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Dynamic Quick Action Presets Row */}
+        {data?.recentTransactions && data.recentTransactions.length > 0 && (
+          <div className="mb-8 text-left bg-gradient-to-r from-slate-950/40 to-slate-900/10 border border-white/[0.04] p-4 rounded-3xl flex flex-col md:flex-row md:items-center gap-4 shadow-xl backdrop-blur-md">
+            <div className="shrink-0 flex items-center gap-2">
+              <span className="p-2 bg-gradient-to-br from-violet-500/20 to-cyan-500/10 border border-violet-500/35 text-violet-400 rounded-xl shadow-lg shadow-violet-500/5">
+                <Zap className="w-4 h-4" />
+              </span>
+              <div>
+                <span className="block text-xs font-black tracking-tight text-white uppercase">One-Tap Autofill</span>
+                <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Pre-fill transaction preset</span>
+              </div>
+            </div>
+            <div 
+              className="flex gap-2.5 overflow-x-auto py-1 scroll-smooth select-none max-w-full w-full"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+               {/* Show Drawer Presets Trigger */}
+               <button
+                 onClick={() => setPresetsDrawerOpen(true)}
+                 className="px-3.5 py-2 bg-gradient-to-r from-violet-600/20 to-cyan-500/20 hover:from-violet-600/30 hover:to-cyan-500/30 border border-violet-500/30 hover:border-violet-500/50 text-xs font-black rounded-2xl text-violet-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
+               >
+                 <span>View All</span>
+                 <span className="p-0.5 bg-violet-500/30 text-white rounded-lg"><ArrowUpRight className="w-3 h-3" /></span>
+               </button>
+
+               {getPresetsList().map((preset, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      setEntryAmount(preset.amount.toString());
+                      setEntryType(preset.type);
+                      setEntryTitle(preset.title);
+                      setEntryDesc(preset.desc);
+                      setUseSalaryBal(preset.type === 'SPENDING');
+                      setEntryModalOpen(true);
+                    }}
+                    className="px-3.5 py-2 bg-white/[0.03] hover:bg-violet-600/10 border border-white/[0.06] hover:border-violet-500/30 text-xs font-bold rounded-2xl text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
+                  >
+                    <span>{preset.label}</span>
+                    <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-lg font-black">{formatCurrency(preset.amount)}</span>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Row 3: KPI Metrics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           {[
             {
-              title: "Current Balance",
-              amount: formatCurrency(data?.kpis?.currentBalance),
-              glow: "glow-balance",
-              text: "text-violet-400",
-              icon: Wallet,
-              desc: "Total cash in hand (All time)"
-            },
-            {
-              title: "Salary Balance",
-              amount: formatCurrency(data?.kpis?.salaryBalance),
-              glow: "glow-salary",
-              text: "text-emerald-400",
-              icon: PiggyBank,
-              desc: "Current month salary minus deductions"
-            },
-            {
-              title: "Spending Amount",
+              title: "Spending",
               amount: formatCurrency(data?.kpis?.spending),
-              glow: "glow-spending",
+              borderColor: "border-rose-500/25 hover:border-rose-500/40",
+              bgColor: "bg-rose-500/5",
+              glow: "shadow-[0_0_20px_rgba(244,63,94,0.02)]",
               text: "text-rose-400",
               icon: ArrowUpRight,
-              desc: "Total expenses in active cycle"
+              desc: "Expenses this cycle"
             },
             {
-              title: "Lending Amount",
+              title: "Lending",
               amount: formatCurrency(data?.kpis?.lending),
-              glow: "glow-lending",
+              borderColor: "border-blue-500/25 hover:border-blue-500/40",
+              bgColor: "bg-blue-500/5",
+              glow: "shadow-[0_0_20px_rgba(59,130,246,0.02)]",
               text: "text-blue-400",
               icon: ArrowRightLeft,
-              desc: "Money lent to others (Receivables)"
+              desc: "Money lent out"
             },
             {
-              title: "Loan Amount",
+              title: "Loan Debts",
               amount: formatCurrency(data?.kpis?.loan),
-              glow: "glow-loan",
+              borderColor: "border-orange-500/25 hover:border-orange-500/40",
+              bgColor: "bg-orange-500/5",
+              glow: "shadow-[0_0_20px_rgba(249,115,22,0.02)]",
               text: "text-orange-400",
               icon: HelpCircle,
-              desc: "Active borrowed money (Debts)"
+              desc: "Active debts"
             },
             {
-              title: "Advance Balance",
+              title: "Advances",
               amount: formatCurrency(data?.kpis?.advance),
-              glow: "glow-advance",
+              borderColor: "border-cyan-500/25 hover:border-cyan-500/40",
+              bgColor: "bg-cyan-500/5",
+              glow: "shadow-[0_0_20px_rgba(6,182,212,0.02)]",
               text: "text-cyan-400",
-              icon: TrendingUp,
-              desc: "Total advance deposits in cycle"
+              icon: Plus,
+              desc: "Advance deposits"
             },
             {
-              title: "Invested Savings (SIP)",
+              title: "SIP / Wealth",
               amount: formatCurrency(data?.kpis?.savings),
-              glow: "glow-savings",
+              borderColor: "border-amber-500/25 hover:border-amber-500/40",
+              bgColor: "bg-amber-500/5",
+              glow: "shadow-[0_0_20px_rgba(245,158,11,0.02)]",
               text: "text-amber-400",
               icon: TrendingUp,
-              desc: "Grow assets, SIPs and investments in cycle"
+              desc: "Savings & SIPs"
             }
           ].map((card, idx) => {
             const Icon = card.icon;
             return (
               <div
                 key={idx}
-                className={`glass-card p-3 sm:p-5 border text-left flex flex-col justify-between h-32 sm:h-44 cursor-default relative group ${card.glow}`}
+                className={`bg-gradient-to-br from-[#0c1221] to-[#060a14] border ${card.borderColor} p-4 sm:p-5 text-left flex flex-col justify-between h-28 sm:h-36 cursor-default rounded-3xl relative overflow-hidden transition-all duration-300 hover:-translate-y-1 ${card.glow} group`}
               >
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">{card.title}</h3>
-                    <p className="hidden sm:block text-[10px] text-slate-500 font-semibold mt-1 leading-tight group-hover:text-slate-400 transition-colors">
-                      {card.desc}
-                    </p>
+                    <span className="hidden sm:block text-[9px] text-slate-500 font-medium mt-1 leading-tight group-hover:text-slate-400 transition-colors">{card.desc}</span>
                   </div>
-                  <span className={`p-1.5 sm:p-2 bg-slate-950/40 rounded-lg ${card.text}`}>
-                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className={`p-1.5 rounded-lg ${card.bgColor} ${card.text} border border-white/5`}>
+                    <Icon className="w-3.5 h-3.5" />
                   </span>
                 </div>
 
-                <div className="mt-2 sm:mt-4">
+                <div className="mt-2">
                   {dataLoading ? (
-                    <div className="w-20 sm:w-28 h-6 sm:h-7 bg-white/5 rounded animate-pulse"></div>
+                    <div className="w-16 sm:w-24 h-5 bg-white/5 rounded animate-pulse"></div>
                   ) : (
-                    <p className={`text-base sm:text-2xl font-black tracking-tight ${card.text} truncate`}>{card.amount}</p>
+                    <p className={`text-base sm:text-lg font-black tracking-tight ${card.text} truncate`}>{card.amount}</p>
                   )}
                 </div>
               </div>
@@ -405,19 +600,58 @@ export default function Dashboard() {
           })}
         </div>
 
-        {/* Row 3: Recent Transactions Section */}
+        {/* Row 4: Recent Ledger & AI Insights Hub */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Recent E-Passbook Records List */}
-          <div className="lg:col-span-2 glass-card p-6 border border-white/5 flex flex-col justify-between">
+          {/* Recent E-Passbook Ledger */}
+          <div className="lg:col-span-2 bg-gradient-to-br from-[#0c1221] to-[#060a14] border border-white/[0.06] p-6 rounded-3xl shadow-xl flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <History className="w-5 h-5 text-violet-400" /> Recent Cycle Entries
-                </h2>
-                <Link href="/transactions" className="text-xs font-bold text-violet-400 hover:text-violet-300 transition-colors">
-                  View Full Passbook →
+              {/* Ledger Header Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-lg font-black text-white flex items-center gap-2">
+                    <History className="w-5 h-5 text-violet-400 animate-pulse" /> E-Passbook Ledger
+                  </h2>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Real-time ledger audit log</p>
+                </div>
+                <Link 
+                  href="/transactions" 
+                  className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 hover:border-violet-500/40 text-violet-400 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  View Full Passbook <ArrowUpRight className="w-3.5 h-3.5" />
                 </Link>
+              </div>
+
+              {/* Dynamic Search & Category Filters Bar */}
+              <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative flex-grow">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search recent ledger..."
+                    className="w-full pl-9 pr-4 py-2.5 bg-slate-950/60 border border-white/10 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-500/60 transition-all font-semibold"
+                  />
+                </div>
+
+                <div className="flex gap-1 overflow-x-auto select-none py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  {['ALL', 'SPENDING', 'SAVINGS', 'LENDING', 'LOAN', 'ADVANCE'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setTypeFilter(tab)}
+                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border shrink-0 ${
+                        typeFilter === tab
+                          ? 'bg-violet-600/10 border-violet-500/40 text-violet-400 font-black shadow-lg shadow-violet-600/5'
+                          : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {dataLoading ? (
@@ -426,121 +660,171 @@ export default function Dashboard() {
                     <div key={n} className="h-16 bg-white/5 rounded-xl animate-pulse"></div>
                   ))}
                 </div>
-              ) : !data?.recentTransactions || data.recentTransactions.length === 0 ? (
-                <div className="py-12 text-center text-slate-500 font-medium">
-                  <Wallet className="w-8 h-8 mx-auto mb-3 opacity-30" />
-                  No transactions logged in this cycle range.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-slate-300">
-                    <thead>
-                      <tr className="border-b border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider">
-                        <th className="pb-3">Title</th>
-                        <th className="pb-3">Type</th>
-                        <th className="pb-3">Date</th>
-                        <th className="pb-3 text-right">Amount</th>
-                        <th className="pb-3 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {data.recentTransactions.map((entry) => {
-                        const colors = {
-                          SPENDING: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-                          LENDING: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-                          LOAN: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-                          ADVANCE: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
-                        };
-                        return (
-                          <tr key={entry.id} className="hover:bg-white/5 transition-colors">
-                            <td className="py-3.5 pr-2 font-semibold text-white">
-                              <div>{entry.title}</div>
-                              {entry.description && <div className="text-[10px] text-slate-500 font-medium truncate max-w-[150px]">{entry.description}</div>}
-                            </td>
-                            <td className="py-3.5 pr-2">
-                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${colors[entry.type]}`}>
-                                {entry.type}
-                              </span>
-                              {entry.useSalaryBalance && (
-                                <span className="block text-[8px] text-slate-500 mt-0.5">Deducted from Salary ({entry.salaryMonth}/{entry.salaryYear})</span>
-                              )}
-                            </td>
-                            <td className="py-3.5 pr-2 text-xs text-slate-400 font-medium">
-                              {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
-                            </td>
-                            <td className={`py-3.5 pr-2 text-right font-black tracking-tight ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                              {entry.type === 'SPENDING' || entry.type === 'LENDING' ? '-' : '+'}{formatCurrency(entry.amount)}
-                            </td>
-                            <td className="py-3.5 text-center">
-                              <button
-                                onClick={() => handleDeleteEntry(entry.id)}
-                                className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 border border-transparent hover:border-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              ) : (() => {
+                const filteredTransactions = (data?.recentTransactions || []).filter(t => {
+                  const title = t.title || 'Untitled';
+                  const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                        (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()));
+                  const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
+                  return matchesSearch && matchesType;
+                });
+
+                if (filteredTransactions.length === 0) {
+                  return (
+                    <div className="py-12 text-center text-slate-500 font-medium">
+                      <Wallet className="w-8 h-8 mx-auto mb-3 opacity-30 text-slate-400" />
+                      <p className="text-xs font-bold text-slate-400">No transactions match your search filter.</p>
+                      <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">Try typing a different name or type</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto max-w-full">
+                    <table className="w-full text-left text-sm text-slate-300 border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/5 text-slate-500 text-[10px] font-black uppercase tracking-wider">
+                          <th className="pb-3">Transaction</th>
+                          <th className="pb-3">Category Type</th>
+                          <th className="pb-3">Date</th>
+                          <th className="pb-3 text-right">Amount</th>
+                          <th className="pb-3 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredTransactions.map((entry) => {
+                          const colors = {
+                            SPENDING: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+                            LENDING: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+                            LOAN: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
+                            ADVANCE: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+                            SAVINGS: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+                          };
+                          
+                          // Determine dynamic avatars
+                          let AvatarIcon = ArrowUpRight;
+                          let avatarColor = 'bg-rose-500/10 text-rose-400';
+                          if (entry.type === 'SAVINGS') { AvatarIcon = Target; avatarColor = 'bg-amber-500/10 text-amber-400'; }
+                          else if (entry.type === 'LENDING') { AvatarIcon = ArrowRightLeft; avatarColor = 'bg-blue-500/10 text-blue-400'; }
+                          else if (entry.type === 'LOAN') { AvatarIcon = HelpCircle; avatarColor = 'bg-orange-500/10 text-orange-400'; }
+                          else if (entry.type === 'ADVANCE') { AvatarIcon = ArrowDownLeft; avatarColor = 'bg-cyan-500/10 text-cyan-400'; }
+
+                          return (
+                            <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors group">
+                              <td className="py-3.5 pr-2 font-semibold text-white">
+                                <div className="flex items-center gap-3">
+                                  <span className={`p-2 rounded-xl border border-white/5 shrink-0 ${avatarColor}`}>
+                                    <AvatarIcon className="w-3.5 h-3.5" />
+                                  </span>
+                                  <div>
+                                    <div className="text-xs sm:text-sm font-bold text-white group-hover:text-violet-400 transition-colors">{entry.title}</div>
+                                    {entry.description && (
+                                      <div className="text-[10px] text-slate-500 font-medium truncate max-w-[140px] mt-0.5">{entry.description}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3.5 pr-2">
+                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${colors[entry.type]}`}>
+                                  {entry.type}
+                                </span>
+                                {entry.useSalaryBalance && (
+                                  <span className="block text-[8px] text-slate-500 mt-0.5 uppercase tracking-widest font-black">Deducted ({entry.salaryMonth}/{entry.salaryYear})</span>
+                                )}
+                              </td>
+                              <td className="py-3.5 pr-2 text-xs text-slate-400 font-medium">
+                                {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                              </td>
+                              <td className={`py-3.5 pr-2 text-right font-black tracking-tight text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                {entry.type === 'SPENDING' || entry.type === 'LENDING' ? '-' : '+'}{formatCurrency(entry.amount)}
+                              </td>
+                              <td className="py-3.5 text-center">
+                                <button
+                                  onClick={() => handleDeleteEntry(entry.id)}
+                                  className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
           {/* Quick AI Analytics Summary Sidebar */}
-          <div className="glass-card p-6 border border-white/5 flex flex-col justify-between text-left">
+          <div className="bg-gradient-to-br from-[#0c1221] to-[#060a14] border border-white/[0.06] p-6 rounded-3xl shadow-xl flex flex-col justify-between text-left relative overflow-hidden">
+            {/* Soft Ambient Light */}
+            <div className="absolute right-[-20%] bottom-[-20%] w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2 mb-6">
-                <TrendingUp className="w-5 h-5 text-violet-400" /> AI Insights Preview
+              <h2 className="text-lg font-black text-white flex items-center gap-2 mb-6">
+                <Sparkles className="w-5 h-5 text-violet-400 animate-pulse" /> AI Insights Preview
               </h2>
-              <div className="p-4 bg-violet-600/10 border border-violet-500/20 rounded-xl mb-4">
-                <h4 className="text-xs font-bold text-violet-300 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              
+              <div className="p-4 bg-violet-600/10 border border-violet-500/20 rounded-2xl mb-4 relative overflow-hidden">
+                <h4 className="text-xs font-black text-violet-300 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping"></span> Savings Engine Active
                 </h4>
-                <p className="text-slate-300 text-xs leading-relaxed font-medium">
+                <p className="text-slate-300 text-xs leading-relaxed font-semibold">
                   {data?.kpis?.spending > 0 
                     ? `You spent ${formatCurrency(data?.kpis?.spending)} this cycle. Your salary balance is ${formatCurrency(data?.kpis?.salaryBalance)}. Try talking to your AI Assistant to compare budgets and get saving suggestions!`
                     : "No spending logged this cycle yet! Keep track of expenses to let Gemini analyze savings trends and give optimization ideas."}
                 </p>
               </div>
 
-              <div className="p-4 bg-cyan-600/10 border border-cyan-500/20 rounded-xl">
-                <h4 className="text-xs font-bold text-cyan-300 uppercase tracking-widest mb-2">Cycle Outlook</h4>
-                <p className="text-slate-300 text-xs leading-relaxed font-medium">
-                  Based on your salary cycle beginning on the <span className="font-bold text-cyan-400">{data?.cycleDate}th</span>, all monthly ledgers are computed dynamically. Go to settings to modify the billing boundaries.
+              <div className="p-4 bg-cyan-600/10 border border-cyan-500/20 rounded-2xl">
+                <h4 className="text-xs font-black text-cyan-300 uppercase tracking-widest mb-2">Cycle Outlook</h4>
+                <p className="text-slate-300 text-xs leading-relaxed font-semibold">
+                  Based on your salary cycle beginning on the <span className="font-black text-cyan-400">{data?.cycleDate}th</span>, all monthly ledgers are computed dynamically. Go to settings to modify the billing boundaries.
                 </p>
               </div>
             </div>
 
             <Link
               href="/assistant"
-              className="mt-6 w-full py-3 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl text-xs font-black tracking-wider text-center uppercase transition-all btn-glow shadow-md shadow-violet-600/15"
+              className="mt-6 w-full py-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl font-black tracking-wider text-xs text-center uppercase transition-all btn-glow shadow-md shadow-violet-600/15 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
             >
-              Ask AI Assistant
+              <Sparkles className="w-4 h-4 shrink-0" /> Ask AI Assistant
             </Link>
           </div>
         </div>
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-6">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium">
-          © {new Date().getFullYear()} Manage Monthly Money. Beautiful Dark HSL System.
+      <footer className="border-t border-white/5 py-6 bg-slate-950/20 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-bold">
+          © {new Date().getFullYear()} ePassbook. Crafted with HSL Theme.
         </div>
       </footer>
 
       {/* MODAL 1: Add Salary */}
       <AnimatePresence>
         {salaryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/85 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/85 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-md bg-[#0d1423] border border-white/10 rounded-2xl p-6 relative overflow-hidden shadow-2xl"
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 400 }}
+              dragElastic={{ top: 0, bottom: 0.8 }}
+              onDragEnd={(event, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 100) {
+                  setSalaryModalOpen(false);
+                }
+              }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="w-full md:max-w-md bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none"
             >
+              {/* Mobile Drawer Handle */}
+              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
+
               <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500"></div>
               
               <div className="flex justify-between items-center mb-6">
@@ -612,13 +896,25 @@ export default function Dashboard() {
       {/* MODAL 2: Add Entry (Drawer Modal Overlay) */}
       <AnimatePresence>
         {entryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/85 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/85 backdrop-blur-sm">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg bg-[#0d1423] border border-white/10 rounded-2xl p-6 relative overflow-hidden shadow-2xl"
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 400 }}
+              dragElastic={{ top: 0, bottom: 0.8 }}
+              onDragEnd={(event, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 100) {
+                  setEntryModalOpen(false);
+                }
+              }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none"
             >
+              {/* Mobile Drawer Handle */}
+              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
+
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400"></div>
 
               <div className="flex justify-between items-center mb-6">
@@ -627,6 +923,8 @@ export default function Dashboard() {
                 </h3>
                 <button onClick={() => setEntryModalOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
               </div>
+
+
 
               {entryError && (
                 <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
@@ -742,7 +1040,96 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* MODAL 3: Salary Success Celebration Overlay */}
+      {/* MODAL 3: Presets Selector Drawer */}
+      <AnimatePresence>
+        {presetsDrawerOpen && (
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/85 backdrop-blur-sm animate-fadeIn">
+            <motion.div
+              drag="y"
+              dragConstraints={{ top: 0, bottom: 400 }}
+              dragElastic={{ top: 0, bottom: 0.8 }}
+              onDragEnd={(event, info) => {
+                if (info.offset.y > 100 || info.velocity.y > 100) {
+                  setPresetsDrawerOpen(false);
+                }
+              }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto cursor-grab active:cursor-grabbing select-none"
+            >
+              {/* Mobile Drawer Handle */}
+              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
+
+              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-500"></div>
+
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-violet-400 animate-pulse animate-duration-1000 shrink-0" /> One-Tap Autofill
+                  </h3>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mt-1">Select a transaction preset to pre-fill the form</p>
+                </div>
+                <button onClick={() => setPresetsDrawerOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+              </div>
+
+              {/* Grid of Presets */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                {getPresetsList().map((preset, idx) => {
+                  const colors = {
+                    SPENDING: 'border-rose-500/25 hover:border-rose-500/40 bg-rose-500/5 text-rose-400',
+                    LENDING: 'border-blue-500/25 hover:border-blue-500/40 bg-blue-500/5 text-blue-400',
+                    LOAN: 'border-orange-500/25 hover:border-orange-500/40 bg-orange-500/5 text-orange-400',
+                    ADVANCE: 'border-cyan-500/25 hover:border-cyan-500/40 bg-cyan-500/5 text-cyan-400',
+                    SAVINGS: 'border-amber-500/25 hover:border-amber-500/40 bg-amber-500/5 text-amber-400',
+                  };
+
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setEntryAmount(preset.amount.toString());
+                        setEntryType(preset.type);
+                        setEntryTitle(preset.title);
+                        setEntryDesc(preset.desc);
+                        setUseSalaryBal(preset.type === 'SPENDING');
+                        setPresetsDrawerOpen(false);
+                        setEntryModalOpen(true);
+                      }}
+                      className={`p-4 border rounded-2xl transition-all text-left flex flex-col justify-between gap-3 group relative overflow-hidden cursor-pointer hover:bg-white/[0.02] active:scale-98 ${colors[preset.type] || 'border-white/10'}`}
+                    >
+                      {/* Ambient background hover glow */}
+                      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-violet-500/0 group-hover:to-violet-500/[0.02] transition-all"></div>
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="block text-xs font-black tracking-tight text-white uppercase group-hover:text-violet-400 transition-colors">{preset.title}</span>
+                          <span className="block text-[9px] text-slate-500 mt-0.5 uppercase tracking-wider font-bold truncate max-w-[140px]">{preset.desc || 'No description preset'}</span>
+                        </div>
+                        <span className="text-lg shrink-0">{preset.label.split(' ').pop()}</span>
+                      </div>
+
+                      <div className="flex justify-between items-center mt-2 border-t border-white/[0.04] pt-2">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{preset.type}</span>
+                        <span className="text-xs font-black text-white px-2.5 py-1 bg-white/5 rounded-xl border border-white/5">{formatCurrency(preset.amount)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 p-3 bg-violet-600/10 border border-violet-500/25 rounded-2xl text-center">
+                <span className="text-[9px] text-violet-300 font-bold uppercase tracking-widest">💡 Quick Tip</span>
+                <p className="text-[10px] text-slate-400 leading-relaxed font-semibold mt-1">Select any tile to immediately load its configurations into the ledger form drawer.</p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 4: Salary Success Celebration Overlay */}
       <AnimatePresence>
         {salaryCelebrationOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
