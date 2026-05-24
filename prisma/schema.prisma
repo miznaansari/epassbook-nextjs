@@ -8,14 +8,19 @@ generator client {
 }
 
 model User {
-  id               String           @id // Firebase UID
-  email            String           @unique
-  name             String?
-  salaryCycleDate  Int              @default(1) // Default to 1st of month (1 to 31)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  salaries         Salary[]
-  financialEntries FinancialEntry[]
+  id                 String           @id // Firebase UID
+  email              String           @unique
+  name               String?
+  salaryCycleDate    Int              @default(1) // Default to 1st of month (1 to 31)
+  currency           String           @default("USD") // Currency preference (USD, INR, etc.)
+  dailyReminderTime  String           @default("23:00") // Time to alert user daily (HH:MM format)
+  notifSalary        Boolean          @default(true) // Enable celebratory salary toast notification
+  notifDaily         Boolean          @default(true) // Enable daily reminder notification
+  notifCycle         Boolean          @default(true) // Enable end of cycle analysis notification
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  salaries           Salary[]
+  financialEntries   FinancialEntry[]
 }
 
 model Salary {

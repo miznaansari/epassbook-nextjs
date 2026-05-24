@@ -2,6 +2,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import PWARegistration from "@/components/PWARegistration";
+import OneSignalRegistration from "@/components/OneSignalRegistration";
+import NotificationScheduler from "@/components/NotificationScheduler";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,8 +40,14 @@ export default function RootLayout({ children }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <Script 
+          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" 
+          strategy="afterInteractive" 
+        />
         <AuthProvider>
           <PWARegistration />
+          <OneSignalRegistration />
+          <NotificationScheduler />
           {children}
         </AuthProvider>
       </body>

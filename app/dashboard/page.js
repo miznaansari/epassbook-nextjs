@@ -39,6 +39,7 @@ export default function Dashboard() {
   // Modals & Drawers State
   const [salaryModalOpen, setSalaryModalOpen] = useState(false);
   const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [salaryCelebrationOpen, setSalaryCelebrationOpen] = useState(false);
 
   // Forms State
   // 1. Salary Form
@@ -121,6 +122,9 @@ export default function Dashboard() {
       if (res.ok) {
         setSalAmount('');
         setSalaryModalOpen(false);
+        if (user?.notifSalary !== false) {
+          setSalaryCelebrationOpen(true);
+        }
         await fetchDashboardData();
       } else {
         const errData = await res.json();
@@ -211,9 +215,11 @@ export default function Dashboard() {
 
   // Format Helper
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-US', {
+    const currencyCode = user?.currency || 'USD';
+    const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: currencyCode,
     }).format(val || 0);
   };
 
@@ -310,7 +316,7 @@ export default function Dashboard() {
         </div>
 
         {/* Row 2: KPI Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6 mb-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-6 mb-8">
           {[
             {
               title: "Current Balance",
@@ -368,25 +374,25 @@ export default function Dashboard() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, delay: idx * 0.05 }}
-                className={`glass-card p-5 border text-left flex flex-col justify-between h-44 cursor-default relative group ${card.glow}`}
+                className={`glass-card p-3 sm:p-5 border text-left flex flex-col justify-between h-32 sm:h-44 cursor-default relative group ${card.glow}`}
               >
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-slate-400 text-xs font-bold uppercase tracking-wider">{card.title}</h3>
-                    <p className="text-[10px] text-slate-500 font-semibold mt-1 leading-tight group-hover:text-slate-400 transition-colors">
+                    <h3 className="text-slate-400 text-[10px] sm:text-xs font-bold uppercase tracking-wider">{card.title}</h3>
+                    <p className="hidden sm:block text-[10px] text-slate-500 font-semibold mt-1 leading-tight group-hover:text-slate-400 transition-colors">
                       {card.desc}
                     </p>
                   </div>
-                  <span className={`p-2 bg-slate-950/40 rounded-lg ${card.text}`}>
-                    <Icon className="w-4 h-4" />
+                  <span className={`p-1.5 sm:p-2 bg-slate-950/40 rounded-lg ${card.text}`}>
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </span>
                 </div>
 
-                <div className="mt-4">
+                <div className="mt-2 sm:mt-4">
                   {dataLoading ? (
-                    <div className="w-28 h-7 bg-white/5 rounded animate-pulse"></div>
+                    <div className="w-20 sm:w-28 h-6 sm:h-7 bg-white/5 rounded animate-pulse"></div>
                   ) : (
-                    <p className={`text-2xl font-black tracking-tight ${card.text}`}>{card.amount}</p>
+                    <p className={`text-base sm:text-2xl font-black tracking-tight ${card.text} truncate`}>{card.amount}</p>
                   )}
                 </div>
               </motion.div>
@@ -725,6 +731,54 @@ export default function Dashboard() {
                   ) : "Log Transaction"}
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL 3: Salary Success Celebration Overlay */}
+      <AnimatePresence>
+        {salaryCelebrationOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: -50 }}
+              className="w-full max-w-md bg-gradient-to-br from-[#121c33] to-[#070b14] border border-emerald-500/35 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.15)] text-center"
+            >
+              <div className="absolute -top-12 -left-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl animate-pulse"></div>
+              <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl animate-pulse"></div>
+
+              <div className="flex flex-col items-center justify-center space-y-6">
+                <div className="relative">
+                  <motion.div 
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="w-20 h-20 bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 rounded-full flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10"
+                  >
+                    <PiggyBank className="w-10 h-10" />
+                  </motion.div>
+                  <span className="absolute -top-2 -right-2 text-2xl animate-bounce">🎉</span>
+                  <span className="absolute -bottom-2 -left-2 text-2xl animate-bounce" style={{ animationDelay: '0.5s' }}>💰</span>
+                </div>
+
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-black text-white tracking-tight">Salary Logged!</h2>
+                  <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest">Congrats! Enjoy Your Salary! 🎉</p>
+                </div>
+
+                <p className="text-slate-400 text-xs font-semibold leading-relaxed">
+                  Your fresh monthly salary balance has been successfully credited and synchronized with your E-Passbook ledger! Ask Gemini AI to customize a strict monthly budget or saving projections!
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setSalaryCelebrationOpen(false)}
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-2xl font-black tracking-wider text-xs uppercase transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center cursor-pointer"
+                >
+                  Superb, Let's Save!
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

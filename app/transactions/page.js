@@ -109,9 +109,11 @@ export default function Transactions() {
   });
 
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-US', {
+    const currencyCode = user?.currency || 'USD';
+    const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: currencyCode,
     }).format(val || 0);
   };
 

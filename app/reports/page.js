@@ -97,9 +97,11 @@ export default function Reports() {
 
   // Format Helpers
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-US', {
+    const currencyCode = user?.currency || 'USD';
+    const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
+    return new Intl.NumberFormat(locale, {
       style: 'currency',
-      currency: 'USD',
+      currency: currencyCode,
       maximumFractionDigits: 0
     }).format(val || 0);
   };
