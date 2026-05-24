@@ -6,17 +6,17 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Plus, 
-  ArrowUpRight, 
+import {
+  Plus,
+  ArrowUpRight,
   ArrowDownLeft,
-  Calendar, 
-  ChevronDown, 
-  PlusCircle, 
-  Trash2, 
-  TrendingUp, 
-  Wallet, 
-  History, 
+  Calendar,
+  ChevronDown,
+  PlusCircle,
+  Trash2,
+  TrendingUp,
+  Wallet,
+  History,
   AlertCircle,
   HelpCircle,
   PiggyBank,
@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [dataLoading, setDataLoading] = useState(true);
   const [filter, setFilter] = useState('current'); // current, last, last3, last6, custom
-  
+
   // Custom Date Range Pickers
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
@@ -306,7 +306,7 @@ export default function Dashboard() {
   ];
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#030712] text-slate-100 selection:bg-violet-500/30 overflow-x-hidden">
+    <div className="relative  flex flex-col justify-between bg-[#030712] text-slate-100 selection:bg-violet-500/30 overflow-x-hidden">
       {/* Ambient Backlight Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[50%] bg-gradient-to-br from-violet-600/10 to-cyan-500/0 rounded-full blur-[140px] pointer-events-none z-0"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[50%] bg-gradient-to-tr from-emerald-500/5 to-amber-500/0 rounded-full blur-[140px] pointer-events-none z-0"></div>
@@ -315,7 +315,7 @@ export default function Dashboard() {
 
       {/* Main Dashboard Panel */}
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10">
-        
+
         {/* Row 1: Header Welcome and Date Filters */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 bg-slate-950/20 border border-white/[0.04] p-6 rounded-3xl backdrop-blur-md">
           <div>
@@ -388,12 +388,12 @@ export default function Dashboard() {
 
         {/* Row 2: Hero Balance Cards & Action Buttons */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          
+
           {/* Main Hero Wallet Card */}
           <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-[#131b2e] to-[#0a0f1d] border border-white/[0.08] p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col justify-between min-h-[190px]">
             {/* Accent Glowing Orb */}
             <div className="absolute right-0 top-0 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
-            
+
             <div className="flex justify-between items-start">
               <div>
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
@@ -484,36 +484,36 @@ export default function Dashboard() {
                 <span className="block text-[9px] text-slate-500 font-bold uppercase tracking-wider">Pre-fill transaction preset</span>
               </div>
             </div>
-            <div 
+            <div
               className="flex gap-2.5 overflow-x-auto py-1 scroll-smooth select-none max-w-full w-full"
               style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
-               {/* Show Drawer Presets Trigger */}
-               <button
-                 onClick={() => setPresetsDrawerOpen(true)}
-                 className="px-3.5 py-2 bg-gradient-to-r from-violet-600/20 to-cyan-500/20 hover:from-violet-600/30 hover:to-cyan-500/30 border border-violet-500/30 hover:border-violet-500/50 text-xs font-black rounded-2xl text-violet-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
-               >
-                 <span>View All</span>
-                 <span className="p-0.5 bg-violet-500/30 text-white rounded-lg"><ArrowUpRight className="w-3 h-3" /></span>
-               </button>
+              {/* Show Drawer Presets Trigger */}
+              <button
+                onClick={() => setPresetsDrawerOpen(true)}
+                className="px-3.5 py-2 bg-gradient-to-r from-violet-600/20 to-cyan-500/20 hover:from-violet-600/30 hover:to-cyan-500/30 border border-violet-500/30 hover:border-violet-500/50 text-xs font-black rounded-2xl text-violet-300 hover:text-white transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 shrink-0"
+              >
+                <span>View All</span>
+                <span className="p-0.5 bg-violet-500/30 text-white rounded-lg"><ArrowUpRight className="w-3 h-3" /></span>
+              </button>
 
-               {getPresetsList().map((preset, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setEntryAmount(preset.amount.toString());
-                      setEntryType(preset.type);
-                      setEntryTitle(preset.title);
-                      setEntryDesc(preset.desc);
-                      setUseSalaryBal(preset.type === 'SPENDING');
-                      setEntryModalOpen(true);
-                    }}
-                    className="px-3.5 py-2 bg-white/[0.03] hover:bg-violet-600/10 border border-white/[0.06] hover:border-violet-500/30 text-xs font-bold rounded-2xl text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
-                  >
-                    <span>{preset.label}</span>
-                    <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-lg font-black">{formatCurrency(preset.amount)}</span>
-                  </button>
-                ))}
+              {getPresetsList().map((preset, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setEntryAmount(preset.amount.toString());
+                    setEntryType(preset.type);
+                    setEntryTitle(preset.title);
+                    setEntryDesc(preset.desc);
+                    setUseSalaryBal(preset.type === 'SPENDING');
+                    setEntryModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 bg-white/[0.03] hover:bg-violet-600/10 border border-white/[0.06] hover:border-violet-500/30 text-xs font-bold rounded-2xl text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
+                >
+                  <span>{preset.label}</span>
+                  <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-lg font-black">{formatCurrency(preset.amount)}</span>
+                </button>
+              ))}
             </div>
           </div>
         )}
@@ -602,7 +602,7 @@ export default function Dashboard() {
 
         {/* Row 4: Recent Ledger & AI Insights Hub */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* Recent E-Passbook Ledger */}
           <div className="lg:col-span-2 bg-gradient-to-br from-[#0c1221] to-[#060a14] border border-white/[0.06] p-6 rounded-3xl shadow-xl flex flex-col justify-between">
             <div>
@@ -614,8 +614,8 @@ export default function Dashboard() {
                   </h2>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Real-time ledger audit log</p>
                 </div>
-                <Link 
-                  href="/transactions" 
+                <Link
+                  href="/transactions"
                   className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 hover:border-violet-500/40 text-violet-400 rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer"
                 >
                   View Full Passbook <ArrowUpRight className="w-3.5 h-3.5" />
@@ -642,11 +642,10 @@ export default function Dashboard() {
                     <button
                       key={tab}
                       onClick={() => setTypeFilter(tab)}
-                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border shrink-0 ${
-                        typeFilter === tab
+                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border shrink-0 ${typeFilter === tab
                           ? 'bg-violet-600/10 border-violet-500/40 text-violet-400 font-black shadow-lg shadow-violet-600/5'
                           : 'bg-transparent border-transparent text-slate-500 hover:text-slate-300'
-                      }`}
+                        }`}
                     >
                       {tab}
                     </button>
@@ -663,8 +662,8 @@ export default function Dashboard() {
               ) : (() => {
                 const filteredTransactions = (data?.recentTransactions || []).filter(t => {
                   const title = t.title || 'Untitled';
-                  const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                        (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()));
+                  const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()));
                   const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
                   return matchesSearch && matchesType;
                 });
@@ -700,7 +699,7 @@ export default function Dashboard() {
                             ADVANCE: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
                             SAVINGS: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
                           };
-                          
+
                           // Determine dynamic avatars
                           let AvatarIcon = ArrowUpRight;
                           let avatarColor = 'bg-rose-500/10 text-rose-400';
@@ -766,13 +765,13 @@ export default function Dashboard() {
               <h2 className="text-lg font-black text-white flex items-center gap-2 mb-6">
                 <Sparkles className="w-5 h-5 text-violet-400 animate-pulse" /> AI Insights Preview
               </h2>
-              
+
               <div className="p-4 bg-violet-600/10 border border-violet-500/20 rounded-2xl mb-4 relative overflow-hidden">
                 <h4 className="text-xs font-black text-violet-300 uppercase tracking-widest mb-2 flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping"></span> Savings Engine Active
                 </h4>
                 <p className="text-slate-300 text-xs leading-relaxed font-semibold">
-                  {data?.kpis?.spending > 0 
+                  {data?.kpis?.spending > 0
                     ? `You spent ${formatCurrency(data?.kpis?.spending)} this cycle. Your salary balance is ${formatCurrency(data?.kpis?.salaryBalance)}. Try talking to your AI Assistant to compare budgets and get saving suggestions!`
                     : "No spending logged this cycle yet! Keep track of expenses to let Gemini analyze savings trends and give optimization ideas."}
                 </p>
@@ -826,7 +825,7 @@ export default function Dashboard() {
               <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
 
               <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500"></div>
-              
+
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                   <PiggyBank className="w-5 h-5 text-emerald-400" /> Log Month-Wise Salary
@@ -997,7 +996,7 @@ export default function Dashboard() {
                       Use Salary Balance (Deduct from Salary)
                     </label>
                   </div>
-                  
+
                   {useSalaryBal && (
                     <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
                       <div>
@@ -1144,7 +1143,7 @@ export default function Dashboard() {
 
               <div className="flex flex-col items-center justify-center space-y-6">
                 <div className="relative">
-                  <motion.div 
+                  <motion.div
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ repeat: Infinity, duration: 2 }}
                     className="w-20 h-20 bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 rounded-full flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10"

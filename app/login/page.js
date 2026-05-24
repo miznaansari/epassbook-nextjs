@@ -17,12 +17,27 @@ export default function Login() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  const [showRetry, setShowRetry] = useState(false);
+
   // If user is already logged in, redirect to dashboard
   useEffect(() => {
     if (!loading && user) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
+
+  // Show manual PWA refresh/sync triggers if auth sync hangs beyond 4 seconds
+  useEffect(() => {
+    let timer;
+    if (loading || user) {
+      timer = setTimeout(() => {
+        setShowRetry(true);
+      }, 4000);
+    } else {
+      setShowRetry(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading, user]);
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -66,8 +81,42 @@ export default function Login() {
 
   if (loading || user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
         <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+        {showRetry && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-4 text-center mt-8 bg-slate-950/40 border border-white/5 p-6 rounded-2xl max-w-sm backdrop-blur-md"
+          >
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-normal">PWA Sync is taking longer than expected...</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="px-3.5 py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 hover:border-violet-500/40 text-violet-400 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              >
+                Force Reload
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then((registrations) => {
+                      for (let reg of registrations) {
+                        reg.unregister();
+                      }
+                    });
+                  }
+                  window.location.reload();
+                }}
+                className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 hover:border-rose-500/40 text-rose-400 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+              >
+                Clear Cache & Retry
+              </button>
+            </div>
+          </motion.div>
+        )}
       </div>
     );
   }
