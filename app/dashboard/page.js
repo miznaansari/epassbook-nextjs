@@ -252,15 +252,15 @@ export default function Dashboard() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#030712] px-6 text-center select-none relative overflow-hidden">
         {/* Soft Background Mesh */}
         <div className="absolute inset-0 bg-radial-gradient from-violet-600/5 via-transparent to-transparent opacity-50 blur-3xl pointer-events-none"></div>
-        
+
         <div className="relative z-10 flex flex-col items-center">
           <div className="w-14 h-14 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-6"></div>
-          
+
           <h3 className="text-white font-extrabold text-lg tracking-tight mb-1">ePassbook Wallet</h3>
           <p className="text-slate-400 text-xs font-semibold animate-pulse">{loadingStep}</p>
 
           {showRecovery && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-10 p-6 bg-slate-900/80 border border-white/10 rounded-3xl max-w-sm text-center shadow-2xl backdrop-blur-md"
@@ -270,7 +270,7 @@ export default function Dashboard() {
               <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-medium">
                 PWAs on iOS can experience cache lockups. Resetting the offline application can restore connection instantly.
               </p>
-              
+
               <div className="mt-5 flex flex-col gap-2.5">
                 <button
                   onClick={() => window.location.reload()}

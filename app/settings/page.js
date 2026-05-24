@@ -6,11 +6,11 @@ import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
 import packageInfo from '@/package.json';
-import { 
-  Settings as SettingsIcon, 
-  User, 
-  Calendar, 
-  CheckCircle, 
+import {
+  Settings as SettingsIcon,
+  User,
+  Calendar,
+  CheckCircle,
   AlertCircle,
   HelpCircle,
   Coins,
@@ -31,7 +31,7 @@ export default function Settings() {
   const [notifSalary, setNotifSalary] = useState(true);
   const [notifDaily, setNotifDaily] = useState(true);
   const [notifCycle, setNotifCycle] = useState(true);
-  
+
   // Feedback Messages
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -61,12 +61,12 @@ export default function Settings() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    
+
     if (!name.trim()) {
       setError('Please enter a display name.');
       return;
     }
-    
+
     const parsedDate = parseInt(cycleDate);
     if (isNaN(parsedDate) || parsedDate < 1 || parsedDate > 31) {
       setError('Salary cycle date must be a valid day between 1 and 31.');
@@ -117,7 +117,7 @@ export default function Settings() {
       <Navbar />
 
       <main className="flex-grow max-w-3xl w-full mx-auto px-6 py-8 pb-24 md:pb-12">
-        
+
         {/* Row 1: Title Header */}
         <div className="text-left mb-8">
           <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
@@ -152,11 +152,11 @@ export default function Settings() {
           )}
 
           <form onSubmit={handleSaveSettings} className="space-y-6">
-            
+
             {/* 1. Profile section */}
             <div className="space-y-4">
               <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2">Profile & Calendar</h3>
-              
+
               {/* Field A: Profile Name */}
               <div>
                 <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
@@ -181,7 +181,7 @@ export default function Settings() {
                     Active Date: {cycleDate}th
                   </span>
                 </div>
-                
+
                 <input
                   type="number"
                   value={cycleDate}
@@ -197,12 +197,12 @@ export default function Settings() {
             {/* 2. Preferred Currency */}
             <div className="space-y-4">
               <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2">Preferences</h3>
-              
+
               <div>
                 <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5">
                   <Coins className="w-4 h-4 text-violet-400" /> Preferred Currency
                 </label>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   {[
                     { code: 'USD', name: 'US Dollar', symbol: '$' },
@@ -214,11 +214,10 @@ export default function Settings() {
                         key={curr.code}
                         type="button"
                         onClick={() => setCurrency(curr.code)}
-                        className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer relative group ${
-                          isSelected
+                        className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer relative group ${isSelected
                             ? 'bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-600/10 text-white'
                             : 'bg-slate-950/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-                        }`}
+                          }`}
                       >
                         {isSelected && (
                           <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-violet-400 animate-pulse"></div>
@@ -235,7 +234,7 @@ export default function Settings() {
             {/* 3. Notification Center & Timings */}
             <div className="space-y-4">
               <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2">Notifications & Triggers</h3>
-              
+
               <div className="space-y-3">
                 {/* Salary celebration */}
                 <label className="flex items-start gap-3 p-4 bg-slate-950/30 border border-white/5 rounded-xl cursor-pointer hover:bg-slate-950/50 transition-colors">
@@ -275,7 +274,7 @@ export default function Settings() {
                   </label>
 
                   {notifDaily && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
                       className="pl-7 pt-2 border-t border-white/5 flex items-center gap-3"

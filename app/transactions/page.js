@@ -5,15 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ReceiptText, 
-  Search, 
-  Filter, 
-  Trash2, 
-  Calendar, 
-  Wallet, 
-  ArrowUpRight, 
-  ArrowRightLeft, 
+import {
+  ReceiptText,
+  Search,
+  Filter,
+  Trash2,
+  Calendar,
+  Wallet,
+  ArrowUpRight,
+  ArrowRightLeft,
   AlertCircle,
   HelpCircle,
   PiggyBank,
@@ -128,7 +128,7 @@ export default function Transactions() {
       <Navbar />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
-        
+
         {/* Row 1: Header Titles */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>

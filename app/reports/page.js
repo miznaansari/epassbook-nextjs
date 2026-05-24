@@ -6,26 +6,26 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
-  BarChart, 
-  Bar, 
-  PieChart, 
-  Pie, 
-  Cell 
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell
 } from 'recharts';
-import { 
-  AreaChart as AreaIcon, 
-  PieChart as PieIcon, 
-  BarChart4, 
-  TrendingDown, 
-  Coins, 
+import {
+  AreaChart as AreaIcon,
+  PieChart as PieIcon,
+  BarChart4,
+  TrendingDown,
+  Coins,
   AlertCircle,
   PiggyBank
 } from 'lucide-react';
@@ -102,19 +102,19 @@ export default function Reports() {
   const prepareMonthlyComparisonData = () => {
     const now = new Date();
     const result = [];
-    
+
     // We want the past 6 logical months
     for (let i = 5; i >= 0; i--) {
       const checkDate = new Date(now.getFullYear(), now.getMonth() - i, 15);
       const logicalPeriod = getLogicalCyclePeriod(checkDate, cycleDate);
-      
+
       const label = `${monthNames[logicalPeriod.month - 1]} ${logicalPeriod.year.toString().slice(-2)}`;
-      
+
       // Calculate Inflow for this logical month:
       // a. Salary of this month
       const matchingSalary = salaries.find(s => s.month === logicalPeriod.month && s.year === logicalPeriod.year);
       const salaryAmt = matchingSalary ? parseFloat(matchingSalary.amount) : 0;
-      
+
       // b. Inflows that fell into this cycle date boundary (Advance + Loan)
       // For simplified and accurate matching, let's group entry dates
       // Start and end boundaries of the cycle:
@@ -192,7 +192,7 @@ export default function Reports() {
       }
       const title = e.title.trim().toLowerCase();
       let cat = 'Others';
-      
+
       if (title.includes('food') || title.includes('eat') || title.includes('restaurant') || title.includes('cafe')) cat = 'Dining Out';
       else if (title.includes('rent') || title.includes('flat') || title.includes('room')) cat = 'Rent & Living';
       else if (title.includes('movie') || title.includes('game') || title.includes('ott') || title.includes('netflix') || title.includes('fun')) cat = 'Entertainment';
@@ -245,7 +245,7 @@ export default function Reports() {
       <Navbar />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
-        
+
         {/* Row 1: Header Titles */}
         <div className="text-left mb-8">
           <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
@@ -262,10 +262,10 @@ export default function Reports() {
           </div>
         ) : (
           <div className="space-y-8">
-            
+
             {/* Row 2: Double Chart Columns (Income vs Outflow AND Spending Trends) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
-              
+
               {/* Chart A: Income vs Outflow Area Graph */}
               <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
                 <div>
@@ -280,12 +280,12 @@ export default function Reports() {
                     <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                         </linearGradient>
                         <linearGradient id="colorOutflow" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#F43F5E" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
@@ -324,7 +324,7 @@ export default function Reports() {
 
             {/* Row 3: Category Breakdown Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
-              
+
               {/* Category Pie Chart */}
               <div className="glass-card p-6 border border-white/5 lg:col-span-2 flex flex-col justify-between">
                 <div>
