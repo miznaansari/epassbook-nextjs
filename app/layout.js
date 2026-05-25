@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import PWARegistration from "@/components/PWARegistration";
 import OneSignalProvider from "@/components/providers/OneSignalProvider";
+import IOSOnboardingBanner from "@/components/IOSOnboardingBanner";
 import NotificationScheduler from "@/components/NotificationScheduler";
 import Script from "next/script";
 
@@ -52,6 +53,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <PWARegistration />
           <OneSignalProvider />
+          <IOSOnboardingBanner />
           <NotificationScheduler />
           {children}
         </AuthProvider>
