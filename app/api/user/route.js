@@ -85,7 +85,8 @@ export async function PUT(req) {
       dailyReminderTime, 
       notifSalary, 
       notifDaily, 
-      notifCycle 
+      notifCycle,
+      timezone
     } = await req.json();
 
     const uid = user.id;
@@ -122,6 +123,7 @@ export async function PUT(req) {
     if (notifSalary !== undefined) updateData.notifSalary = !!notifSalary;
     if (notifDaily !== undefined) updateData.notifDaily = !!notifDaily;
     if (notifCycle !== undefined) updateData.notifCycle = !!notifCycle;
+    if (timezone !== undefined) updateData.timezone = timezone;
 
     const updatedUser = await db.user.update({
       where: { id: uid },

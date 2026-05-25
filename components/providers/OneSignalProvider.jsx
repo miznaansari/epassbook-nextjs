@@ -157,6 +157,7 @@ export default function OneSignalProvider() {
             subscriptionId,
             oneSignalId,
             onesignalId: oneSignalId, // compatibility fallback for backend route
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
         });
 

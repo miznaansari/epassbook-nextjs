@@ -153,6 +153,7 @@ export default function Settings() {
           notifSalary,
           notifDaily,
           notifCycle,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
 

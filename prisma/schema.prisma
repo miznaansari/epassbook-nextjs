@@ -19,6 +19,10 @@ model User {
   notifCycle         Boolean          @default(true) // Enable end of cycle analysis notification
   oneSignalId        String?          // OneSignal User ID (onesignalId)
   oneSignalSubId     String?          // OneSignal Push Subscription ID
+  timezone           String           @default("UTC") // User timezone for notifications
+  lastDailyReminderSentAt DateTime?   // To prevent double sending within local days
+  lastSalaryReminderSentAt DateTime?   // To prevent double sending of salary celebration after a day
+  lastCycleReminderSentAt  DateTime?   // To prevent double sending of cycle end review
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   salaries           Salary[]

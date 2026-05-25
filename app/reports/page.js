@@ -27,7 +27,12 @@ import {
   TrendingDown,
   Coins,
   AlertCircle,
-  PiggyBank
+  PiggyBank,
+  ChevronLeft,
+  ChevronRight,
+  Calendar as CalendarIcon,
+  Info,
+  CalendarDays
 } from 'lucide-react';
 import { getLogicalCyclePeriod } from '@/lib/cycle';
 
@@ -40,6 +45,10 @@ export default function Reports() {
   const [entries, setEntries] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [cycleDate, setCycleDate] = useState(1);
+
+  // Contribution Calendar States
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -97,6 +106,148 @@ export default function Reports() {
   };
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const fullMonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  const toLocalDateString = (dateObj, tz = 'UTC') => {
+    try {
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const parts = formatter.formatToParts(dateObj);
+      const m = parts.find(p => p.type === 'month')?.value;
+      const d = parts.find(p => p.type === 'day')?.value;
+      const y = parts.find(p => p.type === 'year')?.value;
+      return `${y}-${m}-${d}`;
+    } catch (e) {
+      const d = new Date(dateObj);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  };
+
+  const tz = user?.timezone || 'UTC';
+
+  const getCalendarGridDays = () => {
+    const now = new Date();
+    const daysToShow = 365;
+    const gridStartDate = new Date(now.getTime() - (daysToShow - 1) * 24 * 60 * 60 * 1000);
+    const startDayOfWeek = gridStartDate.getDay();
+    const alignedStartDate = new Date(gridStartDate.getTime() - startDayOfWeek * 24 * 60 * 60 * 1000);
+    
+    const totalDays = daysToShow + startDayOfWeek;
+    const days = [];
+    for (let i = 0; i < totalDays; i++) {
+      days.push(new Date(alignedStartDate.getTime() + i * 24 * 60 * 60 * 1000));
+    }
+    return days;
+  };
+
+  const getCellMetadata = (day) => {
+    const dateStr = toLocalDateString(day, tz);
+    
+    const dayEntries = entries.filter(e => toLocalDateString(new Date(e.date), tz) === dateStr);
+    const daySalaries = salaries.filter(s => toLocalDateString(new Date(s.createdAt), tz) === dateStr);
+    
+    const totalCount = dayEntries.length + daySalaries.length;
+    
+    if (totalCount === 0) {
+      return {
+        colorClass: 'bg-slate-900/40 border border-white/5 hover:border-slate-700',
+        tooltip: `${day.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}: No transactions`,
+        entries: [],
+        salaries: []
+      };
+    }
+
+    const hasSalary = daySalaries.length > 0;
+    const hasLoan = dayEntries.some(e => e.type === 'LOAN');
+    const hasAdvance = dayEntries.some(e => e.type === 'ADVANCE');
+    const hasLending = dayEntries.some(e => e.type === 'LENDING');
+    const hasSavings = dayEntries.some(e => e.type === 'SAVINGS');
+    const hasSpending = dayEntries.some(e => e.type === 'SPENDING');
+
+    let colorClass = 'bg-slate-800 border border-white/10';
+    let labelText = '';
+
+    if (hasSalary) {
+      colorClass = 'bg-emerald-500 border border-emerald-400 hover:scale-110 shadow-lg shadow-emerald-500/20';
+      labelText = 'Salary received 💰';
+    } else if (hasLoan) {
+      colorClass = 'bg-orange-500 border border-orange-400 hover:scale-110 shadow-lg shadow-orange-500/20';
+      labelText = 'Loan logged ⚠️';
+    } else if (hasAdvance) {
+      colorClass = 'bg-cyan-500 border border-cyan-400 hover:scale-110 shadow-lg shadow-cyan-500/20';
+      labelText = 'Advance received ⚡';
+    } else if (hasLending) {
+      colorClass = 'bg-blue-500 border border-blue-400 hover:scale-110 shadow-lg shadow-blue-500/20';
+      labelText = 'Money lent 💸';
+    } else if (hasSavings) {
+      colorClass = 'bg-amber-500 border border-amber-400 hover:scale-110 shadow-lg shadow-amber-500/20';
+      labelText = 'Invested savings 📈';
+    } else if (hasSpending) {
+      const spendAmount = dayEntries
+        .filter(e => e.type === 'SPENDING')
+        .reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+      labelText = `Spent ${formatCurrency(spendAmount)}`;
+
+      if (spendAmount <= 500) {
+        colorClass = 'bg-violet-900/40 border border-violet-500/20 text-violet-300 hover:border-violet-400';
+      } else if (spendAmount <= 2000) {
+        colorClass = 'bg-violet-700/60 border border-violet-500/40 text-violet-200 hover:border-violet-300';
+      } else if (spendAmount <= 5000) {
+        colorClass = 'bg-violet-500 border border-violet-400 text-white hover:scale-105';
+      } else {
+        colorClass = 'bg-violet-400 border border-violet-300 text-slate-950 font-bold hover:scale-110 shadow-lg shadow-violet-500/40';
+      }
+    }
+
+    const dateLabel = day.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    const tooltip = `${dateLabel}: ${labelText || `${totalCount} transaction(s)`}`;
+
+    return {
+      colorClass,
+      tooltip,
+      entries: dayEntries,
+      salaries: daySalaries
+    };
+  };
+
+  const getMonthLabels = (daysList) => {
+    const labels = [];
+    let prevMonth = -1;
+    for (let i = 0; i < daysList.length; i += 7) {
+      const day = daysList[i];
+      const currentMonthIdx = day.getMonth();
+      if (currentMonthIdx !== prevMonth) {
+        labels.push({ text: monthNames[currentMonthIdx], colIndex: i / 7 });
+        prevMonth = currentMonthIdx;
+      }
+    }
+    return labels;
+  };
+
+  const getMonthDays = (monthDate) => {
+    const year = monthDate.getFullYear();
+    const month = monthDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const startDayOfWeek = firstDay.getDay();
+    const totalDays = new Date(year, month + 1, 0).getDate();
+    
+    const days = [];
+    for (let i = 0; i < startDayOfWeek; i++) {
+      days.push(null);
+    }
+    for (let i = 1; i <= totalDays; i++) {
+      days.push(new Date(year, month, i));
+    }
+    return days;
+  };
 
   // 1. Prepare Area Chart (Income vs Outflow) & Bar Chart (Spending Trends) for last 6 logical months
   const prepareMonthlyComparisonData = () => {
@@ -262,6 +413,294 @@ export default function Reports() {
           </div>
         ) : (
           <div className="space-y-8">
+ 
+            {/* Premium GitHub-Style Contribution Calendar and Shadcn-Style Date Selector */}
+            <div className="glass-card p-6 border border-white/5 space-y-6 text-left">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <CalendarIcon className="w-5 h-5 text-violet-400" /> Transaction Contribution Calendar
+                  </h3>
+                  <p className="text-xs text-slate-400 font-medium">
+                    Track cashflows visually across the year. Hover over cells to see details or select any date to explore.
+                  </p>
+                </div>
+                
+                {/* Legend explaining the colors */}
+                <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-400 bg-slate-950/40 p-2 rounded-xl border border-white/5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-slate-900/40 border border-white/5"></span> No Activity
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-violet-900/40 border border-violet-500/20"></span> Spend Less
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-violet-400"></span> Spend More
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Salary
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-orange-500"></span> Loan
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Lending
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded bg-cyan-500"></span> Advance
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+                {/* Left 3 cols: GitHub 12-Month Calendar Grid */}
+                <div className="xl:col-span-3 bg-slate-950/20 border border-white/5 p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
+                  <div className="relative">
+                    {/* Month labels header */}
+                    <div className="h-6 relative text-[10px] font-bold text-slate-500 select-none">
+                      {(() => {
+                        const daysList = getCalendarGridDays();
+                        const labels = getMonthLabels(daysList);
+                        return labels.map((label, lIdx) => (
+                          <span
+                            key={lIdx}
+                            className="absolute"
+                            style={{ left: `${label.colIndex * 14.5}px` }}
+                          >
+                            {label.text}
+                          </span>
+                        ));
+                      })()}
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      {/* Day of Week labels on left */}
+                      <div className="flex flex-col gap-1 text-[10px] font-bold text-slate-500 select-none pr-1 justify-around h-[90px] pt-1">
+                        <span>Mon</span>
+                        <span>Wed</span>
+                        <span>Fri</span>
+                      </div>
+
+                      {/* Flex grid of weeks */}
+                      <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-800 flex-grow">
+                        {(() => {
+                          const daysList = getCalendarGridDays();
+                          const weeks = [];
+                          let currentWeek = [];
+                          daysList.forEach((day, index) => {
+                            currentWeek.push(day);
+                            if (currentWeek.length === 7 || index === daysList.length - 1) {
+                              weeks.push(currentWeek);
+                              currentWeek = [];
+                            }
+                          });
+
+                          return weeks.map((week, wIdx) => (
+                            <div key={wIdx} className="flex flex-col gap-1 shrink-0">
+                              {week.map((day) => {
+                                const metadata = getCellMetadata(day);
+                                const isSelected = toLocalDateString(day, tz) === toLocalDateString(selectedDate, tz);
+                                return (
+                                  <div
+                                    key={day.getTime()}
+                                    title={metadata.tooltip}
+                                    onClick={() => {
+                                      setSelectedDate(day);
+                                      setCurrentMonth(day);
+                                    }}
+                                    className={`w-[11px] h-[11px] rounded-[3px] cursor-pointer transition-all ${metadata.colorClass} ${
+                                      isSelected ? 'ring-2 ring-violet-400 scale-125 z-10' : ''
+                                    }`}
+                                  />
+                                );
+                              })}
+                            </div>
+                          ));
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between text-[10px] font-bold text-slate-500 border-t border-white/5 pt-3">
+                    <span className="flex items-center gap-1">
+                      <Info className="w-3.5 h-3.5 text-violet-400" />
+                      Tip: Click any square to check detailed logs on that day.
+                    </span>
+                    <span className="text-slate-400 font-extrabold">Past 12 Months Grid</span>
+                  </div>
+                </div>
+
+                {/* Right 1 col: Interactive Shadcn-style Month Datepicker */}
+                <div className="bg-slate-950/30 border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
+                      className="p-1 hover:bg-white/5 rounded-lg border border-white/5 text-slate-400 hover:text-white transition-all"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-black tracking-wider text-white uppercase">
+                      {fullMonthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                    </span>
+                    <button
+                      onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
+                      className="p-1 hover:bg-white/5 rounded-lg border border-white/5 text-slate-400 hover:text-white transition-all"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                    {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => (
+                      <span key={d} className="text-[10px] font-extrabold text-slate-500 uppercase select-none">
+                        {d}
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {getMonthDays(currentMonth).map((day, idx) => {
+                      if (!day) return <div key={`empty-${idx}`} className="h-8 w-8"></div>;
+                      
+                      const metadata = getCellMetadata(day);
+                      const isSelected = toLocalDateString(day, tz) === toLocalDateString(selectedDate, tz);
+                      
+                      const indicators = [];
+                      if (metadata.salaries.length > 0) indicators.push('bg-emerald-500');
+                      if (metadata.entries.some(e => e.type === 'LOAN')) indicators.push('bg-orange-500');
+                      if (metadata.entries.some(e => e.type === 'ADVANCE')) indicators.push('bg-cyan-500');
+                      if (metadata.entries.some(e => e.type === 'LENDING')) indicators.push('bg-blue-500');
+                      if (metadata.entries.some(e => e.type === 'SAVINGS')) indicators.push('bg-amber-500');
+                      if (metadata.entries.some(e => e.type === 'SPENDING')) indicators.push('bg-violet-500');
+
+                      return (
+                        <button
+                          key={day.getTime()}
+                          onClick={() => {
+                            setSelectedDate(day);
+                          }}
+                          className={`h-8 w-8 flex flex-col items-center justify-center rounded-lg text-xs font-semibold relative transition-all ${
+                            isSelected 
+                              ? 'bg-violet-600 text-white font-extrabold ring-2 ring-violet-400' 
+                              : 'text-slate-300 hover:bg-white/5'
+                          }`}
+                        >
+                          <span className={isSelected ? '' : 'text-slate-200'}>{day.getDate()}</span>
+                          {indicators.length > 0 && (
+                            <div className="flex gap-0.5 mt-0.5 justify-center absolute bottom-1">
+                              {indicators.slice(0, 3).map((bg, dotIdx) => (
+                                <span key={dotIdx} className={`w-1 h-1 rounded-full ${bg}`} />
+                              ))}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Selected Date Transaction Drawer/List */}
+              <div className="border-t border-white/5 pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <CalendarDays className="w-5 h-5 text-violet-400" />
+                  <h4 className="text-sm font-black tracking-tight text-white">
+                    Logs on {selectedDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </h4>
+                </div>
+
+                {(() => {
+                  const metadata = getCellMetadata(selectedDate);
+                  const hasTx = metadata.entries.length > 0 || metadata.salaries.length > 0;
+
+                  if (!hasTx) {
+                    return (
+                      <div className="py-8 bg-slate-950/20 border border-white/5 rounded-2xl text-center text-slate-500 text-xs font-bold flex items-center justify-center gap-2 select-none">
+                        <AlertCircle className="w-4 h-4 opacity-50 text-slate-500" />
+                        No transaction activity logged on this calendar date.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {metadata.salaries.map((salary) => (
+                        <div
+                          key={salary.id}
+                          className="bg-slate-950/30 border border-white/5 rounded-2xl p-4 flex justify-between items-center hover:bg-slate-950/50 transition-all"
+                        >
+                          <div className="text-left">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">Income Inflow</span>
+                            <h5 className="text-sm font-extrabold text-white mt-0.5">Month Salary Received</h5>
+                            <span className="inline-block mt-2 text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              SALARY
+                            </span>
+                          </div>
+                          <span className="text-md font-black text-emerald-400">
+                            + {formatCurrency(salary.amount)}
+                          </span>
+                        </div>
+                      ))}
+
+                      {metadata.entries.map((entry) => {
+                        const amt = parseFloat(entry.amount);
+                        const isSpending = entry.type === 'SPENDING';
+                        const isLending = entry.type === 'LENDING';
+                        const isLoan = entry.type === 'LOAN';
+                        const isAdvance = entry.type === 'ADVANCE';
+                        const isSavings = entry.type === 'SAVINGS';
+
+                        let typeBadgeClass = 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
+                        let amountClass = 'text-white';
+                        let prefix = '';
+
+                        if (isSpending) {
+                          typeBadgeClass = 'bg-violet-500/10 text-violet-400 border border-violet-500/20';
+                          amountClass = 'text-violet-400';
+                          prefix = '-';
+                        } else if (isLoan) {
+                          typeBadgeClass = 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
+                          amountClass = 'text-orange-400';
+                          prefix = '+';
+                        } else if (isLending) {
+                          typeBadgeClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+                          amountClass = 'text-blue-400';
+                          prefix = '-';
+                        } else if (isAdvance) {
+                          typeBadgeClass = 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
+                          amountClass = 'text-cyan-400';
+                          prefix = '+';
+                        } else if (isSavings) {
+                          typeBadgeClass = 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+                          amountClass = 'text-amber-400';
+                          prefix = '-';
+                        }
+
+                        return (
+                          <div
+                            key={entry.id}
+                            className="bg-slate-950/30 border border-white/5 rounded-2xl p-4 flex justify-between items-center hover:bg-slate-950/50 transition-all"
+                          >
+                            <div className="text-left">
+                              <span className="text-[10px] font-bold text-slate-500 uppercase">
+                                {isSpending || isLending || isSavings ? 'Outflow Transaction' : 'Inflow Transaction'}
+                              </span>
+                              <h5 className="text-sm font-extrabold text-white mt-0.5">{entry.title}</h5>
+                              <span className={`inline-block mt-2 text-[9px] px-2 py-0.5 rounded-full font-black tracking-wider uppercase ${typeBadgeClass}`}>
+                                {entry.type}
+                              </span>
+                            </div>
+                            <span className={`text-md font-black ${amountClass}`}>
+                              {prefix} {formatCurrency(amt)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
 
             {/* Row 2: Double Chart Columns (Income vs Outflow AND Spending Trends) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
