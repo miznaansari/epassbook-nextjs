@@ -1,5 +1,6 @@
 export default function manifest() {
   return {
+    id: "?homescreen=1",
     name: "Manage Monthly Money",
     short_name: "MonthlyMoney",
     description: "AI-Powered Smart E-Passbook for tracking month-wise salary, lending, loans, and spending with streaming Gemini intelligence.",

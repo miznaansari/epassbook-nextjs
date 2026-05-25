@@ -9,12 +9,15 @@ export default function OneSignalRegistration() {
   const { user } = useAuth();
   const userRef = useRef(user);
 
-  // 1. OneSignal SDK Initialization and Event Listeners (Registered exactly once on mount)
   useEffect(() => {
+    // Keep userRef updated with the absolute latest user context
+    userRef.current = user;
+
     if (typeof window === 'undefined') return;
 
     window.OneSignalDeferred = window.OneSignalDeferred || [];
     window.OneSignalDeferred.push(async function(OneSignal) {
+      // 1. Initialize OneSignal SDK if not already done
       if (!isOneSignalInitialized) {
         await OneSignal.init({
           appId: "722dd7e4-705a-4a0e-a0b8-b4e2a3c93057",
@@ -27,50 +30,41 @@ export default function OneSignalRegistration() {
         });
         isOneSignalInitialized = true;
         console.log("[OneSignal] Web SDK Initialized successfully with root-relative Service Worker path.");
-
-        // Define a stable, event-driven sync helper that always uses the latest user context ref
-        const syncOnEvent = async () => {
-          const latestUser = userRef.current;
-          const onesignalId = OneSignal.User.onesignalId;
-          const subscriptionId = OneSignal.User.PushSubscription.id;
-
-          if (latestUser?.uid && (onesignalId || subscriptionId)) {
-            try {
-              const res = await fetch('/api/user/onesignal', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  onesignalId: onesignalId || null,
-                  subscriptionId: subscriptionId || null,
-                }),
-              });
-              if (res.ok) {
-                console.log(`[OneSignal Event Sync] Synced IDs successfully: ID=${onesignalId}, Sub=${subscriptionId}`);
-              }
-            } catch (err) {
-              console.error('[OneSignal Event Sync] Error syncing IDs to MySQL:', err);
-            }
-          }
-        };
-
-        // Register observer event listeners exactly once to capture asynchronous updates cleanly
-        OneSignal.User.addEventListener("change", syncOnEvent);
-        OneSignal.User.PushSubscription.addEventListener("change", syncOnEvent);
       }
-    });
-  }, []);
 
-  // 2. React to dynamic user session changes (Login, logout, updates, and permission prompts)
-  useEffect(() => {
-    // Keep userRef updated with the absolute latest user context
-    userRef.current = user;
+      // Helper to sync IDs to our database
+      const syncIdsToBackend = async () => {
+        const latestUser = userRef.current;
+        const onesignalId = OneSignal.User.onesignalId;
+        const subscriptionId = OneSignal.User.PushSubscription.id;
 
-    if (typeof window === 'undefined') return;
+        if (latestUser?.uid && (onesignalId || subscriptionId)) {
+          try {
+            const res = await fetch('/api/user/onesignal', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                onesignalId: onesignalId || null,
+                subscriptionId: subscriptionId || null,
+              }),
+            });
+            if (res.ok) {
+              console.log(`[OneSignal Event Sync] Synced IDs successfully: ID=${onesignalId}, Sub=${subscriptionId}`);
+            }
+          } catch (err) {
+            console.error('[OneSignal Event Sync] Error syncing IDs to MySQL:', err);
+          }
+        }
+      };
 
-    window.OneSignalDeferred = window.OneSignalDeferred || [];
-    window.OneSignalDeferred.push(async function(OneSignal) {
-      if (!isOneSignalInitialized) return; // Wait for initial mount setup to complete
+      // 2. Register observer event listeners exactly once to capture asynchronous updates cleanly
+      if (!OneSignal.__listenersRegistered) {
+        OneSignal.User.addEventListener("change", syncIdsToBackend);
+        OneSignal.User.PushSubscription.addEventListener("change", syncIdsToBackend);
+        OneSignal.__listenersRegistered = true;
+      }
 
+      // 3. React to current user session changes
       if (user?.uid) {
         console.log(`[OneSignal] Session active. Logging in external ID: ${user.uid}`);
         await OneSignal.login(user.uid);
@@ -100,25 +94,7 @@ export default function OneSignalRegistration() {
         }
 
         // Trigger an initial sync of IDs immediately
-        const onesignalId = OneSignal.User.onesignalId;
-        const subscriptionId = OneSignal.User.PushSubscription.id;
-        if (onesignalId || subscriptionId) {
-          try {
-            const res = await fetch('/api/user/onesignal', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                onesignalId: onesignalId || null,
-                subscriptionId: subscriptionId || null,
-              }),
-            });
-            if (res.ok) {
-              console.log(`[OneSignal Initial Sync] Synced IDs successfully: ID=${onesignalId}, Sub=${subscriptionId}`);
-            }
-          } catch (err) {
-            console.error('[OneSignal Initial Sync] Error syncing IDs:', err);
-          }
-        }
+        await syncIdsToBackend();
 
         // Trigger permission prompt if the status is still default (not yet prompted)
         if (OneSignal.Notifications && OneSignal.Notifications.permission === 'default') {
@@ -139,4 +115,5 @@ export default function OneSignalRegistration() {
 
   return null;
 }
+
 
