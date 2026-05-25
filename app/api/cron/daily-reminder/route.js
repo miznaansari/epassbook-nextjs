@@ -153,12 +153,14 @@ export async function GET(req) {
           const title = "Daily Spend Reminder 🔔";
           const body = `Hey ${user.name || 'there'}! How did you spend your money today? Log your transactions now to keep your passbook accurate!`;
 
+          // Optimistically update database checkpoint first to prevent concurrent cron triggers!
+          await db.user.update({
+            where: { id: user.id },
+            data: { lastDailyReminderSentAt: now }
+          });
+
           const pushResult = await sendPush(user.id, title, body);
           if (pushResult.success) {
-            await db.user.update({
-              where: { id: user.id },
-              data: { lastDailyReminderSentAt: now }
-            });
             report.dispatches.push({
               userId: user.id,
               type: 'DAILY_SPEND_REMINDER',
@@ -166,6 +168,11 @@ export async function GET(req) {
               targetTime
             });
           } else {
+            // Rollback optimistic update if push failed
+            await db.user.update({
+              where: { id: user.id },
+              data: { lastDailyReminderSentAt: null }
+            });
             report.errors.push({ userId: user.id, type: 'DAILY_SPEND_REMINDER', error: pushResult.reason });
           }
         }
@@ -196,18 +203,25 @@ export async function GET(req) {
             const title = "Salary Follow-up 💰";
             const body = `Hey ${user.name || 'there'}! You added your salary yesterday. What are you doing with your money? Let's check with Gemini AI or budget it!`;
 
+            // Optimistically update database checkpoint first to prevent concurrent cron triggers!
+            await db.user.update({
+              where: { id: user.id },
+              data: { lastSalaryReminderSentAt: now }
+            });
+
             const pushResult = await sendPush(user.id, title, body);
             if (pushResult.success) {
-              await db.user.update({
-                where: { id: user.id },
-                data: { lastSalaryReminderSentAt: now }
-              });
               report.dispatches.push({
                 userId: user.id,
                 type: 'SALARY_CELEBRATION_FOLLOWUP',
                 salaryCreatedAt: latestSalary.createdAt
               });
             } else {
+              // Rollback optimistic update if push failed
+              await db.user.update({
+                where: { id: user.id },
+                data: { lastSalaryReminderSentAt: null }
+              });
               report.errors.push({ userId: user.id, type: 'SALARY_CELEBRATION_FOLLOWUP', error: pushResult.reason });
             }
           }
@@ -318,12 +332,14 @@ export async function GET(req) {
             const title = "MonthlyMoney Cycle Outlook 📊";
             const body = `📊 Cycle End Insight: You saved ${symbol}${savedVal} but spent ${symbol}${spentVal} this cycle. Check with Gemini AI for a quick audit!`;
 
+            // Optimistically update database checkpoint first to prevent concurrent cron triggers!
+            await db.user.update({
+              where: { id: user.id },
+              data: { lastCycleReminderSentAt: now }
+            });
+
             const pushResult = await sendPush(user.id, title, body);
             if (pushResult.success) {
-              await db.user.update({
-                where: { id: user.id },
-                data: { lastCycleReminderSentAt: now }
-              });
               report.dispatches.push({
                 userId: user.id,
                 type: 'CYCLE_END_OUTLOOK',
@@ -331,6 +347,11 @@ export async function GET(req) {
                 spent: spentVal
               });
             } else {
+              // Rollback optimistic update if push failed
+              await db.user.update({
+                where: { id: user.id },
+                data: { lastCycleReminderSentAt: null }
+              });
               report.errors.push({ userId: user.id, type: 'CYCLE_END_OUTLOOK', error: pushResult.reason });
             }
           } catch (statErr) {

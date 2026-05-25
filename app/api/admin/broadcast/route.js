@@ -91,7 +91,7 @@ export async function POST(req) {
           select: { oneSignalId: true, oneSignalSubId: true }
         });
         console.log(`[Broadcast Dispatch] Target User ID: ${targetUserId}, DB oneSignalId: ${userRec?.oneSignalId}, DB oneSignalSubId: ${userRec?.oneSignalSubId}`);
-        
+
         if (userRec?.oneSignalSubId) {
           // If we have their direct push subscription ID in the database, target it directly!
           // This is a 100% reliable mechanism that bypasses any external_id indexing delays.
