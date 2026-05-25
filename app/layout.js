@@ -31,6 +31,11 @@ export const metadata = {
     statusBarStyle: "default",
     title: "MonthlyMoney",
   },
+  icons: {
+    icon: "/icon-192x192.png",
+    shortcut: "/icon-192x192.png",
+    apple: "/icon-192x192.png",
+  },
 };
 
 export default function RootLayout({ children }) {
