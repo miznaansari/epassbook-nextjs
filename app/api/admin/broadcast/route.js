@@ -104,25 +104,34 @@ export async function POST(req) {
         }
       }
 
+      console.log("[OneSignal Debug] Outgoing Payload:", JSON.stringify(payload, null, 2));
+      console.log(`[OneSignal Debug] API Key Available: ${!!restApiKey}`);
+
       if (restApiKey) {
-        const oneSignalRes = await fetch("https://onesignal.com/api/v1/notifications", {
+        console.log("[OneSignal Debug] Sending POST request to https://api.onesignal.com/notifications?c=push...");
+        const oneSignalRes = await fetch("https://api.onesignal.com/notifications?c=push", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Basic ${restApiKey}`,
+            "Authorization": `Key ${restApiKey}`,
           },
           body: JSON.stringify(payload),
         });
 
+        console.log(`[OneSignal Debug] Response Status: ${oneSignalRes.status} ${oneSignalRes.statusText}`);
+        const responseText = await oneSignalRes.text();
+        console.log("[OneSignal Debug] Response Body:", responseText);
+
         if (!oneSignalRes.ok) {
-          const oneSignalErr = await oneSignalRes.json();
-          console.error("OneSignal push dispatch failed:", oneSignalErr);
+          console.error(`[OneSignal Debug] OneSignal push dispatch failed with status ${oneSignalRes.status}`);
         } else {
-          console.log("OneSignal push notification sent successfully!");
+          console.log("[OneSignal Debug] OneSignal push notification sent successfully!");
         }
+      } else {
+        console.warn("[OneSignal Debug] ONESIGNAL_REST_API_KEY environment variable is not defined!");
       }
     } catch (osErr) {
-      console.error("Could not trigger OneSignal push API:", osErr);
+      console.error("[OneSignal Debug] Exception during OneSignal push API call:", osErr);
     }
 
     return NextResponse.json(broadcast);
