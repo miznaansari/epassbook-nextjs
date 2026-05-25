@@ -2,7 +2,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import PWARegistration from "@/components/PWARegistration";
-import OneSignalRegistration from "@/components/OneSignalRegistration";
+import OneSignalProvider from "@/components/providers/OneSignalProvider";
 import NotificationScheduler from "@/components/NotificationScheduler";
 import Script from "next/script";
 
@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
         />
         <AuthProvider>
           <PWARegistration />
-          <OneSignalRegistration />
+          <OneSignalProvider />
           <NotificationScheduler />
           {children}
         </AuthProvider>

@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
 import packageInfo from '@/package.json';
+import OneSignal from 'react-onesignal';
 import {
   Settings as SettingsIcon,
   User,
@@ -64,55 +65,61 @@ export default function Settings() {
 
   // Check and observe OneSignal status
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      window.OneSignalDeferred.push(async function(OneSignal) {
-        const checkStatus = () => {
-          const isOptedIn = OneSignal.User.PushSubscription.optedIn;
-          const subId = OneSignal.User.PushSubscription.id;
-          setOneSignalEnabled(isOptedIn);
-          setOneSignalSubId(subId);
-          setCheckingPush(false);
-        };
+    if (typeof window === 'undefined') return;
 
-        // Initial check
-        checkStatus();
+    const checkStatus = () => {
+      try {
+        const isOptedIn = OneSignal.User.PushSubscription.optedIn;
+        const subId = OneSignal.User.PushSubscription.id;
+        setOneSignalEnabled(isOptedIn);
+        setOneSignalSubId(subId);
+        setCheckingPush(false);
+      } catch (err) {
+        console.warn("[Settings] Error checking status:", err);
+      }
+    };
 
-        // Listen for changes dynamically
-        OneSignal.User.PushSubscription.addEventListener("change", checkStatus);
-      });
+    // Initial check
+    checkStatus();
+
+    // Listen for changes dynamically
+    try {
+      OneSignal.User.PushSubscription.addEventListener("change", checkStatus);
+    } catch (err) {
+      console.warn("[Settings] Error adding change listener:", err);
     }
+
+    return () => {
+      try {
+        OneSignal.User.PushSubscription.removeEventListener("change", checkStatus);
+      } catch (err) {}
+    };
   }, []);
 
   const handleForceOptIn = async () => {
     setError('');
     setSuccess('');
-    if (typeof window !== 'undefined') {
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      window.OneSignalDeferred.push(async function(OneSignal) {
-        try {
-          console.log("[Settings] Force Opt-in triggered by user.");
-          
-          // Request browser/OS permissions manually
-          await OneSignal.Notifications.requestPermission();
-          
-          // Force opt-in via PushSubscription namespace
-          const pushSubscription = OneSignal.User.PushSubscription;
-          if (pushSubscription) {
-            await pushSubscription.optIn();
-          }
+    try {
+      console.log("[Settings] Force Opt-in triggered by user.");
+      
+      // Request browser/OS permissions manually
+      await OneSignal.Notifications.requestPermission();
+      
+      // Force opt-in via PushSubscription namespace
+      const pushSubscription = OneSignal.User.PushSubscription;
+      if (pushSubscription) {
+        await pushSubscription.optIn();
+      }
 
-          // Trigger login using unique Firebase user ID
-          if (user?.uid) {
-            await OneSignal.login(user.uid);
-          }
-          
-          setSuccess("Web Push Notification permissions and subscription successfully registered!");
-        } catch (err) {
-          console.error("Error during force opt-in:", err);
-          setError("Failed to register push subscription. Check browser notification settings.");
-        }
-      });
+      // Trigger login using unique Firebase user ID
+      if (user?.uid) {
+        await OneSignal.login(user.uid);
+      }
+      
+      setSuccess("Web Push Notification permissions and subscription successfully registered!");
+    } catch (err) {
+      console.error("Error during force opt-in:", err);
+      setError("Failed to register push subscription. Check browser notification settings.");
     }
   };
 
