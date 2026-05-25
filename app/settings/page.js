@@ -32,6 +32,11 @@ export default function Settings() {
   const [notifDaily, setNotifDaily] = useState(true);
   const [notifCycle, setNotifCycle] = useState(true);
 
+  // OneSignal Status States
+  const [oneSignalEnabled, setOneSignalEnabled] = useState(false);
+  const [oneSignalSubId, setOneSignalSubId] = useState(null);
+  const [checkingPush, setCheckingPush] = useState(true);
+
   // Feedback Messages
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -56,6 +61,60 @@ export default function Settings() {
       setNotifCycle(user.notifCycle !== false);
     }
   }, [user]);
+
+  // Check and observe OneSignal status
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        const checkStatus = () => {
+          const isOptedIn = OneSignal.User.PushSubscription.optedIn;
+          const subId = OneSignal.User.PushSubscription.id;
+          setOneSignalEnabled(isOptedIn);
+          setOneSignalSubId(subId);
+          setCheckingPush(false);
+        };
+
+        // Initial check
+        checkStatus();
+
+        // Listen for changes dynamically
+        OneSignal.User.PushSubscription.addEventListener("change", checkStatus);
+      });
+    }
+  }, []);
+
+  const handleForceOptIn = async () => {
+    setError('');
+    setSuccess('');
+    if (typeof window !== 'undefined') {
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      window.OneSignalDeferred.push(async function(OneSignal) {
+        try {
+          console.log("[Settings] Force Opt-in triggered by user.");
+          
+          // Request browser/OS permissions manually
+          await OneSignal.Notifications.requestPermission();
+          
+          // Force opt-in via PushSubscription namespace
+          const pushSubscription = OneSignal.User.PushSubscription;
+          if (pushSubscription) {
+            await pushSubscription.optIn();
+          }
+
+          // Trigger login using unique Firebase user ID
+          if (user?.uid) {
+            await OneSignal.login(user.uid);
+          }
+          
+          setSuccess("Web Push Notification permissions and subscription successfully registered!");
+        } catch (err) {
+          console.error("Error during force opt-in:", err);
+          setError("Failed to register push subscription. Check browser notification settings.");
+        }
+      });
+    }
+  };
 
   const handleSaveSettings = async (e) => {
     e.preventDefault();
@@ -309,6 +368,61 @@ export default function Settings() {
                     </span>
                   </div>
                 </label>
+
+                {/* OneSignal Web Push Force Subscription Setting */}
+                <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="text-left">
+                      <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                        <Bell className="w-4 h-4 text-violet-400 animate-bounce" /> Push Subscription (OneSignal)
+                      </span>
+                      <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
+                        Force-subscribe or check device-level registration status with OneSignal server.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 self-start sm:self-center">
+                      {checkingPush ? (
+                        <span className="text-[10px] bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full text-slate-400 font-black tracking-wider uppercase">
+                          Checking...
+                        </span>
+                      ) : oneSignalEnabled ? (
+                        <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400 font-black tracking-wider uppercase flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Subscribed
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full text-rose-400 font-black tracking-wider uppercase flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" /> Unsubscribed
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {oneSignalSubId && (
+                    <div className="pt-2.5 border-t border-white/5 flex flex-col gap-1 text-left">
+                      <span className="text-[9px] uppercase font-extrabold text-slate-500">
+                        Device Subscription ID:
+                      </span>
+                      <code className="text-[10px] font-mono bg-slate-950/60 border border-white/5 px-2.5 py-1.5 rounded-lg text-cyan-400 select-all break-all leading-normal">
+                        {oneSignalSubId}
+                      </code>
+                    </div>
+                  )}
+
+                  <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={handleForceOptIn}
+                      className="w-full py-2.5 bg-gradient-to-r from-violet-600/20 to-cyan-500/20 hover:from-violet-600/30 hover:to-cyan-500/30 border border-violet-500/30 hover:border-violet-500/50 text-white rounded-lg font-black tracking-wider text-[10px] uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Bell className="w-3.5 h-3.5 text-cyan-400" />
+                      Force Enable Push Notifications
+                    </button>
+                    <span className="block text-[9px] text-slate-500 font-semibold text-center leading-normal">
+                      ⚠️ Triggering this prompts browser native notification permission and registers a fresh active Push Subscription.
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 
