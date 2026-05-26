@@ -25,6 +25,19 @@ import {
   Loader2
 } from 'lucide-react';
 
+// Parse message content to render **text** as bold elements smoothly
+const formatMessageContent = (content) => {
+  if (!content) return '';
+  const parts = content.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, idx) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      const boldText = part.slice(2, -2);
+      return <strong key={idx} className="font-extrabold text-white bg-white/5 px-1 py-0.5 rounded">{boldText}</strong>;
+    }
+    return part;
+  });
+};
+
 export default function Assistant() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -331,8 +344,22 @@ export default function Assistant() {
         
         {/* SIDEBAR Panel (ChatGPT history) */}
         <AnimatePresence>
+          {/* Mobile Drawer Overlay Backdrop */}
+          {isMobile && isSidebarOpen && (
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSidebarOpen(false)}
+              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-10 cursor-pointer"
+            />
+          )}
+
           {isSidebarOpen && (
             <motion.aside
+              layout
+              key="sidebar-aside"
               initial={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 1 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 0 }}
@@ -417,7 +444,10 @@ export default function Assistant() {
         </AnimatePresence>
 
         {/* MAIN CHAT CONSOLE */}
-        <main className="flex-grow glass-card border border-white/5 p-4 md:p-6 flex flex-col gap-4 overflow-hidden relative">
+        <motion.main
+          layout
+          className="flex-grow glass-card border border-white/5 p-4 md:p-6 flex flex-col gap-4 overflow-hidden relative"
+        >
           
           {/* Header Row */}
           <div className="flex items-center justify-between border-b border-white/5 pb-4 shrink-0">
@@ -450,11 +480,34 @@ export default function Assistant() {
             </div>
           </div>
 
-          {/* Error Banner */}
+          {/* Error Banner with Retry */}
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2 shrink-0 text-left">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>{error}</span>
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
+                  if (lastUserMessage) {
+                    setMessages(prev => {
+                      const next = [...prev];
+                      if (next.length > 0 && next[next.length - 1].role === 'assistant' && !next[next.length - 1].content) {
+                        next.pop();
+                      }
+                      return next;
+                    });
+                    sendMessage(lastUserMessage.content);
+                  } else {
+                    sendMessage();
+                  }
+                }}
+                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-300 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all shrink-0 cursor-pointer"
+              >
+                Retry Dispatch
+              </button>
             </div>
           )}
 
@@ -522,7 +575,7 @@ export default function Assistant() {
                           : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
                       }`}>
                         <div className="whitespace-pre-line break-words">
-                          {msg.content}
+                          {formatMessageContent(msg.content)}
                         </div>
                       </div>
 
@@ -574,7 +627,7 @@ export default function Assistant() {
             </button>
           </form>
 
-        </main>
+        </motion.main>
       </div>
 
       {/* FOOTER */}

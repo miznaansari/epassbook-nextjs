@@ -907,7 +907,16 @@ export default function Dashboard() {
       {/* MODAL 1: Add Salary */}
       <AnimatePresence>
         {salaryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/85 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
+            {/* Smooth fading backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSalaryModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
+            />
+
             <motion.div
               drag="y"
               dragConstraints={{ top: 0, bottom: 400 }}
@@ -921,7 +930,7 @@ export default function Dashboard() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full md:max-w-md bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none"
+              className="w-full md:max-w-md bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none z-10"
             >
               {/* Mobile Drawer Handle */}
               <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
@@ -997,7 +1006,16 @@ export default function Dashboard() {
       {/* MODAL 2: Add Entry (Drawer Modal Overlay) */}
       <AnimatePresence>
         {entryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/85 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
+            {/* Smooth fading backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setEntryModalOpen(false)}
+              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
+            />
+
             <motion.div
               drag="y"
               dragConstraints={{ top: 0, bottom: 400 }}
@@ -1011,7 +1029,7 @@ export default function Dashboard() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none"
+              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none z-10"
             >
               {/* Mobile Drawer Handle */}
               <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
@@ -1144,7 +1162,16 @@ export default function Dashboard() {
       {/* MODAL 3: Presets Selector Drawer */}
       <AnimatePresence>
         {presetsDrawerOpen && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 bg-slate-950/85 backdrop-blur-sm animate-fadeIn">
+          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
+            {/* Smooth fading backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPresetsDrawerOpen(false)}
+              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
+            />
+
             <motion.div
               drag="y"
               dragConstraints={{ top: 0, bottom: 400 }}
@@ -1158,7 +1185,7 @@ export default function Dashboard() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto cursor-grab active:cursor-grabbing select-none"
+              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto cursor-grab active:cursor-grabbing select-none z-10"
             >
               {/* Mobile Drawer Handle */}
               <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
@@ -1233,12 +1260,22 @@ export default function Dashboard() {
       {/* MODAL 4: Salary Success Celebration Overlay */}
       <AnimatePresence>
         {salaryCelebrationOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-md">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 overflow-hidden">
+            {/* Smooth fading backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSalaryCelebrationOpen(false)}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-md cursor-pointer z-0"
+            />
+
             <motion.div
               initial={{ opacity: 0, scale: 0.8, y: 50 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.8, y: -50 }}
-              className="w-full max-w-md bg-gradient-to-br from-[#121c33] to-[#070b14] border border-emerald-500/35 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.15)] text-center"
+              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+              className="w-full max-w-md bg-gradient-to-br from-[#121c33] to-[#070b14] border border-emerald-500/35 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.15)] text-center z-10"
             >
               <div className="absolute -top-12 -left-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl animate-pulse"></div>
               <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl animate-pulse"></div>
