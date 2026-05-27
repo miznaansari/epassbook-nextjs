@@ -401,6 +401,9 @@ export default function AdminConsolePage() {
                                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${u.notifDaily ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900 text-slate-600 border border-white/5'}`}>
                                     Daily
                                   </span>
+                                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${u.notifDailySpend ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900 text-slate-600 border border-white/5'}`}>
+                                    Spend
+                                  </span>
                                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${u.notifCycle ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900 text-slate-600 border border-white/5'}`}>
                                     Cycle
                                   </span>

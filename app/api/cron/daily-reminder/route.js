@@ -22,13 +22,16 @@ export async function GET(req) {
         email: true,
         name: true,
         dailyReminderTime: true,
+        dailySpendReminderTime: true,
         timezone: true,
         currency: true,
         salaryCycleDate: true,
         notifDaily: true,
+        notifDailySpend: true,
         notifSalary: true,
         notifCycle: true,
         lastDailyReminderSentAt: true,
+        lastDailySpendReminderSentAt: true,
         lastSalaryReminderSentAt: true,
         lastCycleReminderSentAt: true
       }
@@ -126,7 +129,7 @@ export async function GET(req) {
       if (user.notifDaily !== false) {
         const targetTime = user.dailyReminderTime || '23:00';
         const [targetHour, targetMinute] = targetTime.split(':').map(Number);
-        
+
         const localTotalMinutes = localHour * 60 + localMinute;
         const targetTotalMinutes = targetHour * 60 + targetMinute;
 
@@ -144,7 +147,7 @@ export async function GET(req) {
             const sentMonth = sentParts.find(p => p.type === 'month')?.value;
             const sentDay = sentParts.find(p => p.type === 'day')?.value;
             lastDailySentStr = `${sentYear}-${sentMonth}-${sentDay}`;
-          } catch (e) {}
+          } catch (e) { }
         }
 
         const alreadySentDailyToday = (lastDailySentStr === userLocalDateStr);
@@ -179,6 +182,117 @@ export async function GET(req) {
       }
 
       // ==========================================
+      // TRIGGER 4: DAILY SPENDING SUMMARY
+      // ==========================================
+      if (user.notifDailySpend !== false) {
+        const targetTime = user.dailySpendReminderTime || '22:00';
+        const [targetHour, targetMinute] = targetTime.split(':').map(Number);
+
+        const localTotalMinutes = localHour * 60 + localMinute;
+        const targetTotalMinutes = targetHour * 60 + targetMinute;
+
+        // Check if we already sent daily spend summary today in local timezone
+        let lastDailySpendSentStr = null;
+        if (user.lastDailySpendReminderSentAt) {
+          try {
+            const sentParts = new Intl.DateTimeFormat('en-US', {
+              timeZone: tzString,
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric'
+            }).formatToParts(new Date(user.lastDailySpendReminderSentAt));
+            const sentYear = sentParts.find(p => p.type === 'year')?.value;
+            const sentMonth = sentParts.find(p => p.type === 'month')?.value;
+            const sentDay = sentParts.find(p => p.type === 'day')?.value;
+            lastDailySpendSentStr = `${sentYear}-${sentMonth}-${sentDay}`;
+          } catch (e) { }
+        }
+
+        const alreadySentDailySpendToday = (lastDailySpendSentStr === userLocalDateStr);
+
+        if (localTotalMinutes >= targetTotalMinutes && !alreadySentDailySpendToday) {
+          // Calculate the spending amount for the user on this local day!
+          const startRange = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+          const entries = await db.financialEntry.findMany({
+            where: {
+              userId: user.id,
+              type: 'SPENDING',
+              date: {
+                gte: startRange
+              }
+            }
+          });
+
+          // Filter entries to only include those that fall on this local day
+          let totalSpent = 0;
+          for (const entry of entries) {
+            try {
+              const entryParts = new Intl.DateTimeFormat('en-US', {
+                timeZone: tzString,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric'
+              }).formatToParts(new Date(entry.date));
+              const entryYear = entryParts.find(p => p.type === 'year')?.value;
+              const entryMonth = entryParts.find(p => p.type === 'month')?.value;
+              const entryDay = entryParts.find(p => p.type === 'day')?.value;
+              const entryLocalDateStr = `${entryYear}-${entryMonth}-${entryDay}`;
+
+              if (entryLocalDateStr === userLocalDateStr) {
+                totalSpent += parseFloat(entry.amount);
+              }
+            } catch (e) { }
+          }
+
+          // Format pretty date string (e.g. 23 May 2026)
+          let prettyDateStr = '';
+          try {
+            const prettyParts = new Intl.DateTimeFormat('en-US', {
+              timeZone: tzString,
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
+            }).formatToParts(now);
+            const prettyDay = prettyParts.find(p => p.type === 'day')?.value;
+            const prettyMonth = prettyParts.find(p => p.type === 'month')?.value;
+            const prettyYear = prettyParts.find(p => p.type === 'year')?.value;
+            prettyDateStr = `${prettyDay} ${prettyMonth} ${prettyYear}`;
+          } catch (e) {
+            prettyDateStr = userLocalDateStr;
+          }
+
+          const currencySuffix = user.currency === 'INR' ? 'rs' : (user.currency || 'USD');
+          const title = "Daily Spending Summary 💰";
+          const body = `On ${prettyDateStr} you spent ${totalSpent} ${currencySuffix}`;
+
+          // Optimistically update database checkpoint first to prevent concurrent cron triggers!
+          await db.user.update({
+            where: { id: user.id },
+            data: { lastDailySpendReminderSentAt: now }
+          });
+
+          const pushResult = await sendPush(user.id, title, body);
+          if (pushResult.success) {
+            report.dispatches.push({
+              userId: user.id,
+              type: 'DAILY_SPEND_SUMMARY',
+              localTime: userLocalTimeStr,
+              targetTime,
+              totalSpent,
+              message: body
+            });
+          } else {
+            // Rollback optimistic update if push failed
+            await db.user.update({
+              where: { id: user.id },
+              data: { lastDailySpendReminderSentAt: null }
+            });
+            report.errors.push({ userId: user.id, type: 'DAILY_SPEND_SUMMARY', error: pushResult.reason });
+          }
+        }
+      }
+
+      // ==========================================
       // TRIGGER 2: SALARY FOLLOW-UP CELEBRATION
       // ==========================================
       if (user.notifSalary !== false) {
@@ -196,7 +310,7 @@ export async function GET(req) {
           const isSalaryAddedAfterADay = salaryAgeHours >= 24 && salaryAgeHours <= 72;
 
           // Has a reminder been sent for this salary?
-          const alreadySentSalaryReminder = user.lastSalaryReminderSentAt && 
+          const alreadySentSalaryReminder = user.lastSalaryReminderSentAt &&
             new Date(user.lastSalaryReminderSentAt).getTime() >= new Date(latestSalary.createdAt).getTime();
 
           if (isSalaryAddedAfterADay && !alreadySentSalaryReminder) {
@@ -251,7 +365,7 @@ export async function GET(req) {
             const sentYear = cycleParts.find(p => p.type === 'year')?.value;
             const sentMonth = cycleParts.find(p => p.type === 'month')?.value;
             lastCycleSentMonthYear = `${sentMonth}-${sentYear}`;
-          } catch (e) {}
+          } catch (e) { }
         }
 
         const alreadySentCycleThisMonth = (lastCycleSentMonthYear === currentMonthYearStr);

@@ -86,6 +86,8 @@ export async function PUT(req) {
       notifSalary, 
       notifDaily, 
       notifCycle,
+      notifDailySpend,
+      dailySpendReminderTime,
       timezone
     } = await req.json();
 
@@ -120,9 +122,20 @@ export async function PUT(req) {
       }
     }
 
+    if (dailySpendReminderTime !== undefined) {
+      // Basic HH:MM verification
+      const timeRegex = /^([0-9]|0[0-9]|1[0-9]|2[0-3]):[0-5][0-9]$/;
+      if (timeRegex.test(dailySpendReminderTime)) {
+        updateData.dailySpendReminderTime = dailySpendReminderTime;
+      } else {
+        return NextResponse.json({ error: 'Invalid daily spend reminder time (must be HH:MM format)' }, { status: 400 });
+      }
+    }
+
     if (notifSalary !== undefined) updateData.notifSalary = !!notifSalary;
     if (notifDaily !== undefined) updateData.notifDaily = !!notifDaily;
     if (notifCycle !== undefined) updateData.notifCycle = !!notifCycle;
+    if (notifDailySpend !== undefined) updateData.notifDailySpend = !!notifDailySpend;
     if (timezone !== undefined) updateData.timezone = timezone;
 
     const updatedUser = await db.user.update({

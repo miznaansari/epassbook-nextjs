@@ -77,6 +77,8 @@ export default function OneSignalProvider() {
           dailyReminderTime: user.dailyReminderTime || '23:00',
           notifDaily: user.notifDaily ? 'true' : 'false',
           notifCycle: user.notifCycle ? 'true' : 'false',
+          dailySpendReminderTime: user.dailySpendReminderTime || '22:00',
+          notifDailySpend: user.notifDailySpend ? 'true' : 'false',
           currency: user.currency || 'USD'
         });
 

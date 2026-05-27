@@ -32,6 +32,8 @@ export default function Settings() {
   const [notifSalary, setNotifSalary] = useState(true);
   const [notifDaily, setNotifDaily] = useState(true);
   const [notifCycle, setNotifCycle] = useState(true);
+  const [notifDailySpend, setNotifDailySpend] = useState(true);
+  const [dailySpendReminderTime, setDailySpendReminderTime] = useState('22:00');
 
   // OneSignal Status States
   const [oneSignalEnabled, setOneSignalEnabled] = useState(false);
@@ -60,6 +62,8 @@ export default function Settings() {
       setNotifSalary(user.notifSalary !== false);
       setNotifDaily(user.notifDaily !== false);
       setNotifCycle(user.notifCycle !== false);
+      setNotifDailySpend(user.notifDailySpend !== false);
+      setDailySpendReminderTime(user.dailySpendReminderTime || '22:00');
     }
   }, [user]);
 
@@ -92,7 +96,7 @@ export default function Settings() {
     return () => {
       try {
         OneSignal.User.PushSubscription.removeEventListener("change", checkStatus);
-      } catch (err) {}
+      } catch (err) { }
     };
   }, []);
 
@@ -101,10 +105,10 @@ export default function Settings() {
     setSuccess('');
     try {
       console.log("[Settings] Force Opt-in triggered by user.");
-      
+
       // Request browser/OS permissions manually
       await OneSignal.Notifications.requestPermission();
-      
+
       // Force opt-in via PushSubscription namespace
       const pushSubscription = OneSignal.User.PushSubscription;
       if (pushSubscription) {
@@ -115,7 +119,7 @@ export default function Settings() {
       if (user?.uid) {
         await OneSignal.login(user.uid);
       }
-      
+
       setSuccess("Web Push Notification permissions and subscription successfully registered!");
     } catch (err) {
       console.error("Error during force opt-in:", err);
@@ -153,6 +157,8 @@ export default function Settings() {
           notifSalary,
           notifDaily,
           notifCycle,
+          notifDailySpend,
+          dailySpendReminderTime,
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         }),
       });
@@ -282,8 +288,8 @@ export default function Settings() {
                         type="button"
                         onClick={() => setCurrency(curr.code)}
                         className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer relative group ${isSelected
-                            ? 'bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-600/10 text-white'
-                            : 'bg-slate-950/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+                          ? 'bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-600/10 text-white'
+                          : 'bg-slate-950/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
                           }`}
                       >
                         {isSelected && (
@@ -353,6 +359,44 @@ export default function Settings() {
                         type="time"
                         value={dailyReminderTime}
                         onChange={(e) => setDailyReminderTime(e.target.value)}
+                        className="bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                      />
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Daily Spending Summary Reminder & Custom Timing Input */}
+                <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-3">
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={notifDailySpend}
+                      onChange={(e) => setNotifDailySpend(e.target.checked)}
+                      className="w-4 h-4 mt-0.5 accent-violet-500 rounded cursor-pointer"
+                    />
+                    <div className="text-left">
+                      <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
+                        <Coins className="w-3.5 h-3.5 text-cyan-400" /> Daily Spend Summary Reminder
+                      </span>
+                      <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
+                        Receive a daily message showing exactly how much you spent on that day (e.g. "On 23 May 2026, you spent 100 rs").
+                      </span>
+                    </div>
+                  </label>
+
+                  {notifDailySpend && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="pl-7 pt-2 border-t border-white/5 flex items-center gap-3"
+                    >
+                      <label className="text-[10px] uppercase font-extrabold text-slate-400 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-cyan-400" /> Alert Time:
+                      </label>
+                      <input
+                        type="time"
+                        value={dailySpendReminderTime}
+                        onChange={(e) => setDailySpendReminderTime(e.target.value)}
                         className="bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
                       />
                     </motion.div>

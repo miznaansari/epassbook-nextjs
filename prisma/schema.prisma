@@ -17,10 +17,13 @@ model User {
   notifSalary        Boolean          @default(true) // Enable celebratory salary toast notification
   notifDaily         Boolean          @default(true) // Enable daily reminder notification
   notifCycle         Boolean          @default(true) // Enable end of cycle analysis notification
+  notifDailySpend    Boolean          @default(true) // Enable daily spending summary reminder
+  dailySpendReminderTime String       @default("22:00") // Time to alert daily spend summary (HH:MM format)
   oneSignalId        String?          // OneSignal User ID (onesignalId)
   oneSignalSubId     String?          // OneSignal Push Subscription ID
   timezone           String           @default("UTC") // User timezone for notifications
   lastDailyReminderSentAt DateTime?   // To prevent double sending within local days
+  lastDailySpendReminderSentAt DateTime? // To prevent double sending of daily spend summary
   lastSalaryReminderSentAt DateTime?   // To prevent double sending of salary celebration after a day
   lastCycleReminderSentAt  DateTime?   // To prevent double sending of cycle end review
   createdAt          DateTime                 @default(now())
