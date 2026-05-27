@@ -323,6 +323,7 @@ export async function GET(req) {
               data: { lastSalaryReminderSentAt: now }
             });
 
+
             const pushResult = await sendPush(user.id, title, body);
             if (pushResult.success) {
               report.dispatches.push({
