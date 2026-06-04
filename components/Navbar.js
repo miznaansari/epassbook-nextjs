@@ -90,8 +90,8 @@ export default function Navbar() {
 
       {/* Mobile Sticky Bottom Navigation Bar */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#02040a]/90 backdrop-blur-xl border-t border-white/5 shadow-2xl pt-2.5 px-3 flex items-center justify-around"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 14px)' }}
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#02040a]/95 backdrop-blur-xl border-t border-white/5 shadow-2xl pt-2 px-1 flex items-center justify-between"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
       >
         {links.map((link) => {
           const Icon = link.icon;
@@ -101,14 +101,14 @@ export default function Navbar() {
             <Link
               key={link.path}
               href={link.path}
-              className={`flex flex-col items-center gap-1 py-1 px-3.5 rounded-xl transition-all duration-200 shrink-0 ${
+              className={`flex flex-col items-center gap-0.5 py-1 px-1 rounded-xl transition-all duration-200 flex-1 min-w-0 ${
                 isActive
                   ? 'text-violet-400 font-bold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110 text-violet-400' : 'text-slate-400'}`} />
-              <span className="text-[9px] uppercase tracking-wider font-extrabold">{link.name.split(' ')[0]}</span>
+              <span className="text-[8px] uppercase tracking-wider font-extrabold truncate w-full text-center">{link.name.split(' ')[0]}</span>
             </Link>
           );
         })}

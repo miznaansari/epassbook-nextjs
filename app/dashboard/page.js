@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import DashboardMobile from '@/components/DashboardMobile';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -76,6 +77,100 @@ export default function Dashboard() {
   const [deductYear, setDeductYear] = useState(currentYear);
   const [entryError, setEntryError] = useState('');
   const [entryLoading, setEntryLoading] = useState(false);
+
+  // Mobile viewport detection
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Autocomplete Suggestions State
+  const [pastEntries, setPastEntries] = useState([]);
+  const [filteredSuggestions, setFilteredSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const desktopSuggestionsRef = useRef(null);
+
+  // Fetch past entries for suggestions when modal opens
+  useEffect(() => {
+    if (entryModalOpen) {
+      const fetchPastEntries = async () => {
+        try {
+          const res = await fetch('/api/entries');
+          if (res.ok) {
+            const list = await res.json();
+            setPastEntries(list);
+          }
+        } catch (err) {
+          console.error('Error fetching past entries:', err);
+        }
+      };
+      fetchPastEntries();
+    }
+  }, [entryModalOpen]);
+
+  // Filter suggestions when entryTitle or pastEntries changes
+  useEffect(() => {
+    if (!entryTitle.trim()) {
+      setFilteredSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    // Deduplicate entries by title, keeping the most recent
+    const seen = new Set();
+    const unique = [];
+    for (const entry of pastEntries) {
+      const titleLower = entry.title.trim().toLowerCase();
+      if (!seen.has(titleLower)) {
+        seen.add(titleLower);
+        unique.push(entry);
+      }
+    }
+
+    const query = entryTitle.toLowerCase();
+    const matches = unique.filter(item =>
+      item.title.toLowerCase().includes(query)
+    ).slice(0, 5);
+
+    setFilteredSuggestions(matches);
+    setShowSuggestions(matches.length > 0);
+  }, [entryTitle, pastEntries]);
+
+  // Click outside listener for desktop suggestions
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (desktopSuggestionsRef.current && !desktopSuggestionsRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectSuggestion = (suggestion) => {
+    setEntryTitle(suggestion.title);
+    if (suggestion.amount) {
+      setEntryAmount(suggestion.amount.toString());
+    }
+    if (suggestion.type) {
+      setEntryType(suggestion.type);
+    }
+    if (suggestion.description) {
+      setEntryDesc(suggestion.description);
+    }
+    if (suggestion.useSalaryBalance !== undefined) {
+      setUseSalaryBal(suggestion.useSalaryBalance);
+      if (suggestion.salaryMonth) setDeductMonth(suggestion.salaryMonth);
+      if (suggestion.salaryYear) setDeductYear(suggestion.salaryYear);
+    }
+    setShowSuggestions(false);
+  };
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -406,6 +501,71 @@ export default function Dashboard() {
     { value: 11, name: 'November' },
     { value: 12, name: 'December' },
   ];
+
+  if (isMobile) {
+    return (
+      <DashboardMobile
+        user={user}
+        logout={logout}
+        data={data}
+        dataLoading={dataLoading}
+        filter={filter}
+        setFilter={setFilter}
+        customStart={customStart}
+        setCustomStart={setCustomStart}
+        customEnd={customEnd}
+        setCustomEnd={setCustomEnd}
+        searchTerm={searchTerm}
+        setSearchTerm={setSearchTerm}
+        typeFilter={typeFilter}
+        setTypeFilter={setTypeFilter}
+        salaryModalOpen={salaryModalOpen}
+        setSalaryModalOpen={setSalaryModalOpen}
+        entryModalOpen={entryModalOpen}
+        setEntryModalOpen={setEntryModalOpen}
+        presetsDrawerOpen={presetsDrawerOpen}
+        setPresetsDrawerOpen={setPresetsDrawerOpen}
+        salaryCelebrationOpen={salaryCelebrationOpen}
+        setSalaryCelebrationOpen={setSalaryCelebrationOpen}
+        salAmount={salAmount}
+        setSalAmount={setSalAmount}
+        salMonth={salMonth}
+        setSalMonth={setSalMonth}
+        salYear={salYear}
+        setSalYear={setSalYear}
+        salError={salError}
+        setSalError={setSalError}
+        salLoading={salLoading}
+        handleAddSalary={handleAddSalary}
+        entryAmount={entryAmount}
+        setEntryAmount={setEntryAmount}
+        entryTitle={entryTitle}
+        setEntryTitle={setEntryTitle}
+        entryDesc={entryDesc}
+        setEntryDesc={setEntryDesc}
+        entryType={entryType}
+        setEntryType={setEntryType}
+        useSalaryBal={useSalaryBal}
+        setUseSalaryBal={setUseSalaryBal}
+        deductMonth={deductMonth}
+        setDeductMonth={setDeductMonth}
+        deductYear={deductYear}
+        setDeductYear={setDeductYear}
+        entryError={entryError}
+        setEntryError={setEntryError}
+        entryLoading={entryLoading}
+        handleAddEntry={handleAddEntry}
+        handleDeleteEntry={handleDeleteEntry}
+        filteredSuggestions={filteredSuggestions}
+        showSuggestions={showSuggestions}
+        setShowSuggestions={setShowSuggestions}
+        handleSelectSuggestion={handleSelectSuggestion}
+        formatCurrency={formatCurrency}
+        getPresetsList={getPresetsList}
+        monthsList={monthsList}
+      />
+    );
+  }
 
   return (
     <div className="relative  flex flex-col justify-between bg-[#030712] text-slate-100 selection:bg-violet-500/30 ">
@@ -956,6 +1116,8 @@ export default function Dashboard() {
                   <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Salary Amount</label>
                   <input
                     type="number"
+                    inputMode="decimal"
+                    pattern="[0-9]*"
                     value={salAmount}
                     onChange={(e) => setSalAmount(e.target.value)}
                     placeholder="e.g. 5000"
@@ -1058,6 +1220,8 @@ export default function Dashboard() {
                     <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Amount</label>
                     <input
                       type="number"
+                      inputMode="decimal"
+                      pattern="[0-9]*"
                       value={entryAmount}
                       onChange={(e) => setEntryAmount(e.target.value)}
                       placeholder="e.g. 150"
@@ -1080,15 +1244,50 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <div>
+                <div className="relative" ref={desktopSuggestionsRef}>
                   <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Title</label>
                   <input
                     type="text"
                     value={entryTitle}
-                    onChange={(e) => setEntryTitle(e.target.value)}
+                    onChange={(e) => {
+                      setEntryTitle(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
                     placeholder="e.g. Groceries, Bike Loan, Lent to John"
                     className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all"
+                    autoComplete="off"
                   />
+
+                  {/* Autocomplete Suggestions Box */}
+                  <AnimatePresence>
+                    {showSuggestions && filteredSuggestions.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="absolute left-0 right-0 mt-1 bg-[#111827] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-[120] divide-y divide-white/[0.04]"
+                      >
+                        {filteredSuggestions.map((suggestion) => (
+                          <button
+                            key={suggestion.id}
+                            type="button"
+                            onClick={() => handleSelectSuggestion(suggestion)}
+                            className="w-full px-4 py-3 text-left hover:bg-violet-600/10 text-xs flex items-center justify-between transition-colors cursor-pointer"
+                          >
+                            <div className="min-w-0 pr-2">
+                              <span className="font-bold text-white block truncate">{suggestion.title}</span>
+                              <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mt-0.5">{suggestion.type}</span>
+                            </div>
+                            <div className="shrink-0 flex items-center gap-1.5 bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300">
+                              <span>Autofill</span>
+                              <span className="text-[11px] font-black text-violet-400">{formatCurrency(suggestion.amount)}</span>
+                            </div>
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
                 <div>
