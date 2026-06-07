@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
+import TransactionModal from '@/components/TransactionModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ReceiptText,
@@ -18,8 +19,25 @@ import {
   HelpCircle,
   PiggyBank,
   TrendingUp,
-  X
+  X,
+  Pencil,
+  Plus
 } from 'lucide-react';
+
+const monthsList = [
+  { value: 1, name: 'January' },
+  { value: 2, name: 'February' },
+  { value: 3, name: 'March' },
+  { value: 4, name: 'April' },
+  { value: 5, name: 'May' },
+  { value: 6, name: 'June' },
+  { value: 7, name: 'July' },
+  { value: 8, name: 'August' },
+  { value: 9, name: 'September' },
+  { value: 10, name: 'October' },
+  { value: 11, name: 'November' },
+  { value: 12, name: 'December' },
+];
 
 export default function Transactions() {
   const { user, loading, logout } = useAuth();
@@ -30,6 +48,10 @@ export default function Transactions() {
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, SPENDING, LENDING, LOAN, ADVANCE
+
+  const [entryModalOpen, setEntryModalOpen] = useState(false);
+  const [entryToEdit, setEntryToEdit] = useState(null);
+  const [parentLending, setParentLending] = useState(null);
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -241,6 +263,15 @@ export default function Transactions() {
                                     {entry.description}
                                   </div>
                                 )}
+                                {entry.type === 'LENDING' && (
+                                  <div className="text-[10px] font-semibold mt-0.5">
+                                    {entry.unpaidAmount === 0 ? (
+                                      <span className="text-emerald-400">✓ Fully Repaid</span>
+                                    ) : (
+                                      <span className="text-slate-400">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
+                                    )}
+                                  </div>
+                                )}
                               </td>
                               <td className="py-3.5 pr-2">
                                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${conf.text}`}>
@@ -259,12 +290,35 @@ export default function Transactions() {
                                 {conf.sign}{formatCurrency(entry.amount)}
                               </td>
                               <td className="py-3.5 text-center">
-                                <button
-                                  onClick={() => handleDeleteEntry(entry.id)}
-                                  className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 border border-transparent hover:border-rose-500/10 rounded-xl transition-all cursor-pointer"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        setParentLending(entry);
+                                        setEntryModalOpen(true);
+                                      }}
+                                      title="Receive Repayment"
+                                      className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer active:scale-90 flex items-center justify-center"
+                                    >
+                                      <Plus className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setEntryToEdit(entry);
+                                      setEntryModalOpen(true);
+                                    }}
+                                    className="p-2 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 border border-transparent hover:border-violet-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                  >
+                                    <Pencil className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEntry(entry.id)}
+                                    className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 border border-transparent hover:border-rose-500/10 rounded-xl transition-all cursor-pointer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -285,6 +339,21 @@ export default function Transactions() {
           © {new Date().getFullYear()} Manage Monthly Money. Collapsible Passbook System.
         </div>
       </footer>
+
+      <TransactionModal
+        isOpen={entryModalOpen}
+        onClose={() => {
+          setEntryModalOpen(false);
+          setEntryToEdit(null);
+          setParentLending(null);
+        }}
+        entryToEdit={entryToEdit}
+        parentLending={parentLending}
+        onSuccess={fetchEntries}
+        user={user}
+        monthsList={monthsList}
+        formatCurrency={formatCurrency}
+      />
     </div>
   );
 }

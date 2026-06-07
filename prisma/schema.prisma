@@ -29,6 +29,7 @@ model User {
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   salaries           Salary[]
+  bonuses            Bonus[]
   financialEntries   FinancialEntry[]
   sessions           UserSession[]
   broadcasts         NotificationBroadcast[]
@@ -109,6 +110,8 @@ model FinancialEntry {
   date               DateTime  @default(now())
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+  deductions         SalaryDeduction[]
+  parentEntryId      Int?
 }
 
 model ChatSession {
@@ -129,3 +132,29 @@ model ChatMessage {
   content       String      @db.Text
   createdAt     DateTime    @default(now())
 }
+
+model Bonus {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(12, 2)
+  month     Int      // 1 to 12
+  year      Int      // e.g. 2026
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, month, year])
+}
+
+model SalaryDeduction {
+  id        Int            @id @default(autoincrement())
+  entryId   Int
+  entry     FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  month     Int
+  year      Int
+  amount    Decimal        @db.Decimal(12, 2)
+  type      String         // "SALARY" or "BONUS"
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+

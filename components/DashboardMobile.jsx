@@ -21,7 +21,8 @@ import {
   Zap,
   Search,
   Sparkles,
-  Target
+  Target,
+  Pencil
 } from 'lucide-react';
 import Navbar from './Navbar';
 
@@ -87,7 +88,14 @@ export default function DashboardMobile({
   // Helpers
   formatCurrency,
   getPresetsList,
-  monthsList
+  monthsList,
+  // New States
+  entryToEdit,
+  setEntryToEdit,
+  salaryType,
+  setSalaryType,
+  parentLending,
+  setParentLending
 }) {
   const suggestionsRef = useRef(null);
 
@@ -257,11 +265,13 @@ export default function DashboardMobile({
                 <button
                   key={idx}
                   onClick={() => {
-                    setEntryAmount(preset.amount.toString());
-                    setEntryType(preset.type);
-                    setEntryTitle(preset.title);
-                    setEntryDesc(preset.desc);
-                    setUseSalaryBal(preset.type === 'SPENDING');
+                    setEntryToEdit({
+                      amount: preset.amount,
+                      type: preset.type,
+                      title: preset.title,
+                      description: preset.desc || '',
+                      useSalaryBalance: preset.type === 'SPENDING'
+                    });
                     setEntryModalOpen(true);
                   }}
                   className="px-2.5 py-1.5 bg-white/[0.03] border border-white/[0.06] text-[9px] font-bold rounded-lg text-slate-300 flex items-center gap-1.5 shrink-0 active:scale-95"
@@ -456,16 +466,45 @@ export default function DashboardMobile({
                               {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                             </span>
                           </div>
+                          {entry.type === 'LENDING' && (
+                            <div className="text-[8px] font-bold mt-1">
+                              {entry.unpaidAmount === 0 ? (
+                                <span className="text-emerald-400">✓ Fully Repaid</span>
+                              ) : (
+                                <span className="text-slate-400">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className={`text-[11px] font-black tracking-tight ${isOutflow ? 'text-rose-400' : 'text-emerald-400'}`}>
                           {isOutflow ? '-' : '+'}{formatCurrency(entry.amount)}
                         </span>
+                        {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
+                          <button
+                            onClick={() => {
+                              setParentLending(entry);
+                              setEntryModalOpen(true);
+                            }}
+                            className="p-1 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent rounded-lg transition-all cursor-pointer flex items-center justify-center"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setEntryToEdit(entry);
+                            setEntryModalOpen(true);
+                          }}
+                          className="p-1 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 border border-transparent rounded-lg transition-all cursor-pointer"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
                         <button
                           onClick={() => handleDeleteEntry(entry.id)}
-                          className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent rounded-lg transition-all cursor-pointer"
+                          className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent rounded-lg transition-all cursor-pointer"
                         >
                           <Trash2 className="w-3 h-3" />
                         </button>
@@ -528,9 +567,35 @@ export default function DashboardMobile({
 
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <PiggyBank className="w-4.5 h-4.5 text-emerald-400" /> Log Month-Wise Salary
+                  <PiggyBank className="w-4.5 h-4.5 text-emerald-400" /> Log Month-Wise Inflow
                 </h3>
                 <button onClick={() => setSalaryModalOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
+              </div>
+
+              {/* Sliding Toggle Tab */}
+              <div className="grid grid-cols-2 gap-1 p-0.5 bg-slate-950/60 border border-white/5 rounded-xl mb-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSalaryType('SALARY')}
+                  className={`py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                    salaryType === 'SALARY'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-350'
+                  }`}
+                >
+                  Salary
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSalaryType('BONUS')}
+                  className={`py-1.5 text-[10px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                    salaryType === 'BONUS'
+                      ? 'bg-cyan-500 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-355'
+                  }`}
+                >
+                  Bonus
+                </button>
               </div>
 
               {salError && (
@@ -542,7 +607,9 @@ export default function DashboardMobile({
 
               <form onSubmit={handleAddSalary} className="space-y-3">
                 <div>
-                  <label className="block text-slate-400 text-[10px] font-semibold uppercase mb-1">Salary Amount</label>
+                  <label className="block text-slate-400 text-[10px] font-semibold uppercase mb-1">
+                    {salaryType === 'SALARY' ? 'Salary Amount' : 'Bonus Amount'}
+                  </label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -586,7 +653,7 @@ export default function DashboardMobile({
                 >
                   {salLoading ? (
                     <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  ) : "Save Salary"}
+                  ) : salaryType === 'SALARY' ? "Save Salary" : "Save Bonus"}
                 </button>
               </form>
             </motion.div>
@@ -594,186 +661,7 @@ export default function DashboardMobile({
         )}
       </AnimatePresence>
 
-      {/* MODAL 2: Add Entry Bottom Drawer */}
-      <AnimatePresence>
-        {entryModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 overflow-hidden">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setEntryModalOpen(false)}
-              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
-            />
 
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full bg-[#0d1423] border-t border-white/10 rounded-t-3xl p-5 relative shadow-2xl max-h-[85vh] overflow-y-visible z-10 flex flex-col"
-            >
-              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 shrink-0"></div>
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400"></div>
-
-              <div className="flex justify-between items-center mb-4 shrink-0">
-                <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-                  <ArrowUpRight className="w-4.5 h-4.5 text-violet-400" /> Log Financial Entry
-                </h3>
-                <button onClick={() => setEntryModalOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-4 h-4" /></button>
-              </div>
-
-              {entryError && (
-                <div className="mb-3 p-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-[10px] flex items-center gap-1.5 shrink-0">
-                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                  <span>{entryError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleAddEntry} className="space-y-3.5 overflow-y-auto pb-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-400 text-[10px] font-semibold uppercase mb-1">Amount</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      value={entryAmount}
-                      onChange={(e) => setEntryAmount(e.target.value)}
-                      placeholder="e.g. 150"
-                      className="w-full px-3 py-2.5 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-violet-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-400 text-[10px] font-semibold uppercase mb-1">Entry Type</label>
-                    <select
-                      value={entryType}
-                      onChange={(e) => setEntryType(e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-950/40 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-violet-500 transition-all"
-                    >
-                      <option value="SPENDING">Spending Amount</option>
-                      <option value="LENDING">Lending Amount</option>
-                      <option value="LOAN">Loan Amount</option>
-                      <option value="ADVANCE">Advance Balance</option>
-                      <option value="SAVINGS">Savings / SIPs</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Title Input with Suggestions Dropdown */}
-                <div className="relative" ref={suggestionsRef}>
-                  <label className="block text-slate-400 text-[10px] font-semibold uppercase mb-1">Title</label>
-                  <input
-                    type="text"
-                    value={entryTitle}
-                    onChange={(e) => {
-                      setEntryTitle(e.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    placeholder="e.g. Groceries, Coffee"
-                    className="w-full px-3 py-2.5 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-violet-500 transition-all"
-                    autoComplete="off"
-                  />
-
-                  {/* Autocomplete Suggestions Box */}
-                  <AnimatePresence>
-                    {showSuggestions && filteredSuggestions.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="absolute left-0 right-0 mt-1 bg-[#111827] border border-white/10 rounded-xl shadow-2xl max-h-40 overflow-y-auto z-[120] divide-y divide-white/[0.04]"
-                      >
-                        {filteredSuggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.id}
-                            type="button"
-                            onClick={() => handleSelectSuggestion(suggestion)}
-                            className="w-full px-3 py-2 text-left hover:bg-violet-600/10 text-xs flex items-center justify-between transition-colors cursor-pointer"
-                          >
-                            <div className="min-w-0 pr-2">
-                              <span className="font-bold text-white block truncate">{suggestion.title}</span>
-                              <span className="text-[8px] text-slate-500 uppercase font-black tracking-wider block mt-0.5">{suggestion.type}</span>
-                            </div>
-                            <div className="shrink-0 flex items-center gap-1 bg-white/5 border border-white/5 px-2 py-0.5 rounded-lg text-[9px] font-bold text-slate-300">
-                              <span>Autofill</span>
-                              <span className="text-[8.5px] font-black text-violet-400">{formatCurrency(suggestion.amount)}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-[10px] font-semibold uppercase mb-1">Description</label>
-                  <textarea
-                    value={entryDesc}
-                    onChange={(e) => setEntryDesc(e.target.value)}
-                    placeholder="Add extra context..."
-                    rows="2"
-                    className="w-full px-3 py-2 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-xs focus:outline-none focus:border-violet-500 transition-all"
-                  ></textarea>
-                </div>
-
-                {/* Salary Balance checkbox */}
-                <div className="p-3 bg-slate-950/30 border border-white/5 rounded-xl space-y-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="useSalaryCheckboxMobile"
-                      checked={useSalaryBal}
-                      onChange={(e) => setUseSalaryBal(e.target.checked)}
-                      className="w-4 h-4 accent-violet-600"
-                    />
-                    <label htmlFor="useSalaryCheckboxMobile" className="text-[10px] font-bold text-white cursor-pointer select-none">
-                      Deduct from Salary Balance
-                    </label>
-                  </div>
-
-                  {useSalaryBal && (
-                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
-                      <div>
-                        <label className="block text-slate-500 text-[8px] font-bold uppercase mb-0.5">Month</label>
-                        <select
-                          value={deductMonth}
-                          onChange={(e) => setDeductMonth(e.target.value)}
-                          className="w-full px-2 py-1.5 bg-slate-950/40 border border-white/5 rounded-lg text-white text-[10px] focus:outline-none"
-                        >
-                          {monthsList.map(m => (
-                            <option key={m.value} value={m.value}>{m.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-slate-500 text-[8px] font-bold uppercase mb-0.5">Year</label>
-                        <input
-                          type="number"
-                          value={deductYear}
-                          onChange={(e) => setDeductYear(e.target.value)}
-                          className="w-full px-2 py-1.5 bg-slate-950/40 border border-white/5 rounded-lg text-white text-[10px] focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={entryLoading}
-                  className="w-full py-2.5 bg-gradient-to-r from-violet-600 to-cyan-500 text-white rounded-xl font-bold text-xs transition-all shadow-lg shadow-violet-600/20 cursor-pointer flex items-center justify-center shrink-0"
-                >
-                  {entryLoading ? (
-                    <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  ) : "Log Transaction"}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* MODAL 3: Presets Selector Drawer */}
       <AnimatePresence>
@@ -822,13 +710,15 @@ export default function DashboardMobile({
                       key={idx}
                       type="button"
                       onClick={() => {
-                        setEntryAmount(preset.amount.toString());
-                        setEntryType(preset.type);
-                        setEntryTitle(preset.title);
-                        setEntryDesc(preset.desc);
-                        setUseSalaryBal(preset.type === 'SPENDING');
-                        setPresetsDrawerOpen(false);
-                        setEntryModalOpen(true);
+                    setEntryToEdit({
+                      amount: preset.amount,
+                      type: preset.type,
+                      title: preset.title,
+                      description: preset.desc || '',
+                      useSalaryBalance: preset.type === 'SPENDING'
+                    });
+                    setPresetsDrawerOpen(false);
+                    setEntryModalOpen(true);
                       }}
                       className={`p-3 border rounded-xl transition-all text-left flex items-center justify-between gap-2 cursor-pointer ${colors[preset.type] || 'border-white/10'}`}
                     >

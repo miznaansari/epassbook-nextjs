@@ -42,6 +42,7 @@ export default function Reports() {
 
   // Data States
   const [salaries, setSalaries] = useState([]);
+  const [bonuses, setBonuses] = useState([]);
   const [entries, setEntries] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [cycleDate, setCycleDate] = useState(1);
@@ -57,7 +58,7 @@ export default function Reports() {
     }
   }, [user, loading, router]);
 
-  // Fetch all user transactions & salaries
+  // Fetch all user transactions, salaries & bonuses
   useEffect(() => {
     const fetchData = async () => {
       if (!user) return;
@@ -67,6 +68,11 @@ export default function Reports() {
         const salRes = await fetch('/api/salary');
         const salData = salRes.ok ? await salRes.json() : [];
         setSalaries(salData);
+
+        // Fetch Bonuses
+        const bonRes = await fetch('/api/bonus');
+        const bonData = bonRes.ok ? await bonRes.json() : [];
+        setBonuses(bonData);
 
         // Fetch Entries
         const entRes = await fetch('/api/entries');
@@ -266,7 +272,11 @@ export default function Reports() {
       const matchingSalary = salaries.find(s => s.month === logicalPeriod.month && s.year === logicalPeriod.year);
       const salaryAmt = matchingSalary ? parseFloat(matchingSalary.amount) : 0;
 
-      // b. Inflows that fell into this cycle date boundary (Advance + Loan)
+      // b. Bonus of this month
+      const matchingBonus = bonuses.find(b => b.month === logicalPeriod.month && b.year === logicalPeriod.year);
+      const bonusAmt = matchingBonus ? parseFloat(matchingBonus.amount) : 0;
+
+      // c. Inflows that fell into this cycle date boundary (Advance + Loan)
       // For simplified and accurate matching, let's group entry dates
       // Start and end boundaries of the cycle:
       const cycleStart = new Date(logicalPeriod.year, logicalPeriod.month - 1, cycleDate, 0, 0, 0, 0);
@@ -284,7 +294,7 @@ export default function Reports() {
       });
       const inflowExtra = periodInflows.reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
-      const totalInflow = salaryAmt + inflowExtra;
+      const totalInflow = salaryAmt + bonusAmt + inflowExtra;
 
       // Calculate Outflow for this cycle:
       // Spendings + Lendings in this cycle date boundary
@@ -299,11 +309,40 @@ export default function Reports() {
         .filter(e => e.type === 'SPENDING')
         .reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
+      // Calculate real remaining salary + bonus balance of this month using actual linked deductions
+      let periodDeductions = 0;
+      let savingsDeductions = 0;
+
+      entries.forEach(entry => {
+        if (entry.deductions) {
+          entry.deductions.forEach(d => {
+            if (d.month === logicalPeriod.month && d.year === logicalPeriod.year) {
+              const amt = parseFloat(d.amount);
+              periodDeductions += amt;
+              if (entry.type === 'SAVINGS') {
+                savingsDeductions += amt;
+              }
+            }
+          });
+        }
+      });
+
+      const totalSalaryBonus = salaryAmt + bonusAmt;
+      const remainingSalaryBonus = Math.max(0, totalSalaryBonus - periodDeductions);
+
+      // Also get any general savings logged in this cycle date range (with useSalaryBalance === false)
+      const periodGeneralSavings = periodOutflows.filter(e => e.type === 'SAVINGS' && !e.useSalaryBalance);
+      const generalSavingsAmt = periodGeneralSavings.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+      const totalSavingsToShow = savingsDeductions + generalSavingsAmt;
+
       result.push({
         name: label,
         Inflow: totalInflow,
         Outflow: totalOutflow,
         Spending: totalSpending,
+        "Remaining Balance": remainingSalaryBonus,
+        "Invested Savings": totalSavingsToShow,
       });
     }
 
@@ -702,8 +741,8 @@ export default function Reports() {
               </div>
             </div>
 
-            {/* Row 2: Double Chart Columns (Income vs Outflow AND Spending Trends) */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 text-left">
+            {/* Row 2: Triple Chart Columns (Income vs Outflow, Spending Trends, AND Balance & Savings) */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
 
               {/* Chart A: Income vs Outflow Area Graph */}
               <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
@@ -755,6 +794,29 @@ export default function Reports() {
                       <YAxis stroke="#475569" fontSize={10} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="Spending" fill="#F43F5E" radius={[8, 8, 0, 0]} maxBarSize={30} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Chart C: Balance & Savings Trend Stacked Bar Chart */}
+              <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
+                    <PiggyBank className="w-5 h-5 text-amber-400" /> Balance & Savings
+                  </h3>
+                  <p className="text-xs text-slate-500 font-semibold mb-6">Explore pocket balance left after all expenses, stacked with savings.</p>
+                </div>
+
+                <div className="h-64 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                      <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#475569" fontSize={10} tickLine={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="Invested Savings" stackId="a" fill="#F59E0B" radius={[8, 8, 0, 0]} maxBarSize={30} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>

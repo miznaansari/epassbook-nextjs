@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import DashboardMobile from '@/components/DashboardMobile';
 import Navbar from '@/components/Navbar';
+import TransactionModal from '@/components/TransactionModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -27,7 +28,8 @@ import {
   Search,
   Sparkles,
   Filter,
-  Target
+  Target,
+  Pencil
 } from 'lucide-react';
 
 export default function Dashboard() {
@@ -67,16 +69,10 @@ export default function Dashboard() {
   const [salError, setSalError] = useState('');
   const [salLoading, setSalLoading] = useState(false);
 
-  // 2. Financial Entry Form
-  const [entryAmount, setEntryAmount] = useState('');
-  const [entryTitle, setEntryTitle] = useState('');
-  const [entryDesc, setEntryDesc] = useState('');
-  const [entryType, setEntryType] = useState('SPENDING'); // SPENDING, LENDING, LOAN, ADVANCE
-  const [useSalaryBal, setUseSalaryBal] = useState(false);
-  const [deductMonth, setDeductMonth] = useState(currentMonth);
-  const [deductYear, setDeductYear] = useState(currentYear);
-  const [entryError, setEntryError] = useState('');
-  const [entryLoading, setEntryLoading] = useState(false);
+  // New States
+  const [entryToEdit, setEntryToEdit] = useState(null);
+  const [parentLending, setParentLending] = useState(null);
+  const [salaryType, setSalaryType] = useState('SALARY'); // 'SALARY' or 'BONUS'
 
   // Mobile viewport detection
   const [isMobile, setIsMobile] = useState(false);
@@ -90,87 +86,7 @@ export default function Dashboard() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Autocomplete Suggestions State
-  const [pastEntries, setPastEntries] = useState([]);
-  const [filteredSuggestions, setFilteredSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const desktopSuggestionsRef = useRef(null);
 
-  // Fetch past entries for suggestions when modal opens
-  useEffect(() => {
-    if (entryModalOpen) {
-      const fetchPastEntries = async () => {
-        try {
-          const res = await fetch('/api/entries');
-          if (res.ok) {
-            const list = await res.json();
-            setPastEntries(list);
-          }
-        } catch (err) {
-          console.error('Error fetching past entries:', err);
-        }
-      };
-      fetchPastEntries();
-    }
-  }, [entryModalOpen]);
-
-  // Filter suggestions when entryTitle or pastEntries changes
-  useEffect(() => {
-    if (!entryTitle.trim()) {
-      setFilteredSuggestions([]);
-      setShowSuggestions(false);
-      return;
-    }
-
-    // Deduplicate entries by title, keeping the most recent
-    const seen = new Set();
-    const unique = [];
-    for (const entry of pastEntries) {
-      const titleLower = entry.title.trim().toLowerCase();
-      if (!seen.has(titleLower)) {
-        seen.add(titleLower);
-        unique.push(entry);
-      }
-    }
-
-    const query = entryTitle.toLowerCase();
-    const matches = unique.filter(item =>
-      item.title.toLowerCase().includes(query)
-    ).slice(0, 5);
-
-    setFilteredSuggestions(matches);
-    setShowSuggestions(matches.length > 0);
-  }, [entryTitle, pastEntries]);
-
-  // Click outside listener for desktop suggestions
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (desktopSuggestionsRef.current && !desktopSuggestionsRef.current.contains(event.target)) {
-        setShowSuggestions(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const handleSelectSuggestion = (suggestion) => {
-    setEntryTitle(suggestion.title);
-    if (suggestion.amount) {
-      setEntryAmount(suggestion.amount.toString());
-    }
-    if (suggestion.type) {
-      setEntryType(suggestion.type);
-    }
-    if (suggestion.description) {
-      setEntryDesc(suggestion.description);
-    }
-    if (suggestion.useSalaryBalance !== undefined) {
-      setUseSalaryBal(suggestion.useSalaryBalance);
-      if (suggestion.salaryMonth) setDeductMonth(suggestion.salaryMonth);
-      if (suggestion.salaryYear) setDeductYear(suggestion.salaryYear);
-    }
-    setShowSuggestions(false);
-  };
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -240,14 +156,15 @@ export default function Dashboard() {
   const handleAddSalary = async (e) => {
     e.preventDefault();
     if (!salAmount || parseFloat(salAmount) <= 0) {
-      setSalError('Please enter a valid salary amount.');
+      setSalError(`Please enter a valid ${salaryType === 'SALARY' ? 'salary' : 'bonus'} amount.`);
       return;
     }
     setSalError('');
     setSalLoading(true);
 
     try {
-      const res = await fetch('/api/salary', {
+      const endpoint = salaryType === 'SALARY' ? '/api/salary' : '/api/bonus';
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -260,13 +177,13 @@ export default function Dashboard() {
       if (res.ok) {
         setSalAmount('');
         setSalaryModalOpen(false);
-        if (user?.notifSalary !== false) {
+        if (salaryType === 'SALARY' && user?.notifSalary !== false) {
           setSalaryCelebrationOpen(true);
         }
         await fetchDashboardData();
       } else {
         const errData = await res.json();
-        setSalError(errData.error || 'Failed to add salary.');
+        setSalError(errData.error || `Failed to add ${salaryType === 'SALARY' ? 'salary' : 'bonus'}.`);
       }
     } catch (err) {
       setSalError('Network error. Please try again.');
@@ -275,57 +192,7 @@ export default function Dashboard() {
     }
   };
 
-  // Handle Financial Entry Submit
-  const handleAddEntry = async (e) => {
-    e.preventDefault();
-    if (!entryAmount || parseFloat(entryAmount) <= 0) {
-      setEntryError('Please enter a valid amount.');
-      return;
-    }
-    if (!entryTitle.trim()) {
-      setEntryError('Please enter a title.');
-      return;
-    }
-    setEntryError('');
-    setEntryLoading(true);
 
-    try {
-      const payload = {
-        amount: parseFloat(entryAmount),
-        title: entryTitle.trim(),
-        description: entryDesc.trim(),
-        type: entryType,
-        useSalaryBalance: useSalaryBal,
-      };
-
-      if (useSalaryBal) {
-        payload.salaryMonth = parseInt(deductMonth);
-        payload.salaryYear = parseInt(deductYear);
-      }
-
-      const res = await fetch('/api/entries', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        setEntryAmount('');
-        setEntryTitle('');
-        setEntryDesc('');
-        setUseSalaryBal(false);
-        setEntryModalOpen(false);
-        await fetchDashboardData();
-      } else {
-        const errData = await res.json();
-        setEntryError(errData.error || 'Failed to add entry.');
-      }
-    } catch (err) {
-      setEntryError('Network error. Please try again.');
-    } finally {
-      setEntryLoading(false);
-    }
-  };
 
   // Handle Quick Delete Entry
   const handleDeleteEntry = async (id) => {
@@ -504,66 +371,66 @@ export default function Dashboard() {
 
   if (isMobile) {
     return (
-      <DashboardMobile
-        user={user}
-        logout={logout}
-        data={data}
-        dataLoading={dataLoading}
-        filter={filter}
-        setFilter={setFilter}
-        customStart={customStart}
-        setCustomStart={setCustomStart}
-        customEnd={customEnd}
-        setCustomEnd={setCustomEnd}
-        searchTerm={searchTerm}
-        setSearchTerm={setSearchTerm}
-        typeFilter={typeFilter}
-        setTypeFilter={setTypeFilter}
-        salaryModalOpen={salaryModalOpen}
-        setSalaryModalOpen={setSalaryModalOpen}
-        entryModalOpen={entryModalOpen}
-        setEntryModalOpen={setEntryModalOpen}
-        presetsDrawerOpen={presetsDrawerOpen}
-        setPresetsDrawerOpen={setPresetsDrawerOpen}
-        salaryCelebrationOpen={salaryCelebrationOpen}
-        setSalaryCelebrationOpen={setSalaryCelebrationOpen}
-        salAmount={salAmount}
-        setSalAmount={setSalAmount}
-        salMonth={salMonth}
-        setSalMonth={setSalMonth}
-        salYear={salYear}
-        setSalYear={setSalYear}
-        salError={salError}
-        setSalError={setSalError}
-        salLoading={salLoading}
-        handleAddSalary={handleAddSalary}
-        entryAmount={entryAmount}
-        setEntryAmount={setEntryAmount}
-        entryTitle={entryTitle}
-        setEntryTitle={setEntryTitle}
-        entryDesc={entryDesc}
-        setEntryDesc={setEntryDesc}
-        entryType={entryType}
-        setEntryType={setEntryType}
-        useSalaryBal={useSalaryBal}
-        setUseSalaryBal={setUseSalaryBal}
-        deductMonth={deductMonth}
-        setDeductMonth={setDeductMonth}
-        deductYear={deductYear}
-        setDeductYear={setDeductYear}
-        entryError={entryError}
-        setEntryError={setEntryError}
-        entryLoading={entryLoading}
-        handleAddEntry={handleAddEntry}
-        handleDeleteEntry={handleDeleteEntry}
-        filteredSuggestions={filteredSuggestions}
-        showSuggestions={showSuggestions}
-        setShowSuggestions={setShowSuggestions}
-        handleSelectSuggestion={handleSelectSuggestion}
-        formatCurrency={formatCurrency}
-        getPresetsList={getPresetsList}
-        monthsList={monthsList}
-      />
+      <>
+        <DashboardMobile
+          user={user}
+          logout={logout}
+          data={data}
+          dataLoading={dataLoading}
+          filter={filter}
+          setFilter={setFilter}
+          customStart={customStart}
+          setCustomStart={setCustomStart}
+          customEnd={customEnd}
+          setCustomEnd={setCustomEnd}
+          searchTerm={searchTerm}
+          setSearchTerm={setSearchTerm}
+          typeFilter={typeFilter}
+          setTypeFilter={setTypeFilter}
+          salaryModalOpen={salaryModalOpen}
+          setSalaryModalOpen={setSalaryModalOpen}
+          entryModalOpen={entryModalOpen}
+          setEntryModalOpen={setEntryModalOpen}
+          presetsDrawerOpen={presetsDrawerOpen}
+          setPresetsDrawerOpen={setPresetsDrawerOpen}
+          salaryCelebrationOpen={salaryCelebrationOpen}
+          setSalaryCelebrationOpen={setSalaryCelebrationOpen}
+          salAmount={salAmount}
+          setSalAmount={setSalAmount}
+          salMonth={salMonth}
+          setSalMonth={setSalMonth}
+          salYear={salYear}
+          setSalYear={setSalYear}
+          salError={salError}
+          setSalError={setSalError}
+          salLoading={salLoading}
+          handleAddSalary={handleAddSalary}
+          handleDeleteEntry={handleDeleteEntry}
+          formatCurrency={formatCurrency}
+          getPresetsList={getPresetsList}
+          monthsList={monthsList}
+          entryToEdit={entryToEdit}
+          setEntryToEdit={setEntryToEdit}
+          salaryType={salaryType}
+          setSalaryType={setSalaryType}
+          parentLending={parentLending}
+          setParentLending={setParentLending}
+        />
+        <TransactionModal
+          isOpen={entryModalOpen}
+          onClose={() => {
+            setEntryModalOpen(false);
+            setEntryToEdit(null);
+            setParentLending(null);
+          }}
+          entryToEdit={entryToEdit}
+          parentLending={parentLending}
+          onSuccess={fetchDashboardData}
+          user={user}
+          monthsList={monthsList}
+          formatCurrency={formatCurrency}
+        />
+      </>
     );
   }
 
@@ -763,11 +630,13 @@ export default function Dashboard() {
                 <button
                   key={idx}
                   onClick={() => {
-                    setEntryAmount(preset.amount.toString());
-                    setEntryType(preset.type);
-                    setEntryTitle(preset.title);
-                    setEntryDesc(preset.desc);
-                    setUseSalaryBal(preset.type === 'SPENDING');
+                    setEntryToEdit({
+                      amount: preset.amount,
+                      type: preset.type,
+                      title: preset.title,
+                      description: preset.desc || '',
+                      useSalaryBalance: preset.type === 'SPENDING'
+                    });
                     setEntryModalOpen(true);
                   }}
                   className="px-3.5 py-2 bg-white/[0.03] hover:bg-violet-600/10 border border-white/[0.06] hover:border-violet-500/30 text-xs font-bold rounded-2xl text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-2 active:scale-95 shrink-0"
@@ -982,6 +851,15 @@ export default function Dashboard() {
                                     {entry.description && (
                                       <div className="text-[10px] text-slate-500 font-medium truncate max-w-[140px] mt-0.5">{entry.description}</div>
                                     )}
+                                    {entry.type === 'LENDING' && (
+                                      <div className="text-[10px] font-medium mt-0.5">
+                                        {entry.unpaidAmount === 0 ? (
+                                          <span className="text-emerald-400 font-extrabold">✓ Fully Repaid</span>
+                                        ) : (
+                                          <span className="text-slate-400">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -1000,12 +878,35 @@ export default function Dashboard() {
                                 {entry.type === 'SPENDING' || entry.type === 'LENDING' ? '-' : '+'}{formatCurrency(entry.amount)}
                               </td>
                               <td className="py-3.5 text-center">
-                                <button
-                                  onClick={() => handleDeleteEntry(entry.id)}
-                                  className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                <div className="flex items-center justify-center gap-1.5">
+                                  {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
+                                    <button
+                                      onClick={() => {
+                                        setParentLending(entry);
+                                        setEntryModalOpen(true);
+                                      }}
+                                      title="Receive Repayment"
+                                      className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer active:scale-90 flex items-center justify-center"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => {
+                                      setEntryToEdit(entry);
+                                      setEntryModalOpen(true);
+                                    }}
+                                    className="p-2 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 border border-transparent hover:border-violet-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEntry(entry.id)}
+                                    className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
@@ -1099,9 +1000,35 @@ export default function Dashboard() {
 
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <PiggyBank className="w-5 h-5 text-emerald-400" /> Log Month-Wise Salary
+                  <PiggyBank className="w-5 h-5 text-emerald-400" /> Log Month-Wise Inflow
                 </h3>
                 <button onClick={() => setSalaryModalOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+              </div>
+
+              {/* Sliding Toggle Tab */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/50 border border-white/5 rounded-xl mb-4">
+                <button
+                  type="button"
+                  onClick={() => setSalaryType('SALARY')}
+                  className={`py-2 text-xs font-black uppercase rounded-lg transition-all cursor-pointer ${
+                    salaryType === 'SALARY'
+                      ? 'bg-emerald-500 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-350'
+                  }`}
+                >
+                  Salary
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSalaryType('BONUS')}
+                  className={`py-2 text-xs font-black uppercase rounded-lg transition-all cursor-pointer ${
+                    salaryType === 'BONUS'
+                      ? 'bg-cyan-500 text-white shadow-md'
+                      : 'text-slate-500 hover:text-slate-350'
+                  }`}
+                >
+                  Bonus
+                </button>
               </div>
 
               {salError && (
@@ -1113,7 +1040,9 @@ export default function Dashboard() {
 
               <form onSubmit={handleAddSalary} className="space-y-4">
                 <div>
-                  <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Salary Amount</label>
+                  <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">
+                    {salaryType === 'SALARY' ? 'Salary Amount' : 'Bonus Amount'}
+                  </label>
                   <input
                     type="number"
                     inputMode="decimal"
@@ -1157,200 +1086,7 @@ export default function Dashboard() {
                 >
                   {salLoading ? (
                     <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  ) : "Save Salary"}
-                </button>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL 2: Add Entry (Drawer Modal Overlay) */}
-      <AnimatePresence>
-        {entryModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
-            {/* Smooth fading backdrop overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setEntryModalOpen(false)}
-              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
-            />
-
-            <motion.div
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 400 }}
-              dragElastic={{ top: 0, bottom: 0.8 }}
-              onDragEnd={(event, info) => {
-                if (info.offset.y > 100 || info.velocity.y > 100) {
-                  setEntryModalOpen(false);
-                }
-              }}
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full md:max-w-lg bg-[#0d1423] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none z-10"
-            >
-              {/* Mobile Drawer Handle */}
-              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
-
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400"></div>
-
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <ArrowUpRight className="w-5 h-5 text-violet-400" /> Log Financial Entry
-                </h3>
-                <button onClick={() => setEntryModalOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
-              </div>
-
-
-
-              {entryError && (
-                <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{entryError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleAddEntry} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Amount</label>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      pattern="[0-9]*"
-                      value={entryAmount}
-                      onChange={(e) => setEntryAmount(e.target.value)}
-                      placeholder="e.g. 150"
-                      className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Entry Type</label>
-                    <select
-                      value={entryType}
-                      onChange={(e) => setEntryType(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-violet-500 transition-all"
-                    >
-                      <option value="SPENDING">Spending Amount</option>
-                      <option value="LENDING">Lending Amount</option>
-                      <option value="LOAN">Loan Amount</option>
-                      <option value="ADVANCE">Advance Balance</option>
-                      <option value="SAVINGS">Savings / SIPs</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="relative" ref={desktopSuggestionsRef}>
-                  <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Title</label>
-                  <input
-                    type="text"
-                    value={entryTitle}
-                    onChange={(e) => {
-                      setEntryTitle(e.target.value);
-                      setShowSuggestions(true);
-                    }}
-                    onFocus={() => setShowSuggestions(true)}
-                    placeholder="e.g. Groceries, Bike Loan, Lent to John"
-                    className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all"
-                    autoComplete="off"
-                  />
-
-                  {/* Autocomplete Suggestions Box */}
-                  <AnimatePresence>
-                    {showSuggestions && filteredSuggestions.length > 0 && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="absolute left-0 right-0 mt-1 bg-[#111827] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-[120] divide-y divide-white/[0.04]"
-                      >
-                        {filteredSuggestions.map((suggestion) => (
-                          <button
-                            key={suggestion.id}
-                            type="button"
-                            onClick={() => handleSelectSuggestion(suggestion)}
-                            className="w-full px-4 py-3 text-left hover:bg-violet-600/10 text-xs flex items-center justify-between transition-colors cursor-pointer"
-                          >
-                            <div className="min-w-0 pr-2">
-                              <span className="font-bold text-white block truncate">{suggestion.title}</span>
-                              <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mt-0.5">{suggestion.type}</span>
-                            </div>
-                            <div className="shrink-0 flex items-center gap-1.5 bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300">
-                              <span>Autofill</span>
-                              <span className="text-[11px] font-black text-violet-400">{formatCurrency(suggestion.amount)}</span>
-                            </div>
-                          </button>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <div>
-                  <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Description</label>
-                  <textarea
-                    value={entryDesc}
-                    onChange={(e) => setEntryDesc(e.target.value)}
-                    placeholder="Add extra context or descriptions..."
-                    rows="2"
-                    className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all"
-                  ></textarea>
-                </div>
-
-                {/* Salary Balance checkbox */}
-                <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="useSalaryCheckbox"
-                      checked={useSalaryBal}
-                      onChange={(e) => setUseSalaryBal(e.target.checked)}
-                      className="w-4 h-4 accent-violet-600"
-                    />
-                    <label htmlFor="useSalaryCheckbox" className="text-xs font-bold text-white cursor-pointer select-none">
-                      Use Salary Balance (Deduct from Salary)
-                    </label>
-                  </div>
-
-                  {useSalaryBal && (
-                    <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
-                      <div>
-                        <label className="block text-slate-500 text-[10px] font-bold uppercase mb-1">Deduct Month</label>
-                        <select
-                          value={deductMonth}
-                          onChange={(e) => setDeductMonth(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-950/40 border border-white/5 rounded-lg text-white text-xs focus:outline-none"
-                        >
-                          {monthsList.map(m => (
-                            <option key={m.value} value={m.value}>{m.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-slate-500 text-[10px] font-bold uppercase mb-1">Deduct Year</label>
-                        <input
-                          type="number"
-                          value={deductYear}
-                          onChange={(e) => setDeductYear(e.target.value)}
-                          className="w-full px-3 py-2 bg-slate-950/40 border border-white/5 rounded-lg text-white text-xs focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={entryLoading}
-                  className="w-full py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-bold text-sm transition-all btn-glow shadow-lg shadow-violet-600/20 cursor-pointer flex items-center justify-center"
-                >
-                  {entryLoading ? (
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  ) : "Log Transaction"}
+                  ) : salaryType === 'SALARY' ? "Save Salary" : "Save Bonus"}
                 </button>
               </form>
             </motion.div>
@@ -1417,11 +1153,13 @@ export default function Dashboard() {
                       key={idx}
                       type="button"
                       onClick={() => {
-                        setEntryAmount(preset.amount.toString());
-                        setEntryType(preset.type);
-                        setEntryTitle(preset.title);
-                        setEntryDesc(preset.desc);
-                        setUseSalaryBal(preset.type === 'SPENDING');
+                        setEntryToEdit({
+                          amount: preset.amount,
+                          type: preset.type,
+                          title: preset.title,
+                          description: preset.desc || '',
+                          useSalaryBalance: preset.type === 'SPENDING'
+                        });
                         setPresetsDrawerOpen(false);
                         setEntryModalOpen(true);
                       }}
@@ -1513,6 +1251,21 @@ export default function Dashboard() {
           </div>
         )}
       </AnimatePresence>
+      {/* TransactionModal component rendered at the root level */}
+      <TransactionModal
+        isOpen={entryModalOpen}
+        onClose={() => {
+          setEntryModalOpen(false);
+          setEntryToEdit(null);
+          setParentLending(null);
+        }}
+        entryToEdit={entryToEdit}
+        parentLending={parentLending}
+        onSuccess={fetchDashboardData}
+        user={user}
+        monthsList={monthsList}
+        formatCurrency={formatCurrency}
+      />
     </div>
   );
 }
