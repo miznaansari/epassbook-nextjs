@@ -500,6 +500,34 @@ export default function NotificationCampaigns() {
                   />
                 </div>
 
+                {/* Inline Live Preview */}
+                <div className="p-3.5 bg-slate-950/60 border border-white/5 rounded-2xl space-y-2">
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Live Notification Preview</span>
+                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Device Mock</span>
+                  </div>
+                  
+                  <div className="bg-slate-905 bg-slate-900/90 border border-white/5 rounded-xl p-3 flex gap-2.5 items-start text-left shadow-lg">
+                    <div className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white shrink-0 mt-0.5">
+                      <Bell className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-extrabold text-white uppercase tracking-wider">
+                          MonthlyMoney
+                        </span>
+                        <span className="text-[8px] text-slate-500 font-bold">now</span>
+                      </div>
+                      <span className="block text-xs font-black text-white mt-1 truncate">
+                        {title ? getLivePreview(title) : 'Notification Title Preview'}
+                      </span>
+                      <span className="block text-[10px] text-slate-400 font-semibold mt-0.5 break-words whitespace-pre-wrap leading-relaxed">
+                        {getLivePreview(message)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Dropdown Options for frequency & time */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -595,38 +623,6 @@ export default function NotificationCampaigns() {
               </div>
             </div>
 
-            {/* Live Preview Device Widget */}
-            <div className="glass-card p-6 border border-white/5 relative overflow-hidden">
-              <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2 mb-4">
-                Live Notification Preview (Demo)
-              </h3>
-              
-              {/* Phone Device Preview container */}
-              <div className="bg-slate-950 border border-white/10 rounded-2xl p-4 shadow-inner relative max-w-sm mx-auto">
-                <div className="absolute top-2 left-1/2 -translate-x-1/2 w-16 h-3 bg-white/10 rounded-full" />
-                
-                {/* Push Banner notification */}
-                <div className="mt-4 bg-slate-900/90 border border-white/5 rounded-xl p-3 flex gap-2.5 items-start text-left shadow-lg">
-                  <div className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white shrink-0 mt-0.5">
-                    <Bell className="w-3.5 h-3.5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-extrabold text-white uppercase tracking-wider">
-                        MonthlyMoney
-                      </span>
-                      <span className="text-[8px] text-slate-500 font-bold">now</span>
-                    </div>
-                    <span className="block text-xs font-black text-white mt-1 truncate">
-                      {title ? getLivePreview(title) : 'Notification Title Preview'}
-                    </span>
-                    <span className="block text-[10px] text-slate-400 font-semibold mt-0.5 break-words whitespace-pre-wrap leading-relaxed">
-                      {getLivePreview(message)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </main>
