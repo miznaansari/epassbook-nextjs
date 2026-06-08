@@ -229,6 +229,9 @@ export default function NotificationCampaigns() {
     { code: '{{stock_portfolio_value}}', name: 'Stocks Portfolio Value', description: 'Current valuation of stock market holdings', icon: TrendingUp, color: 'text-indigo-400' },
     { code: '{{stock_returns}}', name: 'Stocks ROI Return', description: 'Absolute profits/losses in stock holding', icon: DollarSign, color: 'text-teal-400' },
     { code: '{{stock_returns_pct}}', name: 'Stocks ROI %', description: 'Return rate percentage for stocks', icon: TrendingUp, color: 'text-purple-400' },
+    { code: '{{today_spend}}', name: 'Today Spend', description: 'Total spending logged today', icon: DollarSign, color: 'text-rose-400' },
+    { code: '{{this_week_spend}}', name: 'Week Spend', description: 'Total spending logged this week', icon: DollarSign, color: 'text-orange-400' },
+    { code: '{{this_month_spend}}', name: 'Month Spend', description: 'Total spending logged this month', icon: DollarSign, color: 'text-red-400' },
     { code: '{{current_month}}', name: 'Current Month', description: 'E.g., June, July', icon: Calendar, color: 'text-amber-400' },
     { code: '{{current_year}}', name: 'Current Year', description: 'E.g., 2026', icon: Clock, color: 'text-rose-400' }
   ];
@@ -245,6 +248,9 @@ export default function NotificationCampaigns() {
       .replaceAll('{{stock_portfolio_value}}', `${currencySym}12,500`)
       .replaceAll('{{stock_returns}}', `+${currencySym}450`)
       .replaceAll('{{stock_returns_pct}}', `+3.6%`)
+      .replaceAll('{{today_spend}}', `${currencySym}80`)
+      .replaceAll('{{this_week_spend}}', `${currencySym}350`)
+      .replaceAll('{{this_month_spend}}', `${currencySym}1,200`)
       .replaceAll('{{current_month}}', new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()))
       .replaceAll('{{current_year}}', new Date().getFullYear().toString());
   };

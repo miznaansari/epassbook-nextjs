@@ -595,6 +595,42 @@ export async function GET(req) {
             const generalSavingsAmt = periodOutflows.filter(e => !e.useSalaryBalance).reduce((sum, e) => sum + parseFloat(e.amount), 0);
             const totalSavingsThisMonth = savingsDeductions + generalSavingsAmt;
 
+            // Calculate spending variables timezone-aware
+            const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000);
+            const userSpends = userEntries.filter(e => e.type === 'SPENDING' && new Date(e.date) >= fortyDaysAgo);
+
+            let todaySpend = 0;
+            let thisWeekSpend = 0;
+            let thisMonthSpend = 0;
+            const startOfWeekDate = new Date(userLocalDate.getFullYear(), userLocalDate.getMonth(), userLocalDate.getDate() - userLocalDate.getDay());
+
+            for (const entry of userSpends) {
+              try {
+                const entryParts = new Intl.DateTimeFormat('en-US', {
+                  timeZone: tzString,
+                  year: 'numeric',
+                  month: 'numeric',
+                  day: 'numeric'
+                }).formatToParts(new Date(entry.date));
+                const entryYear = parseInt(entryParts.find(p => p.type === 'year')?.value, 10);
+                const entryMonth = parseInt(entryParts.find(p => p.type === 'month')?.value, 10) - 1;
+                const entryDay = parseInt(entryParts.find(p => p.type === 'day')?.value, 10);
+                
+                const entryLocalDate = new Date(entryYear, entryMonth, entryDay, 0, 0, 0);
+                const entryLocalDateStr = `${entryYear}-${entryMonth + 1}-${entryDay}`;
+
+                if (entryLocalDateStr === userLocalDateStr) {
+                  todaySpend += parseFloat(entry.amount);
+                }
+                if (entryLocalDate >= startOfWeekDate) {
+                  thisWeekSpend += parseFloat(entry.amount);
+                }
+                if (entryYear === userLocalDate.getFullYear() && entryMonth === userLocalDate.getMonth()) {
+                  thisMonthSpend += parseFloat(entry.amount);
+                }
+              } catch (e) {}
+            }
+
             // Stock Holdings value
             const userHoldings = await db.stockHolding.findMany({
               where: { userId: user.id }
@@ -637,6 +673,9 @@ export async function GET(req) {
               '{{stock_portfolio_value}}': formatVal(totalCurrentValue),
               '{{stock_returns}}': formatVal(totalReturns),
               '{{stock_returns_pct}}': `${totalReturnsPercentage.toFixed(1)}%`,
+              '{{today_spend}}': formatVal(todaySpend),
+              '{{this_week_spend}}': formatVal(thisWeekSpend),
+              '{{this_month_spend}}': formatVal(thisMonthSpend),
               '{{current_month}}': monthName,
               '{{current_year}}': currentYearNum.toString()
             };
