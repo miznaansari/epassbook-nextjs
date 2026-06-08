@@ -316,11 +316,11 @@ export default function StocksPage() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
             <button
               onClick={handleRefresh}
               disabled={refreshing || apiLimitRemaining <= 0}
-              className={`px-4 py-2 border text-xs font-bold rounded-xl flex items-center gap-2 transition-all active:scale-95 shadow-md ${
+              className={`px-4 py-2 border text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md w-full sm:w-auto ${
                 apiLimitRemaining <= 0
                   ? 'bg-slate-900/40 border-white/5 text-slate-500 cursor-not-allowed'
                   : 'bg-slate-950/80 border-white/10 hover:border-white/20 hover:bg-slate-900 text-white cursor-pointer'
@@ -328,12 +328,15 @@ export default function StocksPage() {
               title={`Daily Refresh Limit: 10 refreshes. Remaining today: ${apiLimitRemaining}`}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>Refresh Prices ({apiLimitRemaining}/10 remaining)</span>
+              <span>
+                <span className="inline sm:hidden">Refresh ({apiLimitRemaining}/10)</span>
+                <span className="hidden sm:inline">Refresh Prices ({apiLimitRemaining}/10 remaining)</span>
+              </span>
             </button>
             
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-lg shadow-violet-600/20 active:scale-95 cursor-pointer font-black tracking-wider uppercase"
+              className="px-4 py-2 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-lg shadow-violet-600/20 active:scale-95 cursor-pointer font-black tracking-wider uppercase w-full sm:w-auto shrink-0"
             >
               <Plus className="w-4 h-4" /> Add Share
             </button>
@@ -472,57 +475,132 @@ export default function StocksPage() {
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-white/5 text-[9px] uppercase tracking-wider text-slate-500 font-black">
-                    <th className="py-3 px-4">Company Name</th>
-                    <th className="py-3 px-4 text-right">Quantity</th>
-                    <th className="py-3 px-4 text-right">Avg Buy Price</th>
-                    <th className="py-3 px-4 text-right">Current Price</th>
-                    <th className="py-3 px-4 text-right">Invested Value</th>
-                    <th className="py-3 px-4 text-right">Current Value</th>
-                    <th className="py-3 px-4 text-right">Total Returns</th>
-                    <th className="py-3 px-4 text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.03] text-xs font-semibold">
-                  {holdings.map((h) => {
-                    const rowProfit = h.totalReturns >= 0;
-                    return (
-                      <tr key={h.id} className="hover:bg-white/[0.01] transition-colors">
-                        <td className="py-4 px-4">
-                          <div className="font-extrabold text-slate-200">{h.name}</div>
-                          <div className="text-[10px] text-slate-500 font-bold tracking-wider mt-0.5">{h.symbol}</div>
-                        </td>
-                        <td className="py-4 px-4 text-right font-mono font-bold text-slate-300">{h.quantity}</td>
-                        <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.buyPrice)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-slate-200">{formatCurrency(h.currentPrice)}</td>
-                        <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.investedValue)}</td>
-                        <td className="py-4 px-4 text-right font-mono font-bold text-slate-200">{formatCurrency(h.currentValue)}</td>
-                        <td className="py-4 px-4 text-right">
-                          <div className={`font-mono font-bold ${rowProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+            <>
+              {/* Desktop View Table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[600px]">
+                  <thead>
+                    <tr className="border-b border-white/5 text-[9px] uppercase tracking-wider text-slate-500 font-black">
+                      <th className="py-3 px-4">Company Name</th>
+                      <th className="py-3 px-4 text-right">Quantity</th>
+                      <th className="py-3 px-4 text-right">Avg Buy Price</th>
+                      <th className="py-3 px-4 text-right">Current Price</th>
+                      <th className="py-3 px-4 text-right">Invested Value</th>
+                      <th className="py-3 px-4 text-right">Current Value</th>
+                      <th className="py-3 px-4 text-right">Total Returns</th>
+                      <th className="py-3 px-4 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/[0.03] text-xs font-semibold">
+                    {holdings.map((h) => {
+                      const rowProfit = h.totalReturns >= 0;
+                      return (
+                        <tr key={h.id} className="hover:bg-white/[0.01] transition-colors">
+                          <td className="py-4 px-4">
+                            <div className="font-extrabold text-slate-200">{h.name}</div>
+                            <div className="text-[10px] text-slate-500 font-bold tracking-wider mt-0.5">{h.symbol}</div>
+                          </td>
+                          <td className="py-4 px-4 text-right font-mono font-bold text-slate-300">{h.quantity}</td>
+                          <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.buyPrice)}</td>
+                          <td className="py-4 px-4 text-right font-mono text-slate-200">{formatCurrency(h.currentPrice)}</td>
+                          <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.investedValue)}</td>
+                          <td className="py-4 px-4 text-right font-mono font-bold text-slate-200">{formatCurrency(h.currentValue)}</td>
+                          <td className="py-4 px-4 text-right">
+                            <div className={`font-mono font-bold ${rowProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                              {rowProfit ? '+' : ''}{formatCurrency(h.totalReturns)}
+                            </div>
+                            <div className={`text-[10px] font-bold mt-0.5 ${rowProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
+                              {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
+                            </div>
+                          </td>
+                          <td className="py-4 px-4 text-center">
+                            <button
+                              onClick={() => handleDeleteHolding(h.id, h.name)}
+                              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer"
+                              title="Delete Stock Holding"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile View Card Grid */}
+              <div className="md:hidden space-y-4">
+                {holdings.map((h) => {
+                  const rowProfit = h.totalReturns >= 0;
+                  return (
+                    <div 
+                      key={h.id} 
+                      className="bg-white/[0.01] border border-white/[0.05] rounded-2xl p-4 flex flex-col gap-3 relative hover:border-white/[0.09] transition-all"
+                    >
+                      {/* Ticker & Name & Delete button */}
+                      <div className="flex items-start justify-between">
+                        <div className="min-w-0 pr-10 text-left">
+                          <h4 className="font-extrabold text-slate-100 truncate text-xs">{h.name}</h4>
+                          <span className="inline-block text-[8px] text-violet-400 bg-violet-500/10 border border-violet-500/20 px-2 py-0.5 rounded font-black tracking-wider uppercase mt-1">
+                            {h.symbol}
+                          </span>
+                        </div>
+                        {/* Delete holding */}
+                        <button
+                          onClick={() => handleDeleteHolding(h.id, h.name)}
+                          className="absolute top-3 right-3 p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl border border-white/5 transition-all cursor-pointer"
+                          title="Delete Stock Holding"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Info Row 1: Qty & Buy Price */}
+                      <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-white/[0.04]">
+                        <div className="text-left">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Quantity</span>
+                          <span className="font-mono font-bold text-slate-200 text-xs">{h.quantity}</span>
+                        </div>
+                        <div className="text-left">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Avg Buy Price</span>
+                          <span className="font-mono font-bold text-slate-350 text-xs">{formatCurrency(h.buyPrice)}</span>
+                        </div>
+                      </div>
+
+                      {/* Info Row 2: Invested vs Current Value */}
+                      <div className="grid grid-cols-2 gap-4 text-xs py-1">
+                        <div className="text-left">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Invested Value</span>
+                          <span className="font-mono font-bold text-slate-400 text-xs">{formatCurrency(h.investedValue)}</span>
+                        </div>
+                        <div className="text-left">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Current Value</span>
+                          <span className="font-mono font-bold text-slate-200 text-xs">{formatCurrency(h.currentValue)}</span>
+                        </div>
+                      </div>
+
+                      {/* Info Row 3: Current Price and Returns */}
+                      <div className="bg-white/[0.02] border border-white/[0.04] p-3 rounded-xl flex items-center justify-between mt-1">
+                        <div className="text-left">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Current Price</span>
+                          <span className="font-mono text-slate-300 font-bold text-xs">{formatCurrency(h.currentPrice)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">Returns</span>
+                          <div className={`font-mono font-bold text-xs ${rowProfit ? 'text-emerald-400' : 'text-rose-400'} flex items-center justify-end gap-1`}>
                             {rowProfit ? '+' : ''}{formatCurrency(h.totalReturns)}
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${rowProfit ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                              {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
+                            </span>
                           </div>
-                          <div className={`text-[10px] font-bold mt-0.5 ${rowProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
-                          </div>
-                        </td>
-                        <td className="py-4 px-4 text-center">
-                          <button
-                            onClick={() => handleDeleteHolding(h.id, h.name)}
-                            className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer"
-                            title="Delete Stock Holding"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       </main>
@@ -545,7 +623,7 @@ export default function StocksPage() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-3xl shadow-2xl p-6 overflow-visible text-left"
+              className="relative w-full max-w-md bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh] text-left scrollbar-thin"
             >
               <button
                 onClick={() => {

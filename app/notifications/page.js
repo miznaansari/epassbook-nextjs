@@ -48,6 +48,7 @@ export default function NotificationCampaigns() {
   const [activeField, setActiveField] = useState('message'); // 'title' or 'message'
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [mobileTab, setMobileTab] = useState('list'); // 'list' or 'configure'
   
   const titleInputRef = useRef(null);
   const messageInputRef = useRef(null);
@@ -116,6 +117,7 @@ export default function NotificationCampaigns() {
       if (res.ok) {
         setSuccessMsg(isEditing ? 'Campaign updated successfully!' : 'Campaign created successfully!');
         resetForm();
+        setMobileTab('list');
         await fetchCampaigns();
       } else {
         const data = await res.json();
@@ -193,6 +195,7 @@ export default function NotificationCampaigns() {
     setIsActive(campaign.isActive);
     setErrorMsg('');
     setSuccessMsg('');
+    setMobileTab('configure');
   };
 
   // Reset/Clear Form
@@ -306,9 +309,35 @@ export default function NotificationCampaigns() {
           </motion.div>
         )}
 
+        {/* Mobile Tabs Toggle (Only visible on mobile) */}
+        <div className="lg:hidden flex p-1 bg-slate-950/40 border border-white/5 rounded-2xl mb-6">
+          <button
+            onClick={() => setMobileTab('list')}
+            className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              mobileTab === 'list'
+                ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Bell className="w-4 h-4" />
+            <span>Active ({campaigns.length})</span>
+          </button>
+          <button
+            onClick={() => setMobileTab('configure')}
+            className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              mobileTab === 'configure'
+                ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Plus className="w-4 h-4" />
+            <span>{isEditing ? 'Modify Trigger' : 'Configure New'}</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* LEFT: Campaigns List (7 Columns) */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className={`lg:col-span-7 space-y-6 ${mobileTab === 'list' ? 'block' : 'hidden lg:block'}`}>
             <div className="flex justify-between items-center">
               <h2 className="text-lg font-black text-white uppercase tracking-wider">Active Campaigns</h2>
               {isEditing && (
@@ -351,8 +380,8 @@ export default function NotificationCampaigns() {
                       <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-violet-500 to-cyan-400" />
                     )}
 
-                    <div className="flex justify-between items-start gap-4 pl-2">
-                      <div>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pl-2">
+                      <div className="flex-grow min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="text-base font-black text-white">{campaign.title}</h3>
                           <span className="px-2 py-0.5 bg-violet-600/15 border border-violet-500/20 text-violet-400 rounded-full text-[9px] font-extrabold uppercase tracking-wide">
@@ -362,7 +391,7 @@ export default function NotificationCampaigns() {
                             🕒 {campaign.time || '12:00'}
                           </span>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2 font-medium bg-slate-950/20 p-3 rounded-lg border border-white/5 leading-relaxed font-mono">
+                        <p className="text-slate-400 text-xs mt-2 font-medium bg-slate-950/20 p-3 rounded-lg border border-white/5 leading-relaxed font-mono break-words">
                           {campaign.message}
                         </p>
                         <div className="mt-3 flex items-center gap-4 text-[10px] text-slate-500 font-semibold">
@@ -375,11 +404,11 @@ export default function NotificationCampaigns() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2.5 shrink-0 mt-4 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-white/[0.04] w-full md:w-auto justify-end">
                         {/* Toggle active switch */}
                         <button
                           onClick={() => handleToggleActive(campaign)}
-                          className="p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+                          className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer flex items-center gap-1.5"
                           title={campaign.isActive ? 'Deactivate campaign' : 'Activate campaign'}
                         >
                           {campaign.isActive ? (
@@ -392,7 +421,7 @@ export default function NotificationCampaigns() {
                         {/* Edit */}
                         <button
                           onClick={() => handleEditClick(campaign)}
-                          className="p-1.5 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-all cursor-pointer"
+                          className="p-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95"
                           title="Edit campaign template"
                         >
                           <Edit className="w-4 h-4" />
@@ -402,7 +431,7 @@ export default function NotificationCampaigns() {
                         <button
                           disabled={testingId === campaign.id}
                           onClick={() => handleSendTestPush(campaign.id)}
-                          className="p-1.5 bg-gradient-to-tr from-cyan-600/10 to-violet-600/10 hover:from-cyan-600/20 hover:to-violet-600/20 border border-violet-500/25 rounded-lg text-cyan-400 hover:text-white transition-all cursor-pointer"
+                          className="p-2 bg-gradient-to-tr from-cyan-600/10 to-violet-600/10 hover:from-cyan-600/20 hover:to-violet-600/20 border border-violet-500/25 rounded-xl text-cyan-400 hover:text-white transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95"
                           title="Trigger a test push now"
                         >
                           {testingId === campaign.id ? (
@@ -415,7 +444,7 @@ export default function NotificationCampaigns() {
                         {/* Delete */}
                         <button
                           onClick={() => handleDelete(campaign.id)}
-                          className="p-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 hover:text-rose-300 transition-all cursor-pointer"
+                          className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 hover:text-rose-300 transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95"
                           title="Delete Campaign"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -429,7 +458,7 @@ export default function NotificationCampaigns() {
           </div>
 
           {/* RIGHT: Create/Edit Form & Ref variables (5 Columns) */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className={`lg:col-span-5 space-y-6 ${mobileTab === 'configure' ? 'block' : 'hidden lg:block'}`}>
             {/* Form */}
             <div className="glass-card p-6 border border-white/5 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400" />
