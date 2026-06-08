@@ -85,7 +85,7 @@ export async function middleware(request) {
   }
 
   // 4. Secure User App Routes
-  const secureRoutes = ['/dashboard', '/transactions', '/reports', '/settings', '/assistant'];
+  const secureRoutes = ['/dashboard', '/transactions', '/reports', '/settings', '/assistant', '/stocks'];
   const isSecureRoute = secureRoutes.some(route => pathname.startsWith(route));
 
   if (isSecureRoute) {

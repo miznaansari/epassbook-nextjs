@@ -25,6 +25,7 @@ import {
   PieChart as PieIcon,
   BarChart4,
   TrendingDown,
+  TrendingUp,
   Coins,
   AlertCircle,
   PiggyBank,
@@ -32,7 +33,9 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
   Info,
-  CalendarDays
+  CalendarDays,
+  Briefcase,
+  ArrowUpRight
 } from 'lucide-react';
 import { getLogicalCyclePeriod } from '@/lib/cycle';
 
@@ -46,6 +49,12 @@ export default function Reports() {
   const [entries, setEntries] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [cycleDate, setCycleDate] = useState(1);
+  const [stockSummary, setStockSummary] = useState({
+    totalInvested: 0,
+    totalCurrentValue: 0,
+    totalReturns: 0,
+    totalReturnsPercentage: 0
+  });
 
   // Contribution Calendar States
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -78,6 +87,15 @@ export default function Reports() {
         const entRes = await fetch('/api/entries');
         const entData = entRes.ok ? await entRes.json() : [];
         setEntries(entData);
+
+        // Fetch Stock Holdings
+        const stockRes = await fetch('/api/stocks/holdings');
+        if (stockRes.ok) {
+          const stockData = await stockRes.json();
+          if (stockData.summary) {
+            setStockSummary(stockData.summary);
+          }
+        }
       } catch (err) {
         console.error('Error fetching analytics data:', err);
       } finally {
@@ -86,6 +104,9 @@ export default function Reports() {
     };
 
     if (user) {
+      if (user.salaryCycleDate) {
+        setCycleDate(user.salaryCycleDate);
+      }
       fetchData();
     }
   }, [user]);
@@ -351,6 +372,72 @@ export default function Reports() {
 
   const monthlyChartData = prepareMonthlyComparisonData();
 
+  // Helper to get current period stats
+  const getCurrentPeriodSummary = () => {
+    const now = new Date();
+    const logicalPeriod = getLogicalCyclePeriod(now, cycleDate);
+
+    // Current month salary
+    const matchingSalary = salaries.find(s => s.month === logicalPeriod.month && s.year === logicalPeriod.year);
+    const salaryAmt = matchingSalary ? parseFloat(matchingSalary.amount) : 0;
+
+    // Current month bonus
+    const matchingBonus = bonuses.find(b => b.month === logicalPeriod.month && b.year === logicalPeriod.year);
+    const bonusAmt = matchingBonus ? parseFloat(matchingBonus.amount) : 0;
+
+    const cycleStart = new Date(logicalPeriod.year, logicalPeriod.month - 1, cycleDate, 0, 0, 0, 0);
+    let endMonth = logicalPeriod.month;
+    let endYear = logicalPeriod.year;
+    if (endMonth > 11) {
+      endMonth = 0;
+      endYear++;
+    }
+    const cycleEnd = new Date(endYear, endMonth, cycleDate - 1, 23, 59, 59, 999);
+
+    const periodInflows = entries.filter(e => {
+      const d = new Date(e.date);
+      return d >= cycleStart && d <= cycleEnd && (e.type === 'ADVANCE' || e.type === 'LOAN');
+    });
+    const inflowExtra = periodInflows.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    const totalInflow = salaryAmt + bonusAmt + inflowExtra;
+
+    const periodOutflows = entries.filter(e => {
+      const d = new Date(e.date);
+      return d >= cycleStart && d <= cycleEnd && (e.type === 'SPENDING' || e.type === 'LENDING' || e.type === 'SAVINGS');
+    });
+    const totalOutflow = periodOutflows.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+    // Calculate real remaining salary + bonus balance
+    let periodDeductions = 0;
+    let savingsDeductions = 0;
+
+    entries.forEach(entry => {
+      if (entry.deductions) {
+        entry.deductions.forEach(d => {
+          if (d.month === logicalPeriod.month && d.year === logicalPeriod.year) {
+            const amt = parseFloat(d.amount);
+            periodDeductions += amt;
+            if (entry.type === 'SAVINGS') {
+              savingsDeductions += amt;
+            }
+          }
+        });
+      }
+    });
+
+    const periodGeneralSavings = periodOutflows.filter(e => e.type === 'SAVINGS' && !e.useSalaryBalance);
+    const generalSavingsAmt = periodGeneralSavings.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+    const totalSavings = savingsDeductions + generalSavingsAmt;
+
+    return {
+      totalInflow,
+      totalOutflow,
+      totalSavings
+    };
+  };
+
+  const currentPeriodStats = getCurrentPeriodSummary();
+
   // 2. Prepare Pie Chart: Spending Categories Breakdown for current logical month
   const prepareCategoriesPieData = () => {
     const now = new Date();
@@ -452,6 +539,74 @@ export default function Reports() {
           </div>
         ) : (
           <div className="space-y-8">
+
+            {/* Premium Stats Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              
+              {/* Card 1: Cycle Cashflow */}
+              <div className="glass-card p-5 border border-white/5 flex items-center justify-between bg-slate-950/20">
+                <div className="text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Cycle Net Cashflow
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    {formatCurrency(currentPeriodStats.totalInflow - currentPeriodStats.totalOutflow)}
+                  </h3>
+                  <div className="text-[10px] text-slate-500 font-bold mt-1.5 uppercase">
+                    In: <span className="text-emerald-400">{formatCurrency(currentPeriodStats.totalInflow)}</span> | Out: <span className="text-rose-400">{formatCurrency(currentPeriodStats.totalOutflow)}</span>
+                  </div>
+                </div>
+                <div className="p-3 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl">
+                  <Coins className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* Card 2: Ledger Savings */}
+              <div className="glass-card p-5 border border-white/5 flex items-center justify-between bg-slate-950/20">
+                <div className="text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Ledger Invested Savings
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    {formatCurrency(currentPeriodStats.totalSavings)}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-bold mt-1.5 uppercase">
+                    Total tracked in epassbook
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl">
+                  <PiggyBank className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* Card 3: Share Market Portfolio */}
+              <div className="glass-card p-5 border border-white/5 flex items-center justify-between bg-slate-950/20">
+                <div className="text-left">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Share Market Portfolio
+                  </span>
+                  <h3 className="text-xl font-black text-white mt-1">
+                    {formatCurrency(stockSummary.totalCurrentValue)}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase">
+                      Invested: {formatCurrency(stockSummary.totalInvested)}
+                    </span>
+                    {stockSummary.totalInvested > 0 && (
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                        stockSummary.totalReturns >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      }`}>
+                        {stockSummary.totalReturns >= 0 ? '+' : ''}{stockSummary.totalReturnsPercentage.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+              </div>
+
+            </div>
  
             {/* Premium GitHub-Style Contribution Calendar and Shadcn-Style Date Selector */}
             <div className="glass-card p-6 border border-white/5 space-y-6 text-left">

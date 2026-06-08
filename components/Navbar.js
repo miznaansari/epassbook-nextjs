@@ -11,7 +11,9 @@ import {
   MessageSquare, 
   Settings, 
   LogOut, 
-  User 
+  User,
+  TrendingUp,
+  Bell
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -21,7 +23,9 @@ export default function Navbar() {
   const links = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'E-Passbook', path: '/transactions', icon: ReceiptText },
+    { name: 'Stocks', path: '/stocks', icon: TrendingUp },
     { name: 'Reports', path: '/reports', icon: AreaChart },
+    { name: 'Campaigns', path: '/notifications', icon: Bell },
     { name: 'AI Assistant', path: '/assistant', icon: MessageSquare },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];

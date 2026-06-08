@@ -475,6 +475,211 @@ export async function GET(req) {
           }
         }
       }
+
+      // ==========================================
+      // TRIGGER 4: CUSTOM ONE SIGNAL CAMPAIGNS
+      // ==========================================
+      try {
+        const campaigns = await db.notificationCampaign.findMany({
+          where: {
+            userId: user.id,
+            isActive: true,
+            isDeleted: false
+          }
+        });
+
+        for (const campaign of campaigns) {
+          // Check target time of day (HH:MM)
+          const campaignTime = campaign.time || '12:00';
+          const [targetHour, targetMinute] = campaignTime.split(':').map(Number);
+          
+          const localTotalMinutes = localHour * 60 + localMinute;
+          const targetTotalMinutes = targetHour * 60 + targetMinute;
+          
+          // Only trigger if local time is at or after scheduled time
+          if (localTotalMinutes < targetTotalMinutes) {
+            continue;
+          }
+
+          let shouldSend = false;
+          const lastSent = campaign.lastSentAt ? new Date(campaign.lastSentAt) : null;
+          
+          if (!lastSent) {
+            shouldSend = true;
+          } else {
+            // Get lastSent date in user's timezone
+            let lastSentDateStr = null;
+            try {
+              const sentParts = new Intl.DateTimeFormat('en-US', {
+                timeZone: tzString,
+                year: 'numeric',
+                month: 'numeric',
+                day: 'numeric'
+              }).formatToParts(lastSent);
+              const sentYear = sentParts.find(p => p.type === 'year')?.value;
+              const sentMonth = sentParts.find(p => p.type === 'month')?.value;
+              const sentDay = sentParts.find(p => p.type === 'day')?.value;
+              lastSentDateStr = `${sentYear}-${sentMonth}-${sentDay}`;
+            } catch (e) {}
+
+            // If already sent today, skip
+            if (lastSentDateStr === userLocalDateStr) {
+              shouldSend = false;
+            } else {
+              const diffTime = now.getTime() - lastSent.getTime();
+              const diffDays = diffTime / (1000 * 60 * 60 * 24);
+              
+              if (campaign.frequency === 'DAILY') {
+                shouldSend = true;
+              } else if (campaign.frequency === 'WEEKLY') {
+                shouldSend = diffDays >= 6.8;
+              } else if (campaign.frequency === 'MONTHLY') {
+                shouldSend = diffDays >= 29.8;
+              } else if (campaign.frequency === 'SIX_MONTHS') {
+                shouldSend = diffDays >= 179.8;
+              }
+            }
+          }
+
+          if (shouldSend) {
+            // Fetch necessary data to evaluate variables
+            const userSalaries = await db.salary.findMany({
+              where: { userId: user.id }
+            });
+            const userBonuses = await db.bonus.findMany({
+              where: { userId: user.id }
+            });
+            const userEntries = await db.financialEntry.findMany({
+              where: { userId: user.id },
+              include: { deductions: true }
+            });
+
+            // Calculate current period logical dates
+            const localDate = userLocalDate;
+            const currentMonthNum = localDate.getMonth() + 1;
+            const currentYearNum = localDate.getFullYear();
+
+            // Find salary & bonus for this month
+            const matchingSalary = userSalaries.find(s => s.month === currentMonthNum && s.year === currentYearNum);
+            const salaryAmt = matchingSalary ? parseFloat(matchingSalary.amount) : 0;
+
+            const matchingBonus = userBonuses.find(b => b.month === currentMonthNum && b.year === currentYearNum);
+            const bonusAmt = matchingBonus ? parseFloat(matchingBonus.amount) : 0;
+
+            // Deductions
+            let periodDeductions = 0;
+            let savingsDeductions = 0;
+
+            userEntries.forEach(entry => {
+              if (entry.deductions) {
+                entry.deductions.forEach(d => {
+                  if (d.month === currentMonthNum && d.year === currentYearNum) {
+                    const amt = parseFloat(d.amount);
+                    periodDeductions += amt;
+                    if (entry.type === 'SAVINGS') {
+                      savingsDeductions += amt;
+                    }
+                  }
+                });
+              }
+            });
+
+            const leftSalary = Math.max(0, (salaryAmt + bonusAmt) - periodDeductions);
+
+            // Savings tracked in cycle range
+            const { startDate, endDate } = getCycleRange(userLocalDate, user.salaryCycleDate || 1);
+            const periodOutflows = userEntries.filter(e => {
+              const d = new Date(e.date);
+              return d >= startDate && d <= endDate && e.type === 'SAVINGS';
+            });
+            const generalSavingsAmt = periodOutflows.filter(e => !e.useSalaryBalance).reduce((sum, e) => sum + parseFloat(e.amount), 0);
+            const totalSavingsThisMonth = savingsDeductions + generalSavingsAmt;
+
+            // Stock Holdings value
+            const userHoldings = await db.stockHolding.findMany({
+              where: { userId: user.id }
+            });
+            const symbols = userHoldings.map(h => h.symbol);
+            const stockPrices = await db.stockPrice.findMany({
+              where: { symbol: { in: symbols } }
+            });
+
+            let totalInvested = 0;
+            let totalCurrentValue = 0;
+            userHoldings.forEach(h => {
+              const qty = h.quantity;
+              const buyVal = parseFloat(h.buyPrice) * qty;
+              totalInvested += buyVal;
+
+              const sp = stockPrices.find(p => p.symbol === h.symbol);
+              const currentPrice = sp ? parseFloat(sp.price) : parseFloat(h.buyPrice);
+              totalCurrentValue += currentPrice * qty;
+            });
+            const totalReturns = totalCurrentValue - totalInvested;
+            const totalReturnsPercentage = totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0;
+
+            // Substitutions
+            const currencyCode = user.currency || 'USD';
+            const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
+            const formatVal = (val) => new Intl.NumberFormat(locale, {
+              style: 'currency',
+              currency: currencyCode,
+              maximumFractionDigits: 0
+            }).format(val || 0);
+
+            const fullMonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+            const monthName = fullMonthNames[currentMonthNum - 1];
+
+            const replacements = {
+              '{{user_name}}': user.name || 'User',
+              '{{left_salary}}': formatVal(leftSalary),
+              '{{savings}}': formatVal(totalSavingsThisMonth),
+              '{{stock_portfolio_value}}': formatVal(totalCurrentValue),
+              '{{stock_returns}}': formatVal(totalReturns),
+              '{{stock_returns_pct}}': `${totalReturnsPercentage.toFixed(1)}%`,
+              '{{current_month}}': monthName,
+              '{{current_year}}': currentYearNum.toString()
+            };
+
+            let replacedTitle = campaign.title;
+            let replacedMessage = campaign.message;
+
+            Object.entries(replacements).forEach(([key, val]) => {
+              replacedTitle = replacedTitle.replaceAll(key, val);
+              replacedMessage = replacedMessage.replaceAll(key, val);
+            });
+
+            // Send push
+            const pushResult = await sendPush(user.id, replacedTitle, replacedMessage);
+            if (pushResult.success) {
+              await db.notificationCampaign.update({
+                where: { id: campaign.id },
+                data: { lastSentAt: now }
+              });
+              report.dispatches.push({
+                userId: user.id,
+                type: 'CUSTOM_CAMPAIGN',
+                campaignId: campaign.id,
+                title: replacedTitle
+              });
+            } else {
+              report.errors.push({
+                userId: user.id,
+                type: 'CUSTOM_CAMPAIGN',
+                campaignId: campaign.id,
+                error: pushResult.reason
+              });
+            }
+          }
+        }
+      } catch (campaignErr) {
+        console.error(`[Cron Engine] Error processing custom campaigns for user ${user.id}:`, campaignErr);
+        report.errors.push({
+          userId: user.id,
+          type: 'CUSTOM_CAMPAIGN',
+          error: campaignErr.message
+        });
+      }
     }
 
     return NextResponse.json({
