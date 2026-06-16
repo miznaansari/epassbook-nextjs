@@ -26,6 +26,13 @@ model User {
   lastDailySpendReminderSentAt DateTime? // To prevent double sending of daily spend summary
   lastSalaryReminderSentAt DateTime?   // To prevent double sending of salary celebration after a day
   lastCycleReminderSentAt  DateTime?   // To prevent double sending of cycle end review
+  notifStreakLevel1  Boolean          @default(true) // Enable Level 1 streak notification
+  notifStreakLevel2  Boolean          @default(true) // Enable Level 2 streak notification
+  streakLevel2Limit  Decimal          @db.Decimal(12, 2) @default(100.00) // Spend limit for Level 2 streak
+  streakLevel1       Int              @default(0) // Current Level 1 streak
+  streakLevel2       Int              @default(0) // Current Level 2 streak
+  lastStreakLevel1SentAt DateTime?    // Avoid double sending Level 1 streak notifications
+  lastStreakLevel2SentAt DateTime?    // Avoid double sending Level 2 streak notifications
   createdAt          DateTime                 @default(now())
   updatedAt          DateTime                 @updatedAt
   salaries           Salary[]

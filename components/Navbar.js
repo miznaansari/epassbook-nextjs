@@ -57,7 +57,7 @@ export default function Navbar() {
           </Link>
 
           {/* Navigation Links (Desktop Only) */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-2">
+          <nav className="hidden md:flex items-center gap-1 sm:gap-2" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
             {links.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.path;
@@ -66,13 +66,13 @@ export default function Navbar() {
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-300 border ${
                     isActive
-                      ? 'bg-violet-600/15 text-violet-400 border border-violet-500/20'
-                      : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+                      ? 'bg-gradient-to-r from-violet-600/15 to-cyan-500/15 text-violet-350 border-violet-500/30 shadow-[0_0_15px_-3px_rgba(139,92,246,0.2)]'
+                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
                   <span>{link.name}</span>
                 </Link>
               );
@@ -80,26 +80,30 @@ export default function Navbar() {
           </nav>
 
           {/* User Actions & Mobile Hamburger */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
             <div className="flex items-center gap-2 max-w-[150px]">
-              <div className="w-8 h-8 rounded-full bg-violet-600/25 border border-violet-500/35 text-violet-400 flex items-center justify-center shrink-0">
-                {user?.photoURL ? (
-                  <img src={user.photoURL} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  <User className="w-4 h-4" />
-                )}
+              <div className="relative group">
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-75 transition duration-500"></div>
+                <div className="relative w-8 h-8 rounded-full bg-slate-950 border border-white/10 text-violet-400 flex items-center justify-center shrink-0 overflow-hidden">
+                  {user?.photoURL ? (
+                    <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
+                </div>
               </div>
               <div className="hidden sm:flex flex-col text-left">
                 <span className="text-xs font-bold text-white truncate max-w-[100px]">{user?.displayName || 'User'}</span>
-                <span className="text-[10px] text-slate-500 truncate max-w-[100px]">{user?.email}</span>
+                <span className="text-[9px] text-slate-500 truncate max-w-[100px]">{user?.email}</span>
               </div>
             </div>
 
             {/* Desktop Logout Button */}
             <button
               onClick={logout}
-              className="hidden md:flex p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl border border-transparent hover:border-rose-500/10 transition-all cursor-pointer"
+              className="hidden md:flex p-2 text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 rounded-xl border border-transparent hover:border-rose-500/20 transition-all cursor-pointer active:scale-90"
               title="Log Out"
+              style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -118,8 +122,11 @@ export default function Navbar() {
 
       {/* Mobile Sticky Bottom Navigation Bar (Streamlined to 5 Items) */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#02040a]/95 backdrop-blur-xl border-t border-white/5 shadow-2xl pt-2 px-1 flex items-center justify-between"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black/40 backdrop-blur-2xl border-t border-white/[0.07] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] pt-2 px-1 flex items-center justify-between"
+        style={{ 
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+          fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" 
+        }}
       >
         {mobileBottomLinks.map((link) => {
           const Icon = link.icon;
@@ -132,10 +139,10 @@ export default function Navbar() {
               className={`flex flex-col items-center gap-0.5 py-1 px-1 rounded-xl transition-all duration-200 flex-1 min-w-0 ${
                 isActive
                   ? 'text-violet-400 font-bold'
-                  : 'text-slate-400 hover:text-slate-250'
+                  : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Icon className={`w-5 h-5 transition-transform duration-200 ${isActive ? 'scale-110 text-violet-400' : 'text-slate-400'}`} />
+              <Icon className={`w-5 h-5 transition-all duration-300 ${isActive ? 'scale-110 text-violet-450 filter drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]' : 'text-slate-400'}`} />
               <span className="text-[8px] uppercase tracking-wider font-extrabold truncate w-full text-center">{link.name.split(' ')[0]}</span>
             </Link>
           );
@@ -170,7 +177,7 @@ export default function Navbar() {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="absolute top-0 right-0 h-full w-[80vw] max-w-[320px] bg-[#0c1221] border-l border-white/[0.08] shadow-2xl flex flex-col justify-between"
+              className="absolute top-0 right-0 h-full w-[80vw] max-w-[320px] bg-slate-950/45 backdrop-blur-3xl border-l border-white/[0.08] shadow-2xl flex flex-col justify-between"
             >
               {/* Header inside Drawer */}
               <div className="p-5 border-b border-white/[0.05] flex items-center justify-between">
@@ -191,7 +198,7 @@ export default function Navbar() {
               {/* Drawer Content Area */}
               <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
                 {/* Profile Widget */}
-                <div className="p-4 bg-white/[0.02] border border-white/[0.04] rounded-2xl flex items-center gap-3">
+                <div className="p-4 bg-white/[0.03] border border-white/[0.07] backdrop-blur-md rounded-2xl flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-violet-600/25 border border-violet-500/35 text-violet-400 flex items-center justify-center shrink-0">
                     {user?.photoURL ? (
                       <img src={user.photoURL} alt="Avatar" className="w-full h-full rounded-full object-cover" />

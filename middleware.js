@@ -2,6 +2,40 @@ import { NextResponse } from 'next/server';
 
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
+  const origin = request.headers.get('origin') || '';
+  const isAllowedOrigin = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('http://10.0.2.2');
+
+  // Handle preflight OPTIONS requests
+  if (request.method === 'OPTIONS') {
+    const response = new NextResponse(null, { status: 204 });
+    if (isAllowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    } else {
+      response.headers.set('Access-Control-Allow-Origin', '*');
+    }
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
+    response.headers.set('Access-Control-Max-Age', '86400');
+    return response;
+  }
+
+  // Handle normal route/API middleware
+  const response = await handleRequest(request);
+
+  // Apply CORS headers to response if it's an allowed origin
+  if (isAllowedOrigin && response) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Access-Control-Allow-Credentials', 'true');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, Set-Cookie');
+  }
+
+  return response;
+}
+
+async function handleRequest(request) {
+  const { pathname } = request.nextUrl;
 
   // 1. Bypass static resources and non-page requests
   if (

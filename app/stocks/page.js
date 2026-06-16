@@ -302,7 +302,7 @@ export default function StocksPage() {
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 relative z-10">
         
         {/* Header Title and Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 bg-slate-950/20 border border-white/[0.04] p-4 rounded-2xl backdrop-blur-md">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 glass-card p-4">
           <div>
             <div className="flex items-center gap-1.5 mb-1">
               <span className="px-1.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[8px] font-black uppercase tracking-widest rounded-md">
@@ -353,7 +353,7 @@ export default function StocksPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           
           {/* Main Portfolio Overview Panel */}
-          <div className="lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-[#131b2e] to-[#0a0f1d] border border-white/[0.08] p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] flex flex-col justify-between min-h-[200px]">
+          <div className="lg:col-span-2 relative overflow-hidden glass-card p-6 flex flex-col justify-between min-h-[200px]">
             <div className="absolute right-0 top-0 w-32 h-32 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
             <div className="flex justify-between items-start">
@@ -395,7 +395,7 @@ export default function StocksPage() {
           </div>
 
           {/* Allocation Recharts Card */}
-          <div className="bg-gradient-to-br from-[#121c2c] to-[#080d17] border border-white/[0.08] p-5 rounded-3xl flex flex-col justify-between min-h-[200px]">
+          <div className="glass-card p-5 flex flex-col justify-between min-h-[200px]">
             <div>
               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-cyan-400 rounded-full"></span> Portfolio Allocation
@@ -452,7 +452,7 @@ export default function StocksPage() {
         </div>
 
         {/* Holdings Table Section */}
-        <div className="bg-gradient-to-br from-[#0c1221] to-[#060a14] border border-white/[0.06] p-6 rounded-3xl shadow-xl">
+        <div className="glass-card p-6">
           <div className="mb-4">
             <h2 className="text-lg font-black text-white flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-violet-400" /> Holdings Ledger
@@ -536,7 +536,7 @@ export default function StocksPage() {
                   return (
                     <div 
                       key={h.id} 
-                      className="bg-white/[0.01] border border-white/[0.05] rounded-2xl p-4 flex flex-col gap-3 relative hover:border-white/[0.09] transition-all"
+                      className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4 flex flex-col gap-3 relative hover:border-white/[0.08] transition-all"
                     >
                       {/* Ticker & Name & Delete button */}
                       <div className="flex items-start justify-between">
@@ -623,7 +623,7 @@ export default function StocksPage() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="relative w-full max-w-md bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh] text-left scrollbar-thin"
+              className="relative w-full max-w-md bg-gradient-to-b from-slate-900/70 to-slate-950/70 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[90vh] text-left scrollbar-thin"
             >
               <button
                 onClick={() => {

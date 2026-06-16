@@ -22,7 +22,8 @@ import {
   Search,
   Sparkles,
   Target,
-  Pencil
+  Pencil,
+  Flame
 } from 'lucide-react';
 import Navbar from './Navbar';
 
@@ -120,7 +121,7 @@ export default function DashboardMobile({
 
       <main className="px-4 py-4 relative z-10 space-y-5">
         {/* Welcome Header & Cycle Info */}
-        <div className="bg-slate-900/40 border border-white/[0.04] p-4 rounded-2xl backdrop-blur-md space-y-2 shadow-lg">
+        <div className="glass-card p-4 space-y-2">
           <div className="flex items-center justify-between">
             <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[8px] font-black uppercase tracking-widest rounded-md">
               ePassbook Hub v0.1.3
@@ -188,7 +189,7 @@ export default function DashboardMobile({
         </div>
 
         {/* Primary Available Capital Card */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-[#131b2e] to-[#0a0f1d] border border-white/[0.08] p-5 rounded-3xl shadow-[0_15px_30px_rgba(0,0,0,0.35)] flex flex-col justify-between min-h-[170px]">
+        <div className="relative overflow-hidden glass-card p-5 flex flex-col justify-between min-h-[170px]">
           <div className="absolute right-0 top-0 w-28 h-28 bg-violet-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
           <div className="flex justify-between items-start">
@@ -240,7 +241,7 @@ export default function DashboardMobile({
 
         {/* Dynamic Autofill Presets Scroll */}
         {data?.recentTransactions && data.recentTransactions.length > 0 && (
-          <div className="bg-slate-900/30 border border-white/[0.04] p-3 rounded-2xl flex flex-col gap-2.5 shadow-md">
+          <div className="glass-card p-3 flex flex-col gap-2.5">
             <div className="flex items-center gap-1.5">
               <span className="p-1 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-md">
                 <Zap className="w-3 h-3" />
@@ -280,6 +281,46 @@ export default function DashboardMobile({
                   <span className="text-[8px] text-slate-400 bg-white/5 px-1 py-0.5 rounded font-black">{formatCurrency(preset.amount)}</span>
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Spending Streaks Tracker */}
+        {!dataLoading && data?.streaks && (
+          <div className="glass-card p-4 flex flex-col gap-3.5 text-left">
+            <div className="flex items-center gap-1.5 border-b border-white/[0.03] pb-2">
+              <span className="p-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 rounded-md">
+                <Flame className="w-3.5 h-3.5" />
+              </span>
+              <div>
+                <span className="block text-xs font-black tracking-tight text-white uppercase">Ledger Streaks</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {/* Level 1 Streak */}
+              <div className="p-2.5 bg-amber-500/5 border border-amber-500/15 rounded-xl flex flex-col justify-between min-h-[72px]">
+                <div className="flex justify-between items-start">
+                  <span className="text-[8px] font-bold text-amber-400 uppercase tracking-wider">Zero Spend</span>
+                  <Flame className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                </div>
+                <div className="mt-1">
+                  <span className="text-lg font-black text-white">{data.streaks.level1} Days</span>
+                  <span className="block text-[7px] text-slate-500 font-medium">Logged 0 spend days</span>
+                </div>
+              </div>
+
+              {/* Level 2 Streak */}
+              <div className="p-2.5 bg-yellow-500/5 border border-yellow-500/15 rounded-xl flex flex-col justify-between min-h-[72px]">
+                <div className="flex justify-between items-start">
+                  <span className="text-[8px] font-bold text-yellow-400 uppercase tracking-wider">Limit Spend</span>
+                  <Zap className="w-3.5 h-3.5 text-yellow-400 animate-pulse" />
+                </div>
+                <div className="mt-1">
+                  <span className="text-lg font-black text-white">{data.streaks.level2} Days</span>
+                  <span className="block text-[7px] text-slate-500 font-medium">Under {formatCurrency(data.streaks.level2Limit)}/day</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -330,7 +371,7 @@ export default function DashboardMobile({
           ].map((card, idx) => (
             <div
               key={idx}
-              className={`bg-slate-900/40 border ${card.borderColor} p-3 text-left flex flex-col justify-between h-20 rounded-2xl relative overflow-hidden`}
+              className={`glass-card border-[1.5px] ${card.borderColor} p-3 text-left flex flex-col justify-between h-20 relative overflow-hidden`}
             >
               <div className="flex justify-between items-start">
                 <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider">{card.title}</span>
@@ -349,7 +390,7 @@ export default function DashboardMobile({
         </div>
 
         {/* E-Passbook Ledger Mobile Feed (Replacement for tables) */}
-        <div className="bg-slate-900/40 border border-white/[0.06] p-4 rounded-3xl shadow-lg space-y-4">
+        <div className="glass-card p-4 space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-sm font-black text-white flex items-center gap-1.5">
@@ -518,7 +559,7 @@ export default function DashboardMobile({
         </div>
 
         {/* AI Insight Compact Mobile Card */}
-        <div className="bg-gradient-to-br from-[#0c1221] to-[#060a14] border border-white/[0.06] p-4 rounded-3xl shadow-md space-y-3">
+        <div className="glass-card p-4 space-y-3">
           <h2 className="text-sm font-black text-white flex items-center gap-1.5">
             <Sparkles className="w-4.5 h-4.5 text-violet-400" /> AI Insights Preview
           </h2>
@@ -560,7 +601,7 @@ export default function DashboardMobile({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full bg-[#0d1423] border-t border-white/10 rounded-t-3xl p-5 relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto z-10"
+              className="w-full bg-[#0d1423]/60 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl p-5 relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto z-10"
             >
               <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 shrink-0"></div>
               <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500"></div>
@@ -680,7 +721,7 @@ export default function DashboardMobile({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full bg-[#0d1423] border-t border-white/10 rounded-t-3xl p-5 relative shadow-2xl max-h-[80vh] overflow-y-auto z-10"
+              className="w-full bg-[#0d1423]/60 backdrop-blur-3xl border-t border-white/10 rounded-t-3xl p-5 relative shadow-2xl max-h-[80vh] overflow-y-auto z-10"
             >
               <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 shrink-0"></div>
               <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-500"></div>
@@ -756,7 +797,7 @@ export default function DashboardMobile({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.85, y: -30 }}
               transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full max-w-sm bg-gradient-to-br from-[#121c33] to-[#070b14] border border-emerald-500/35 rounded-3xl p-6 relative overflow-hidden shadow-2xl text-center z-10"
+              className="w-full max-w-sm bg-gradient-to-br from-[#121c33]/70 to-[#070b14]/70 backdrop-blur-3xl border border-emerald-500/35 rounded-3xl p-6 relative overflow-hidden shadow-2xl text-center z-10"
             >
               <div className="flex flex-col items-center justify-center space-y-4">
                 <div className="relative">

@@ -225,13 +225,13 @@ export default function Transactions() {
                 {/* Month/Year Section Header */}
                 <h3 className="text-md font-extrabold text-violet-400 flex items-center gap-2 px-1">
                   <Calendar className="w-4 h-4" /> {monthKey}
-                  <span className="text-[10px] bg-slate-950/60 border border-white/10 px-2 py-0.5 rounded-full text-slate-500 font-bold uppercase tracking-wider">
+                  <span className="text-[10px] bg-white/[0.04] border border-white/[0.08] px-2.5 py-0.5 rounded-full text-slate-400 font-bold uppercase tracking-wider">
                     {list.length} {list.length === 1 ? 'record' : 'records'}
                   </span>
                 </h3>
 
                 {/* Collapsible glassmorphic ledger table */}
-                <div className="glass-card border border-white/5 p-4 sm:p-6 overflow-hidden">
+                <div className="glass-card p-4 sm:p-6 overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm text-slate-300">
                       <thead>

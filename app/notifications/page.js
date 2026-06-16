@@ -22,11 +22,13 @@ import {
   Sparkles,
   Clock,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Flame,
+  Zap
 } from 'lucide-react';
 
 export default function NotificationCampaigns() {
-  const { user, loading } = useAuth();
+  const { user, loading, refreshUser } = useAuth();
   const router = useRouter();
 
   // State Management
@@ -49,6 +51,51 @@ export default function NotificationCampaigns() {
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [mobileTab, setMobileTab] = useState('list'); // 'list' or 'configure'
+  
+  // Streak settings states
+  const [notifStreakLevel1, setNotifStreakLevel1] = useState(true);
+  const [notifStreakLevel2, setNotifStreakLevel2] = useState(true);
+  const [streakLevel2Limit, setStreakLevel2Limit] = useState('100');
+  const [savingStreak, setSavingStreak] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setNotifStreakLevel1(user.notifStreakLevel1 !== false);
+      setNotifStreakLevel2(user.notifStreakLevel2 !== false);
+      setStreakLevel2Limit(user.streakLevel2Limit?.toString() || '100');
+    }
+  }, [user]);
+
+  const handleSaveStreakPreferences = async () => {
+    setSavingStreak(true);
+    setSuccessMsg('');
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/user', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: user.uid,
+          notifStreakLevel1,
+          notifStreakLevel2,
+          streakLevel2Limit: parseFloat(streakLevel2Limit) || 0,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        })
+      });
+
+      if (res.ok) {
+        setSuccessMsg('Streak preferences updated successfully!');
+        if (refreshUser) await refreshUser();
+      } else {
+        const data = await res.json();
+        setErrorMsg(data.error || 'Failed to update streak preferences.');
+      }
+    } catch (err) {
+      setErrorMsg('Network error. Please try again.');
+    } finally {
+      setSavingStreak(false);
+    }
+  };
   
   const titleInputRef = useRef(null);
   const messageInputRef = useRef(null);
@@ -236,7 +283,9 @@ export default function NotificationCampaigns() {
     { code: '{{this_week_spend}}', name: 'Week Spend', description: 'Total spending logged this week', icon: DollarSign, color: 'text-orange-400' },
     { code: '{{this_month_spend}}', name: 'Month Spend', description: 'Total spending logged this month', icon: DollarSign, color: 'text-red-400' },
     { code: '{{current_month}}', name: 'Current Month', description: 'E.g., June, July', icon: Calendar, color: 'text-amber-400' },
-    { code: '{{current_year}}', name: 'Current Year', description: 'E.g., 2026', icon: Clock, color: 'text-rose-400' }
+    { code: '{{current_year}}', name: 'Current Year', description: 'E.g., 2026', icon: Clock, color: 'text-rose-400' },
+    { code: '{{streak_level_1}}', name: 'Zero Spending Streak', description: 'Streak days of 0 spending logged', icon: Flame, color: 'text-amber-500' },
+    { code: '{{streak_level_2}}', name: 'Limit Spending Streak', description: 'Streak days under limit spending', icon: Zap, color: 'text-yellow-400' }
   ];
 
   // Helper function to mock render the template live
@@ -255,7 +304,9 @@ export default function NotificationCampaigns() {
       .replaceAll('{{this_week_spend}}', `${currencySym}350`)
       .replaceAll('{{this_month_spend}}', `${currencySym}1,200`)
       .replaceAll('{{current_month}}', new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()))
-      .replaceAll('{{current_year}}', new Date().getFullYear().toString());
+      .replaceAll('{{current_year}}', new Date().getFullYear().toString())
+      .replaceAll('{{streak_level_1}}', '5')
+      .replaceAll('{{streak_level_2}}', '3');
   };
 
   if (loading || !user) {
@@ -310,7 +361,7 @@ export default function NotificationCampaigns() {
         )}
 
         {/* Mobile Tabs Toggle (Only visible on mobile) */}
-        <div className="lg:hidden flex p-1 bg-slate-950/40 border border-white/5 rounded-2xl mb-6">
+        <div className="lg:hidden flex p-1 glass-card mb-6">
           <button
             onClick={() => setMobileTab('list')}
             className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
@@ -391,7 +442,7 @@ export default function NotificationCampaigns() {
                             🕒 {campaign.time || '12:00'}
                           </span>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2 font-medium bg-slate-950/20 p-3 rounded-lg border border-white/5 leading-relaxed font-mono break-words">
+                        <p className="text-slate-400 text-xs mt-2 font-medium bg-white/[0.02] p-3 rounded-lg border border-white/[0.05] leading-relaxed font-mono break-words">
                           {campaign.message}
                         </p>
                         <div className="mt-3 flex items-center gap-4 text-[10px] text-slate-500 font-semibold">
@@ -455,6 +506,98 @@ export default function NotificationCampaigns() {
                 ))}
               </div>
             )}
+
+            {/* Streak Configurations Card */}
+            <div className="glass-card p-6 border border-white/5 space-y-6">
+              <div>
+                <h2 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-2">
+                  <Flame className="w-5 h-5 text-amber-500 animate-pulse" /> Spending Streak Configurations
+                </h2>
+                <p className="text-slate-400 text-xs mt-1 font-medium">
+                  Configure alerts and daily spending thresholds to track your financial discipline.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Level 1 Settings */}
+                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl flex items-center justify-between gap-4">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500 mt-0.5">
+                      <Flame className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white">Level 1: Zero Spend Notifications</h4>
+                      <p className="text-slate-500 text-[11px] font-medium leading-normal mt-0.5">
+                        Get daily alerts for consecutive days with zero spending logged. (0 {user?.currency === 'INR' ? 'rs' : 'USD'} default)
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setNotifStreakLevel1(!notifStreakLevel1)}
+                    className="cursor-pointer"
+                  >
+                    {notifStreakLevel1 ? (
+                      <ToggleRight className="w-8 h-8 text-emerald-400" />
+                    ) : (
+                      <ToggleLeft className="w-8 h-8 text-slate-500" />
+                    )}
+                  </button>
+                </div>
+
+                {/* Level 2 Settings */}
+                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-start gap-3">
+                      <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500 mt-0.5">
+                        <Zap className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white">Level 2: Limit Spend Notifications</h4>
+                        <p className="text-slate-500 text-[11px] font-medium leading-normal mt-0.5">
+                          Get daily alerts when you stay under your custom daily spending limit.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setNotifStreakLevel2(!notifStreakLevel2)}
+                      className="cursor-pointer"
+                    >
+                      {notifStreakLevel2 ? (
+                        <ToggleRight className="w-8 h-8 text-emerald-400" />
+                      ) : (
+                        <ToggleLeft className="w-8 h-8 text-slate-500" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Level 2 Limit Input */}
+                  <div className="pt-2 border-t border-white/[0.03] flex items-center justify-between gap-4 flex-wrap">
+                    <label className="text-slate-400 text-xs font-bold uppercase tracking-wider">
+                      Daily Spend Threshold ({user?.currency === 'INR' ? '₹' : '$'})
+                    </label>
+                    <input
+                      type="number"
+                      value={streakLevel2Limit}
+                      onChange={(e) => setStreakLevel2Limit(e.target.value)}
+                      placeholder="e.g. 100"
+                      className="w-32 px-3 py-1.5 bg-slate-950 border border-white/10 rounded-lg text-white text-xs font-bold focus:outline-none focus:border-violet-500 transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSaveStreakPreferences}
+                disabled={savingStreak}
+                className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-black tracking-wider text-xs uppercase transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-violet-600/10"
+              >
+                {savingStreak ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                ) : (
+                  'Save Streak Preferences'
+                )}
+              </button>
+            </div>
           </div>
 
           {/* RIGHT: Create/Edit Form & Ref variables (5 Columns) */}

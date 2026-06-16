@@ -45,18 +45,26 @@ export default function RootLayout({ children }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} antialiased`}
     >
-      <body className="min-h-[100dvh] flex flex-col bg-background text-foreground">
-        <Script 
-          src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" 
-          strategy="afterInteractive" 
-        />
-        <AuthProvider>
-          <PWARegistration />
-          <OneSignalProvider />
-          <IOSOnboardingBanner />
-          <NotificationScheduler />
-          {children}
-        </AuthProvider>
+      <body className="min-h-[100dvh] flex flex-col bg-[#030712] text-foreground relative overflow-x-hidden">
+        {/* Ambient Glowing Orbs */}
+        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+          <div className="absolute -top-[20%] -left-[10%] w-[60%] h-[60%] bg-gradient-to-br from-violet-600/12 via-fuchsia-500/6 to-transparent rounded-full blur-[140px] animate-pulse" />
+          <div className="absolute top-[30%] -right-[10%] w-[50%] h-[50%] bg-gradient-to-br from-cyan-500/10 via-violet-500/6 to-transparent rounded-full blur-[140px] animate-pulse" style={{ animationDuration: '8s' }} />
+          <div className="absolute -bottom-[10%] left-[20%] w-[50%] h-[50%] bg-gradient-to-br from-fuchsia-500/6 via-violet-600/10 to-transparent rounded-full blur-[150px] animate-pulse" style={{ animationDuration: '10s' }} />
+        </div>
+        <div className="relative z-10 flex-1 flex flex-col">
+          <Script 
+            src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" 
+            strategy="afterInteractive" 
+          />
+          <AuthProvider>
+            <PWARegistration />
+            <OneSignalProvider />
+            <IOSOnboardingBanner />
+            <NotificationScheduler />
+            {children}
+          </AuthProvider>
+        </div>
       </body>
     </html>
   );

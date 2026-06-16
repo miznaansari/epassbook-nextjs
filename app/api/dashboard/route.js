@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCycleRange, getLogicalCyclePeriod, getRangeForLogicalPeriod } from '@/lib/cycle';
 import { requireUser } from '@/lib/requireUser';
+import { calculateStreaks } from '@/lib/streaks';
 
 export async function GET(req) {
   try {
@@ -16,6 +17,15 @@ export async function GET(req) {
     const customStart = searchParams.get('startDate');
     const customEnd = searchParams.get('endDate');
 
+    // 1. Calculate & cache streaks dynamically
+    const { streakLevel1, streakLevel2, limit: streakLimit } = await calculateStreaks(userId);
+    await db.user.update({
+      where: { id: userId },
+      data: {
+        streakLevel1,
+        streakLevel2
+      }
+    });
 
     const cycleDate = user.salaryCycleDate;
     const now = new Date();
@@ -239,6 +249,11 @@ export async function GET(req) {
       endDate,
       cycleDate,
       logicalPeriod: startPeriod,
+      streaks: {
+        level1: streakLevel1,
+        level2: streakLevel2,
+        level2Limit: streakLimit
+      },
       kpis: {
         currentBalance: globalCurrentBalance,
         spending: periodSpending,

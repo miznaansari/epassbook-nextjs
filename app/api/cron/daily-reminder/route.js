@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getCycleRange, getLogicalCyclePeriod } from '@/lib/cycle';
+import { calculateStreaks } from '@/lib/streaks';
 
 export async function GET(req) {
   try {
@@ -33,7 +34,13 @@ export async function GET(req) {
         lastDailyReminderSentAt: true,
         lastDailySpendReminderSentAt: true,
         lastSalaryReminderSentAt: true,
-        lastCycleReminderSentAt: true
+        lastCycleReminderSentAt: true,
+        notifStreakLevel1: true,
+        notifStreakLevel2: true,
+        streakLevel2Limit: true,
+        lastStreakLevel1SentAt: true,
+        lastStreakLevel2SentAt: true,
+        createdAt: true
       }
     });
 
@@ -477,6 +484,121 @@ export async function GET(req) {
       }
 
       // ==========================================
+      // TRIGGER 5: STREAK LEVEL 1 & LEVEL 2 NOTIFICATIONS
+      // ==========================================
+      const localTotalMinutes = localHour * 60 + localMinute;
+      const targetTimeStreak = user.dailySpendReminderTime || '22:00';
+      const [targetHourStreak, targetMinuteStreak] = targetTimeStreak.split(':').map(Number);
+      const targetTotalMinutesStreak = targetHourStreak * 60 + targetMinuteStreak;
+
+      if (user.notifStreakLevel1 !== false) {
+        let lastStreakL1SentStr = null;
+        if (user.lastStreakLevel1SentAt) {
+          try {
+            const sentParts = new Intl.DateTimeFormat('en-US', {
+              timeZone: tzString,
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric'
+            }).formatToParts(new Date(user.lastStreakLevel1SentAt));
+            const sentYear = sentParts.find(p => p.type === 'year')?.value;
+            const sentMonth = sentParts.find(p => p.type === 'month')?.value;
+            const sentDay = sentParts.find(p => p.type === 'day')?.value;
+            lastStreakL1SentStr = `${sentYear}-${sentMonth}-${sentDay}`;
+          } catch (e) { }
+        }
+
+        const alreadySentL1Today = (lastStreakL1SentStr === userLocalDateStr);
+
+        if (localTotalMinutes >= targetTotalMinutesStreak && !alreadySentL1Today) {
+          const { streakLevel1 } = await calculateStreaks(user.id);
+          
+          if (streakLevel1 >= 1) {
+            const title = "Zero Spending Streak! 🔥";
+            const body = `Awesome! You've logged 0 spending for ${streakLevel1} consecutive day${streakLevel1 > 1 ? 's' : ''}! Keep it up!`;
+
+            await db.user.update({
+              where: { id: user.id },
+              data: { 
+                lastStreakLevel1SentAt: now,
+                streakLevel1
+              }
+            });
+
+            const pushResult = await sendPush(user.id, title, body);
+            if (pushResult.success) {
+              report.dispatches.push({
+                userId: user.id,
+                type: 'STREAK_LEVEL_1',
+                streakLevel1,
+                message: body
+              });
+            } else {
+              await db.user.update({
+                where: { id: user.id },
+                data: { lastStreakLevel1SentAt: null }
+              });
+              report.errors.push({ userId: user.id, type: 'STREAK_LEVEL_1', error: pushResult.reason });
+            }
+          }
+        }
+      }
+
+      if (user.notifStreakLevel2 !== false) {
+        let lastStreakL2SentStr = null;
+        if (user.lastStreakLevel2SentAt) {
+          try {
+            const sentParts = new Intl.DateTimeFormat('en-US', {
+              timeZone: tzString,
+              year: 'numeric',
+              month: 'numeric',
+              day: 'numeric'
+            }).formatToParts(new Date(user.lastStreakLevel2SentAt));
+            const sentYear = sentParts.find(p => p.type === 'year')?.value;
+            const sentMonth = sentParts.find(p => p.type === 'month')?.value;
+            const sentDay = sentParts.find(p => p.type === 'day')?.value;
+            lastStreakL2SentStr = `${sentYear}-${sentMonth}-${sentDay}`;
+          } catch (e) { }
+        }
+
+        const alreadySentL2Today = (lastStreakL2SentStr === userLocalDateStr);
+
+        if (localTotalMinutes >= targetTotalMinutesStreak && !alreadySentL2Today) {
+          const { streakLevel2, limit: currentLimit } = await calculateStreaks(user.id);
+          
+          if (streakLevel2 >= 1) {
+            const currencySuffix = user.currency === 'INR' ? 'rs' : (user.currency || 'USD');
+            const title = "Smart Spending Streak! ⚡";
+            const body = `Great job! You've kept your spending under ${currentLimit} ${currencySuffix} for ${streakLevel2} consecutive day${streakLevel2 > 1 ? 's' : ''}!`;
+
+            await db.user.update({
+              where: { id: user.id },
+              data: { 
+                lastStreakLevel2SentAt: now,
+                streakLevel2
+              }
+            });
+
+            const pushResult = await sendPush(user.id, title, body);
+            if (pushResult.success) {
+              report.dispatches.push({
+                userId: user.id,
+                type: 'STREAK_LEVEL_2',
+                streakLevel2,
+                message: body
+              });
+            } else {
+              await db.user.update({
+                where: { id: user.id },
+                data: { lastStreakLevel2SentAt: null }
+              });
+              report.errors.push({ userId: user.id, type: 'STREAK_LEVEL_2', error: pushResult.reason });
+            }
+          }
+        }
+      }
+
+      // ==========================================
       // TRIGGER 4: CUSTOM ONE SIGNAL CAMPAIGNS
       // ==========================================
       try {
@@ -666,6 +788,9 @@ export async function GET(req) {
             const fullMonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             const monthName = fullMonthNames[currentMonthNum - 1];
 
+            // Calculate streaks for replacements
+            const { streakLevel1: campStreakL1, streakLevel2: campStreakL2 } = await calculateStreaks(user.id);
+
             const replacements = {
               '{{user_name}}': user.name || 'User',
               '{{left_salary}}': formatVal(leftSalary),
@@ -677,7 +802,9 @@ export async function GET(req) {
               '{{this_week_spend}}': formatVal(thisWeekSpend),
               '{{this_month_spend}}': formatVal(thisMonthSpend),
               '{{current_month}}': monthName,
-              '{{current_year}}': currentYearNum.toString()
+              '{{current_year}}': currentYearNum.toString(),
+              '{{streak_level_1}}': String(campStreakL1),
+              '{{streak_level_2}}': String(campStreakL2)
             };
 
             let replacedTitle = campaign.title;

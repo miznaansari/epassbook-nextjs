@@ -240,7 +240,7 @@ export default function Settings() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
+                  className="w-full px-4 py-3 bg-slate-950/30 border border-white/5 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
                 />
               </div>
 
@@ -262,7 +262,7 @@ export default function Settings() {
                   min="1"
                   max="31"
                   placeholder="e.g. 7"
-                  className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
+                  className="w-full px-4 py-3 bg-slate-950/30 border border-white/5 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
                 />
               </div>
             </div>
@@ -289,7 +289,7 @@ export default function Settings() {
                         onClick={() => setCurrency(curr.code)}
                         className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer relative group ${isSelected
                           ? 'bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-600/10 text-white'
-                          : 'bg-slate-950/20 border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
+                          : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
                           }`}
                       >
                         {isSelected && (
@@ -310,7 +310,7 @@ export default function Settings() {
 
               <div className="space-y-3">
                 {/* Salary celebration */}
-                <label className="flex items-start gap-3 p-4 bg-slate-950/30 border border-white/5 rounded-xl cursor-pointer hover:bg-slate-950/50 transition-colors">
+                <label className="flex items-start gap-3 p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors">
                   <input
                     type="checkbox"
                     checked={notifSalary}
@@ -328,7 +328,7 @@ export default function Settings() {
                 </label>
 
                 {/* Daily Spend Reminder & Custom Timing Input */}
-                <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-3">
+                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -359,14 +359,14 @@ export default function Settings() {
                         type="time"
                         value={dailyReminderTime}
                         onChange={(e) => setDailyReminderTime(e.target.value)}
-                        className="bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                        className="bg-slate-950/40 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
                       />
                     </motion.div>
                   )}
                 </div>
 
                 {/* Daily Spending Summary Reminder & Custom Timing Input */}
-                <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-3">
+                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -397,14 +397,14 @@ export default function Settings() {
                         type="time"
                         value={dailySpendReminderTime}
                         onChange={(e) => setDailySpendReminderTime(e.target.value)}
-                        className="bg-slate-950/60 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                        className="bg-slate-950/40 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
                       />
                     </motion.div>
                   )}
                 </div>
 
                 {/* Cycle budget check */}
-                <label className="flex items-start gap-3 p-4 bg-slate-950/30 border border-white/5 rounded-xl cursor-pointer hover:bg-slate-950/50 transition-colors">
+                <label className="flex items-start gap-3 p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors">
                   <input
                     type="checkbox"
                     checked={notifCycle}
@@ -422,7 +422,7 @@ export default function Settings() {
                 </label>
 
                 {/* OneSignal Web Push Force Subscription Setting */}
-                <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-4">
+                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="text-left">
                       <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
@@ -455,7 +455,7 @@ export default function Settings() {
                       <span className="text-[9px] uppercase font-extrabold text-slate-500">
                         Device Subscription ID:
                       </span>
-                      <code className="text-[10px] font-mono bg-slate-950/60 border border-white/5 px-2.5 py-1.5 rounded-lg text-cyan-400 select-all break-all leading-normal">
+                      <code className="text-[10px] font-mono bg-slate-950/40 border border-white/5 px-2.5 py-1.5 rounded-lg text-cyan-400 select-all break-all leading-normal">
                         {oneSignalSubId}
                       </code>
                     </div>

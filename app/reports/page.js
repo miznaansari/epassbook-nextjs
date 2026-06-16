@@ -503,7 +503,7 @@ export default function Reports() {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-slate-950/90 border border-white/10 p-3 rounded-xl shadow-2xl backdrop-blur-md text-left">
+        <div className="bg-slate-950/70 border border-white/10 p-3 rounded-xl shadow-2xl backdrop-blur-2xl text-left">
           <p className="text-xs font-bold text-slate-500 mb-1.5">{label}</p>
           {payload.map((item, index) => (
             <p key={index} className="text-xs font-black tracking-tight flex items-center gap-2" style={{ color: item.color || item.fill }}>
@@ -544,7 +544,7 @@ export default function Reports() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               
               {/* Card 1: Cycle Cashflow */}
-              <div className="glass-card p-5 border border-white/5 flex items-center justify-between bg-slate-950/20">
+              <div className="glass-card p-5">
                 <div className="text-left">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     Cycle Net Cashflow
@@ -562,7 +562,7 @@ export default function Reports() {
               </div>
 
               {/* Card 2: Ledger Savings */}
-              <div className="glass-card p-5 border border-white/5 flex items-center justify-between bg-slate-950/20">
+              <div className="glass-card p-5">
                 <div className="text-left">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     Ledger Invested Savings
@@ -580,7 +580,7 @@ export default function Reports() {
               </div>
 
               {/* Card 3: Share Market Portfolio */}
-              <div className="glass-card p-5 border border-white/5 flex items-center justify-between bg-slate-950/20">
+              <div className="glass-card p-5">
                 <div className="text-left">
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
                     Share Market Portfolio
@@ -609,7 +609,7 @@ export default function Reports() {
             </div>
  
             {/* Premium GitHub-Style Contribution Calendar and Shadcn-Style Date Selector */}
-            <div className="glass-card p-6 border border-white/5 space-y-6 text-left">
+            <div className="glass-card p-6 space-y-6 text-left">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -648,7 +648,7 @@ export default function Reports() {
 
               <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
                 {/* Left 3 cols: GitHub 12-Month Calendar Grid */}
-                <div className="xl:col-span-3 bg-slate-950/20 border border-white/5 p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
+                <div className="xl:col-span-3 bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
                   <div className="relative">
                     {/* Month labels header */}
                     <div className="h-6 relative text-[10px] font-bold text-slate-500 select-none">
@@ -725,7 +725,7 @@ export default function Reports() {
                 </div>
 
                 {/* Right 1 col: Interactive Shadcn-style Month Datepicker */}
-                <div className="bg-slate-950/30 border border-white/5 p-4 rounded-2xl flex flex-col justify-between">
+                <div className="bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl flex flex-col justify-between">
                   <div className="flex items-center justify-between mb-4">
                     <button
                       onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
@@ -809,7 +809,7 @@ export default function Reports() {
 
                   if (!hasTx) {
                     return (
-                      <div className="py-8 bg-slate-950/20 border border-white/5 rounded-2xl text-center text-slate-500 text-xs font-bold flex items-center justify-center gap-2 select-none">
+                      <div className="py-8 bg-white/[0.02] border border-white/[0.05] rounded-2xl text-center text-slate-500 text-xs font-bold flex items-center justify-center gap-2 select-none">
                         <AlertCircle className="w-4 h-4 opacity-50 text-slate-500" />
                         No transaction activity logged on this calendar date.
                       </div>
@@ -821,7 +821,7 @@ export default function Reports() {
                       {metadata.salaries.map((salary) => (
                         <div
                           key={salary.id}
-                          className="bg-slate-950/30 border border-white/5 rounded-2xl p-4 flex justify-between items-center hover:bg-slate-950/50 transition-all"
+                          className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4 flex justify-between items-center hover:bg-white/[0.04] transition-all"
                         >
                           <div className="text-left">
                             <span className="text-[10px] font-bold text-slate-500 uppercase">Income Inflow</span>
@@ -873,7 +873,7 @@ export default function Reports() {
                         return (
                           <div
                             key={entry.id}
-                            className="bg-slate-950/30 border border-white/5 rounded-2xl p-4 flex justify-between items-center hover:bg-slate-950/50 transition-all"
+                            className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4 flex justify-between items-center hover:bg-white/[0.04] transition-all"
                           >
                             <div className="text-left">
                               <span className="text-[10px] font-bold text-slate-500 uppercase">
@@ -900,7 +900,7 @@ export default function Reports() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
 
               {/* Chart A: Income vs Outflow Area Graph */}
-              <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
+              <div className="glass-card p-6 flex flex-col justify-between">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
                     <Coins className="w-5 h-5 text-emerald-400" /> Income vs Outflow
@@ -933,7 +933,7 @@ export default function Reports() {
               </div>
 
               {/* Chart B: Monthly Spending Trends Bar Chart */}
-              <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
+              <div className="glass-card p-6 flex flex-col justify-between">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
                     <TrendingDown className="w-5 h-5 text-rose-400" /> Historical Spending Trends
@@ -955,7 +955,7 @@ export default function Reports() {
               </div>
 
               {/* Chart C: Balance & Savings Trend Stacked Bar Chart */}
-              <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
+              <div className="glass-card p-6 flex flex-col justify-between">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
                     <PiggyBank className="w-5 h-5 text-amber-400" /> Balance & Savings
@@ -982,7 +982,7 @@ export default function Reports() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
 
               {/* Category Pie Chart */}
-              <div className="glass-card p-6 border border-white/5 lg:col-span-2 flex flex-col justify-between">
+              <div className="glass-card p-6 lg:col-span-2 flex flex-col justify-between">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
                     <PieIcon className="w-5 h-5 text-violet-400" /> Current Cycle Spending breakdown
@@ -1036,13 +1036,13 @@ export default function Reports() {
               </div>
 
               {/* Sidebar Category Stats summary card */}
-              <div className="glass-card p-6 border border-white/5 flex flex-col justify-between">
+              <div className="glass-card p-6 flex flex-col justify-between">
                 <div>
                   <h3 className="text-md font-bold text-white flex items-center gap-2 mb-4">
                     <PiggyBank className="w-5 h-5 text-cyan-400" /> Cycle Performance
                   </h3>
                   <div className="space-y-4">
-                    <div className="p-4 bg-slate-950/40 border border-white/5 rounded-xl text-left">
+                    <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-left">
                       <span className="text-[10px] uppercase font-bold text-slate-500">Savings Target</span>
                       <h4 className="text-md font-bold text-white mt-1">Spend less than Inflow</h4>
                       <p className="text-xs text-slate-400 mt-2 font-semibold leading-relaxed">
@@ -1050,7 +1050,7 @@ export default function Reports() {
                       </p>
                     </div>
 
-                    <div className="p-4 bg-slate-950/40 border border-white/5 rounded-xl text-left">
+                    <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-left">
                       <span className="text-[10px] uppercase font-bold text-slate-500">Auto Deductions</span>
                       <h4 className="text-md font-bold text-white mt-1">Salary Balance Tracking</h4>
                       <p className="text-xs text-slate-400 mt-2 font-semibold leading-relaxed">

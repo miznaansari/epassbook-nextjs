@@ -29,6 +29,7 @@ export async function POST(req) {
     // Session Management: Check if a valid session cookie already exists for this user
     const existingToken = req.cookies.get('session_token')?.value;
     let sessionIsValid = false;
+    let token = existingToken;
 
     if (existingToken) {
       const activeSession = await db.userSession.findUnique({
@@ -39,11 +40,9 @@ export async function POST(req) {
       }
     }
 
-    const response = NextResponse.json(user);
-
     if (!sessionIsValid) {
       // Create new session in DB
-      const token = crypto.randomUUID();
+      token = crypto.randomUUID();
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
       await db.userSession.create({
@@ -53,7 +52,15 @@ export async function POST(req) {
           expiresAt,
         },
       });
+    }
 
+    const response = NextResponse.json({
+      ...user,
+      sessionToken: token,
+    });
+
+    if (!sessionIsValid) {
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
       response.cookies.set('session_token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -88,7 +95,10 @@ export async function PUT(req) {
       notifCycle,
       notifDailySpend,
       dailySpendReminderTime,
-      timezone
+      timezone,
+      notifStreakLevel1,
+      notifStreakLevel2,
+      streakLevel2Limit
     } = await req.json();
 
     const uid = user.id;
@@ -137,6 +147,17 @@ export async function PUT(req) {
     if (notifCycle !== undefined) updateData.notifCycle = !!notifCycle;
     if (notifDailySpend !== undefined) updateData.notifDailySpend = !!notifDailySpend;
     if (timezone !== undefined) updateData.timezone = timezone;
+    if (notifStreakLevel1 !== undefined) updateData.notifStreakLevel1 = !!notifStreakLevel1;
+    if (notifStreakLevel2 !== undefined) updateData.notifStreakLevel2 = !!notifStreakLevel2;
+    
+    if (streakLevel2Limit !== undefined) {
+      const parsedLimit = parseFloat(streakLevel2Limit);
+      if (!isNaN(parsedLimit) && parsedLimit >= 0) {
+        updateData.streakLevel2Limit = parsedLimit;
+      } else {
+        return NextResponse.json({ error: 'Invalid streak level 2 limit amount' }, { status: 400 });
+      }
+    }
 
     const updatedUser = await db.user.update({
       where: { id: uid },
