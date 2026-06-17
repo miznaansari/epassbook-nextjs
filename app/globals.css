@@ -2,41 +2,49 @@
 
 :root {
   /* Brand Specific Accents */
-  --salary: 160 84% 39%;     /* #10b981 (Emerald) */
-  --spending: 343 89% 60%;   /* #f43f5e (Rose) */
-  --lending: 217 91% 60%;    /* #3b82f6 (Blue) */
-  --loan: 24 95% 53%;        /* #f97316 (Orange) */
-  --balance: 262 83% 58%;    /* #8b5cf6 (Purple) */
-  --advance: 189 94% 43%;    /* #06b6d4 (Cyan) */
+  --salary: 160 84% 39%;
+  /* #10b981 (Emerald) */
+  --spending: 343 89% 60%;
+  /* #f43f5e (Rose) */
+  --lending: 217 91% 60%;
+  /* #3b82f6 (Blue) */
+  --loan: 24 95% 53%;
+  /* #f97316 (Orange) */
+  --balance: 262 83% 58%;
+  /* #8b5cf6 (Purple) */
+  --advance: 189 94% 43%;
+  /* #06b6d4 (Cyan) */
 
   /* Glassmorphic & Core Palette */
-  --background: 224 71% 4%;  /* #02040a */
-  --foreground: 210 40% 98%; /* #f8fafc */
-  
+  --background: 224 71% 4%;
+  /* #02040a */
+  --foreground: 210 40% 98%;
+  /* #f8fafc */
+
   --card: 224 71% 7%;
   --card-foreground: 210 40% 98%;
   --popover: 224 71% 6%;
   --popover-foreground: 210 40% 98%;
-  
+
   --primary: 262 83% 58%;
   --primary-foreground: 210 40% 98%;
-  
+
   --secondary: 215 25% 27%;
   --secondary-foreground: 210 40% 98%;
-  
+
   --muted: 215 25% 15%;
   --muted-foreground: 215 20% 65%;
-  
+
   --accent: 262 80% 50%;
   --accent-foreground: 210 40% 98%;
-  
+
   --destructive: 343 89% 60%;
   --destructive-foreground: 210 40% 98%;
-  
+
   --border: 215 25% 18%;
   --input: 215 25% 18%;
   --ring: 262 83% 58%;
-  
+
   --radius: 1rem;
 }
 
@@ -68,7 +76,7 @@
 
 body {
   background-color: hsl(var(--background));
-  background-image: 
+  background-image:
     radial-gradient(at 0% 0%, rgba(139, 92, 246, 0.08) 0px, transparent 50%),
     radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.05) 0px, transparent 50%);
   color: hsl(var(--foreground));
@@ -124,12 +132,35 @@ body {
 }
 
 /* Glowing Neon Utility Accents */
-.glow-salary { box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.3); border-color: rgba(16, 185, 129, 0.3) !important; }
-.glow-spending { box-shadow: 0 0 20px -5px rgba(244, 63, 94, 0.3); border-color: rgba(244, 63, 94, 0.3) !important; }
-.glow-lending { box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3); border-color: rgba(59, 130, 246, 0.3) !important; }
-.glow-loan { box-shadow: 0 0 20px -5px rgba(249, 115, 22, 0.3); border-color: rgba(249, 115, 22, 0.3) !important; }
-.glow-balance { box-shadow: 0 0 20px -5px rgba(139, 92, 246, 0.3); border-color: rgba(139, 92, 246, 0.3) !important; }
-.glow-advance { box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.3); border-color: rgba(6, 182, 212, 0.3) !important; }
+.glow-salary {
+  box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.3);
+  border-color: rgba(16, 185, 129, 0.3) !important;
+}
+
+.glow-spending {
+  box-shadow: 0 0 20px -5px rgba(244, 63, 94, 0.3);
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+
+.glow-lending {
+  box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.3);
+  border-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+.glow-loan {
+  box-shadow: 0 0 20px -5px rgba(249, 115, 22, 0.3);
+  border-color: rgba(249, 115, 22, 0.3) !important;
+}
+
+.glow-balance {
+  box-shadow: 0 0 20px -5px rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.glow-advance {
+  box-shadow: 0 0 20px -5px rgba(6, 182, 212, 0.3);
+  border-color: rgba(6, 182, 212, 0.3) !important;
+}
 
 /* Custom Glow Buttons */
 .btn-glow {
@@ -145,12 +176,10 @@ body {
   left: -50%;
   width: 200%;
   height: 100%;
-  background: linear-gradient(
-    to right,
-    transparent,
-    rgba(255, 255, 255, 0.1),
-    transparent
-  );
+  background: linear-gradient(to right,
+      transparent,
+      rgba(255, 255, 255, 0.1),
+      transparent);
   transform: skewX(-25deg);
   transition: 0.75s;
 }
@@ -161,9 +190,17 @@ body {
 
 /* Utility Animations */
 @keyframes float {
-  0% { transform: translateY(0px) rotate(0deg); }
-  50% { transform: translateY(-15px) rotate(3deg); }
-  100% { transform: translateY(0px) rotate(0deg); }
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-15px) rotate(3deg);
+  }
+
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
 }
 
 .animate-float {
@@ -173,9 +210,3 @@ body {
 .animate-float-slow {
   animation: float 9s ease-in-out infinite;
 }
-
-/* Hide sticky bottom nav bar on mobile devices when the soft keyboard is active */
-body.keyboard-active nav.fixed.bottom-0 {
-  display: none !important;
-}
-

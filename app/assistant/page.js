@@ -5,14 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  Send, 
-  Bot, 
-  User as UserIcon, 
-  TrendingUp, 
-  PiggyBank, 
-  Lightbulb, 
+import {
+  Sparkles,
+  Send,
+  Bot,
+  User as UserIcon,
+  TrendingUp,
+  PiggyBank,
+  Lightbulb,
   LineChart,
   Brain,
   AlertCircle,
@@ -45,13 +45,12 @@ export default function Assistant() {
   // Chat Sessions List & Active ID
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
-  
+
   // Loading & State
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open on desktop
   const [isMobile, setIsMobile] = useState(false);
-  const [isKeyboardActive, setIsKeyboardActive] = useState(false);
 
   // Chat Conversation State
   const [messages, setMessages] = useState([]);
@@ -61,7 +60,6 @@ export default function Assistant() {
 
   // Scroll Container Ref
   const messagesEndRef = useRef(null);
-  const inputRef = useRef(null);
 
   // Suggested Prompts list
   const suggestions = [
@@ -78,13 +76,6 @@ export default function Assistant() {
     }
   }, [user, loading, router]);
 
-  // Cleanup keyboard-active class on unmount
-  useEffect(() => {
-    return () => {
-      document.body.classList.remove('keyboard-active');
-    };
-  }, []);
-
   // Handle mobile screen detection
   useEffect(() => {
     const checkScreen = () => {
@@ -100,18 +91,6 @@ export default function Assistant() {
     window.addEventListener('resize', checkScreen);
     return () => window.removeEventListener('resize', checkScreen);
   }, []);
-
-  // Prevent page scroll when software keyboard is active (keeps navbar locked at the top)
-  useEffect(() => {
-    if (!isMobile) return;
-    const handleScroll = () => {
-      if (isKeyboardActive) {
-        window.scrollTo(0, 0);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isKeyboardActive, isMobile]);
 
   // Fetch all chat sessions for the user
   const loadSessions = async (selectLatest = false) => {
@@ -342,7 +321,6 @@ export default function Assistant() {
   const handleFormSubmit = (e) => {
     e.preventDefault();
     sendMessage();
-    inputRef.current?.focus();
   };
 
   if (loading || !user) {
@@ -362,8 +340,8 @@ export default function Assistant() {
       <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Main Split Layout Container */}
-      <div className="flex-grow flex w-full max-w-7xl mx-auto px-0 md:px-6 py-0 md:py-6 gap-0 md:gap-6 relative overflow-hidden h-[calc(100dvh-4rem)] md:h-[calc(100vh-4rem)]">
-        
+      <div className="flex-grow flex w-full max-w-7xl mx-auto px-4 md:px-6 py-6 gap-6 relative overflow-hidden h-[calc(100vh-4rem)]">
+
         {/* SIDEBAR Panel (ChatGPT history) */}
         <AnimatePresence>
           {/* Mobile Drawer Overlay Backdrop */}
@@ -382,25 +360,24 @@ export default function Assistant() {
             <motion.aside
               layout
               key="sidebar-aside"
-              initial={{ x: isMobile ? -320 : 0, opacity: isMobile ? 0 : 1 }}
+              initial={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 1 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: isMobile ? -320 : 0, opacity: isMobile ? 0 : 0 }}
+              exit={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className={`flex flex-col p-4 shrink-0 overflow-hidden z-20 ${
-                isMobile 
-                  ? 'absolute top-0 bottom-0 left-0 w-80 h-full shadow-2xl bg-[#090d16] border-r border-white/10 rounded-none'
-                  : 'w-72 glass-card border border-white/5'
-              }`}
+              className={`glass-card border border-white/5 flex flex-col p-4 shrink-0 overflow-hidden z-20 ${isMobile
+                  ? 'absolute top-6 bottom-6 left-4 w-72 shadow-2xl bg-slate-950/95 border-white/10'
+                  : 'w-72'
+                }`}
             >
               {/* Header with New Chat Button */}
               <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
                 <span className="text-sm font-bold text-white flex items-center gap-2">
                   <History className="w-4 h-4 text-violet-400" /> Chat Logs
                 </span>
-                
+
                 {isMobile && (
-                  <button 
-                    onClick={() => setIsSidebarOpen(false)} 
+                  <button
+                    onClick={() => setIsSidebarOpen(false)}
                     className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white"
                   >
                     <X className="w-4 h-4" />
@@ -437,11 +414,10 @@ export default function Assistant() {
                           setActiveSessionId(s.id);
                           if (isMobile) setIsSidebarOpen(false); // close sidebar on select
                         }}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${
-                          isActive
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${isActive
                             ? 'bg-violet-600/15 border-violet-500/40 text-violet-100 shadow-md shadow-violet-950/20'
                             : 'bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-400 hover:text-white'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-6">
                           <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-slate-500'}`} />
@@ -468,31 +444,31 @@ export default function Assistant() {
         {/* MAIN CHAT CONSOLE */}
         <motion.main
           layout
-          className="flex-grow flex flex-col gap-4 overflow-hidden relative border-none md:border border-white/5 p-3 md:p-6 bg-transparent md:bg-white/[0.03] md:backdrop-blur-2xl md:rounded-2xl md:shadow-2xl"
+          className="flex-grow glass-card border border-white/5 p-4 md:p-6 flex flex-col gap-4 overflow-hidden relative"
         >
-          
+
           {/* Header Row */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-3 shrink-0">
-            <div className="text-left flex items-center gap-2 md:gap-3">
-              {/* Sidebar toggle button (always visible) */}
+          <div className="flex items-center justify-between border-b border-white/5 pb-4 shrink-0">
+            <div className="text-left flex items-center gap-3">
+              {/* Sidebar toggle button (always visible, or mobile-first) */}
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="p-2 hover:bg-white/5 border border-white/10 hover:border-violet-500/20 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer mr-1"
                 title={isSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
               >
-                {isSidebarOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Menu className="w-4 h-4 md:w-5 md:h-5" />}
+                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
 
               <div>
-                <h1 className="text-lg md:text-2xl font-black text-white tracking-tight flex items-center gap-1.5 md:gap-2">
-                  <Brain className="w-5 h-5 md:w-6 md:h-6 text-violet-400 shrink-0" /> Gemini Finance Assistant
+                <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+                  <Brain className="w-6 h-6 text-violet-400 shrink-0" /> Gemini Finance Assistant
                 </h1>
-                <p className="text-slate-400 text-[9px] md:text-xs mt-0.5 font-semibold">
+                <p className="text-slate-400 text-[10px] md:text-xs mt-0.5 font-semibold">
                   Real-time ledger analytics & budget optimization.
                 </p>
               </div>
             </div>
-            
+
             {/* Syncing Indicators */}
             <div className="flex items-center gap-2">
               <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-wider">
@@ -534,7 +510,7 @@ export default function Assistant() {
           )}
 
           {/* CHAT VIEWPORT scroll container */}
-          <div className="flex-grow overflow-y-auto flex flex-col gap-5 pr-1.5 scrollbar-thin scroll-smooth min-h-0">
+          <div className="flex-grow overflow-y-auto flex flex-col gap-6 pr-2 scrollbar-thin scroll-smooth min-h-0">
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
@@ -542,36 +518,33 @@ export default function Assistant() {
               </div>
             ) : messages.length === 0 ? (
               /* Premium Onboarding / Empty State */
-              <div className="flex-grow flex flex-col justify-center items-center py-6 text-center max-w-xl mx-auto gap-5 px-3">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl md:rounded-3xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-violet-600/20 animate-bounce shrink-0">
-                  <Sparkles className="w-6 h-6 md:w-8 md:h-8" />
+              <div className="flex-grow flex flex-col justify-center items-center py-8 text-center max-w-xl mx-auto gap-6">
+                <div className="w-16 h-16 rounded-3xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-violet-600/20 animate-bounce">
+                  <Sparkles className="w-8 h-8" />
                 </div>
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-white text-base md:text-lg font-black tracking-tight">AI Personal Finance Assistant</h3>
-                  <p className="text-slate-400 text-[11px] md:text-xs font-semibold leading-relaxed">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-white text-lg font-black tracking-tight">AI Personal Finance Assistant</h3>
+                  <p className="text-slate-400 text-xs font-semibold leading-relaxed">
                     This hyper-intelligent AI is linked directly with your transaction books. Compare cycles, locate spending outliers, analyze active lending logs, or create smart savings strategies instantly.
                   </p>
                 </div>
 
                 {/* Suggestions Tags */}
-                <div className="w-full flex flex-col gap-2 mt-2">
-                  <span className="text-slate-500 text-[9px] font-black uppercase tracking-wider text-left pl-1">Suggested Analytics</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="w-full flex flex-col gap-2 mt-4">
+                  <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider text-left pl-2">Suggested Analytics</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {suggestions.map((s, idx) => {
                       const Icon = s.icon;
                       return (
                         <button
                           key={idx}
-                          onClick={() => {
-                            sendMessage(s.text);
-                            inputRef.current?.focus();
-                          }}
-                          className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-950/50 hover:bg-violet-600/10 border border-white/5 hover:border-violet-500/30 text-slate-350 hover:text-white rounded-xl text-[11px] font-bold text-left transition-all cursor-pointer group"
+                          onClick={() => sendMessage(s.text)}
+                          className="flex items-center gap-3 px-4 py-3.5 bg-slate-950/50 hover:bg-violet-600/10 border border-white/5 hover:border-violet-500/30 text-slate-300 hover:text-white rounded-2xl text-xs font-bold text-left transition-all cursor-pointer group"
                         >
-                          <div className="w-7 h-7 rounded-lg bg-violet-600/10 group-hover:bg-violet-500/20 text-violet-400 flex items-center justify-center shrink-0">
-                            <Icon className="w-3.5 h-3.5" />
+                          <div className="w-8 h-8 rounded-xl bg-violet-600/10 group-hover:bg-violet-500/20 text-violet-400 flex items-center justify-center shrink-0">
+                            <Icon className="w-4 h-4" />
                           </div>
-                          <span className="truncate">{s.text}</span>
+                          <span>{s.text}</span>
                         </button>
                       );
                     })}
@@ -580,33 +553,32 @@ export default function Assistant() {
               </div>
             ) : (
               /* Message Bubbles list */
-              <div className="flex flex-col gap-5">
+              <div className="flex flex-col gap-6">
                 {messages.map((msg, idx) => {
                   const isAi = msg.role === 'assistant';
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-2.5 md:gap-3.5 text-left ${isAi ? 'justify-start' : 'justify-end'}`}
+                      className={`flex gap-3.5 text-left ${isAi ? 'justify-start' : 'justify-end'}`}
                     >
                       {isAi && (
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50">
-                          <Bot className="w-4.5 h-4.5 md:w-5 md:h-5" />
+                        <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50">
+                          <Bot className="w-5 h-5" />
                         </div>
                       )}
 
-                      <div className={`p-3 md:p-4 rounded-2xl max-w-[88%] md:max-w-xl text-xs md:text-sm leading-relaxed shadow-sm ${
-                        isAi
+                      <div className={`p-4 rounded-2xl max-w-[85%] md:max-w-xl text-sm leading-relaxed shadow-sm ${isAi
                           ? 'bg-slate-950/50 border border-white/5 text-slate-200 font-medium'
                           : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
-                      }`}>
+                        }`}>
                         <div className="whitespace-pre-line break-words">
                           {formatMessageContent(msg.content)}
                         </div>
                       </div>
 
                       {!isAi && (
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
-                          <UserIcon className="w-4.5 h-4.5 md:w-5 md:h-5" />
+                        <div className="w-9 h-9 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
+                          <UserIcon className="w-5 h-5" />
                         </div>
                       )}
                     </div>
@@ -614,12 +586,12 @@ export default function Assistant() {
                 })}
 
                 {isGenerating && (
-                  <div className="flex gap-2.5 md:gap-3.5 text-left justify-start">
-                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
-                      <Bot className="w-4.5 h-4.5 md:w-5 md:h-5" />
+                  <div className="flex gap-3.5 text-left justify-start">
+                    <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
+                      <Bot className="w-5 h-5" />
                     </div>
-                    <div className="p-3 md:p-4 rounded-2xl bg-slate-950/50 border border-white/5 text-slate-500 text-[10px] md:text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin text-violet-400" />
+                    <div className="p-4 rounded-2xl bg-slate-950/50 border border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
                       Analyzing Database ledger...
                     </div>
                   </div>
@@ -630,46 +602,25 @@ export default function Assistant() {
           </div>
 
           {/* Form Input Panel */}
-          <form 
-            onSubmit={handleFormSubmit} 
-            className={`flex gap-2 items-center shrink-0 border-t border-white/5 pt-3 md:pb-0 ${
-              isKeyboardActive ? 'pb-3 px-3' : 'pb-[72px] md:pb-0 px-3 md:px-0'
-            }`}
-          >
+          <form onSubmit={handleFormSubmit} className="flex gap-3 items-center shrink-0 border-t border-white/5 pt-4">
             <input
-              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onFocus={() => {
-                setIsKeyboardActive(true);
-                document.body.classList.add('keyboard-active');
-                if (isMobile) {
-                  setTimeout(() => {
-                    window.scrollTo(0, 0);
-                  }, 60);
-                }
-              }}
-              onBlur={() => {
-                setIsKeyboardActive(false);
-                document.body.classList.remove('keyboard-active');
-              }}
               placeholder={
-                isGenerating 
-                  ? "Gemini is auditing balance sheets..." 
-                  : "Ask Gemini (e.g. Compare my spending)"
+                isGenerating
+                  ? "Gemini is auditing balance sheets..."
+                  : "Ask Gemini (e.g. Compare my spending or Smart savings tips)"
               }
-              className="flex-grow pl-4 pr-3 py-2.5 md:py-3.5 bg-slate-950/60 border border-white/10 rounded-xl md:rounded-2xl text-white placeholder-slate-600 text-xs md:text-sm focus:outline-none focus:border-violet-500 font-semibold focus:ring-1 focus:ring-violet-500/20"
-              disabled={isLoadingMessages}
+              className="flex-grow pl-5 pr-4 py-3.5 bg-slate-950/60 border border-white/10 rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 font-semibold focus:ring-1 focus:ring-violet-500/20"
+              disabled={isGenerating || isLoadingMessages}
             />
             <button
               type="submit"
               disabled={isGenerating || isLoadingMessages || !input.trim()}
-              onMouseDown={(e) => e.preventDefault()}
-              onTouchStart={(e) => e.preventDefault()}
-              className="p-2.5 md:p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl md:rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
+              className="p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
             >
-              <Send className="w-4 h-4 md:w-5 md:h-5" />
+              <Send className="w-5 h-5" />
             </button>
           </form>
 
@@ -677,7 +628,7 @@ export default function Assistant() {
       </div>
 
       {/* FOOTER */}
-      <footer className="hidden md:block border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
+      <footer className="border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 text-slate-600 text-[10px] text-center font-bold uppercase tracking-wider">
           Powered by Google Gemini 2.5 Flash with Database Tool Access & Session History.
         </div>
