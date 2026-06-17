@@ -173,3 +173,9 @@ body {
 .animate-float-slow {
   animation: float 9s ease-in-out infinite;
 }
+
+/* Hide sticky bottom nav bar on mobile devices when the soft keyboard is active */
+body.keyboard-active nav.fixed.bottom-0 {
+  display: none !important;
+}
+
