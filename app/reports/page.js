@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
+import ReportsMobile from '@/components/ReportsMobile';
 import { motion } from 'framer-motion';
 import {
   AreaChart,
@@ -35,7 +36,8 @@ import {
   Info,
   CalendarDays,
   Briefcase,
-  ArrowUpRight
+  ArrowUpRight,
+  Loader2
 } from 'lucide-react';
 import { getLogicalCyclePeriod } from '@/lib/cycle';
 
@@ -49,6 +51,7 @@ export default function Reports() {
   const [entries, setEntries] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [cycleDate, setCycleDate] = useState(1);
+  const [stockHoldings, setStockHoldings] = useState([]);
   const [stockSummary, setStockSummary] = useState({
     totalInvested: 0,
     totalCurrentValue: 0,
@@ -59,6 +62,27 @@ export default function Reports() {
   // Contribution Calendar States
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Mobile View & Simulated Load States
+  const [isMobile, setIsMobile] = useState(false);
+  const [isSelectingDate, setIsSelectingDate] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleDateSelect = (day) => {
+    setIsSelectingDate(true);
+    setSelectedDate(day);
+    setTimeout(() => {
+      setIsSelectingDate(false);
+    }, 450);
+  };
 
   // Redirect if unauthenticated
   useEffect(() => {
@@ -94,6 +118,9 @@ export default function Reports() {
           const stockData = await stockRes.json();
           if (stockData.summary) {
             setStockSummary(stockData.summary);
+          }
+          if (stockData.holdings) {
+            setStockHoldings(stockData.holdings);
           }
         }
       } catch (err) {
@@ -517,6 +544,54 @@ export default function Reports() {
     return null;
   };
 
+  if (isMobile) {
+    return (
+      <>
+        <Navbar />
+        {loadingData ? (
+          <div className="min-h-screen flex flex-col items-center justify-center bg-[#030712] px-6 text-center select-none relative overflow-hidden">
+            <div className="absolute inset-0 bg-radial-gradient from-violet-600/5 via-transparent to-transparent opacity-50 blur-3xl pointer-events-none"></div>
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-14 h-14 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-6"></div>
+              <h3 className="text-white font-extrabold text-lg tracking-tight mb-1">Reports & Analytics</h3>
+              <p className="text-slate-400 text-xs font-semibold animate-pulse">Assembling financial intelligence charts...</p>
+            </div>
+          </div>
+        ) : (
+          <ReportsMobile
+            user={user}
+            loadingData={loadingData}
+            cycleDate={cycleDate}
+            stockSummary={stockSummary}
+            stockHoldings={stockHoldings}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            currentMonth={currentMonth}
+            setCurrentMonth={setCurrentMonth}
+            salaries={salaries}
+            bonuses={bonuses}
+            entries={entries}
+            formatCurrency={formatCurrency}
+            monthlyChartData={monthlyChartData}
+            currentPeriodStats={currentPeriodStats}
+            pieChartData={pieChartData}
+            COLORS={COLORS}
+            PIE_COLORS={PIE_COLORS}
+            CustomTooltip={CustomTooltip}
+            getCellMetadata={getCellMetadata}
+            getMonthDays={getMonthDays}
+            getCalendarGridDays={getCalendarGridDays}
+            getMonthLabels={getMonthLabels}
+            toLocalDateString={toLocalDateString}
+            tz={tz}
+            isSelectingDate={isSelectingDate}
+            handleDateSelect={handleDateSelect}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <div className="relative min-h-screen flex flex-col justify-between">
       <Navbar />
@@ -699,7 +774,7 @@ export default function Reports() {
                                     key={day.getTime()}
                                     title={metadata.tooltip}
                                     onClick={() => {
-                                      setSelectedDate(day);
+                                      handleDateSelect(day);
                                       setCurrentMonth(day);
                                     }}
                                     className={`w-[11px] h-[11px] rounded-[3px] cursor-pointer transition-all ${metadata.colorClass} ${
@@ -771,7 +846,7 @@ export default function Reports() {
                         <button
                           key={day.getTime()}
                           onClick={() => {
-                            setSelectedDate(day);
+                            handleDateSelect(day);
                           }}
                           className={`h-8 w-8 flex flex-col items-center justify-center rounded-lg text-xs font-semibold relative transition-all ${
                             isSelected 
@@ -803,7 +878,12 @@ export default function Reports() {
                   </h4>
                 </div>
 
-                {(() => {
+                {isSelectingDate ? (
+                  <div className="py-8 bg-white/[0.02] border border-white/[0.05] rounded-2xl flex flex-col items-center justify-center gap-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-violet-400" />
+                    <span className="text-xs text-slate-500 font-bold animate-pulse">Syncing transactions ledger...</span>
+                  </div>
+                ) : (() => {
                   const metadata = getCellMetadata(selectedDate);
                   const hasTx = metadata.entries.length > 0 || metadata.salaries.length > 0;
 
@@ -1066,6 +1146,108 @@ export default function Reports() {
                 >
                   View Passbook Ledger
                 </Link>
+              </div>
+            </div>
+
+            {/* Row 4: Stocks Portfolio Performance & Allocation */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
+              {/* Stock Growth Comparison Bar Chart */}
+              <div className="glass-card p-6 lg:col-span-2 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
+                    <Briefcase className="w-5 h-5 text-violet-400" /> Stock Portfolio Performance
+                  </h3>
+                  <p className="text-xs text-slate-500 font-semibold mb-6">Compare money added (Invested Value) vs the current market value of your holdings.</p>
+                </div>
+
+                {stockHoldings.length === 0 ? (
+                  <div className="py-20 text-center text-slate-500 font-medium">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                    No stocks logged in your Groww portfolio ledger.
+                    <div className="mt-4">
+                      <Link
+                        href="/stocks"
+                        className="px-4 py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 text-violet-400 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                      >
+                        Add Stocks
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={stockHoldings.map(h => ({
+                          name: h.symbol.split('.')[0],
+                          Invested: h.investedValue,
+                          Current: h.currentValue
+                        }))}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
+                        <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
+                        <YAxis stroke="#475569" fontSize={10} tickLine={false} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: '#0f172a',
+                            border: '1px solid rgba(255,255,255,0.08)',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontFamily: 'inherit',
+                          }}
+                          formatter={(value) => [formatCurrency(value), '']}
+                        />
+                        <Bar dataKey="Invested" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                        <Bar dataKey="Current" fill="#06b6d4" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+              </div>
+
+              {/* Stock Allocation & Summary */}
+              <div className="glass-card p-6 flex flex-col justify-between">
+                <div>
+                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-4">
+                    <PieIcon className="w-5 h-5 text-cyan-400" /> Portfolio Holdings Weight
+                  </h3>
+
+                  {stockHoldings.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500 font-medium">
+                      Log shares to view asset allocation.
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Interactive breakdown of top holdings */}
+                      <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                        {stockHoldings.map((h, idx) => {
+                          const weight = stockSummary.totalCurrentValue > 0 
+                            ? ((h.currentValue / stockSummary.totalCurrentValue) * 100).toFixed(1) 
+                            : '0.0';
+                          return (
+                            <div key={idx} className="flex items-center justify-between text-xs border-b border-white/5 pb-2">
+                              <div className="flex flex-col text-left">
+                                <span className="font-extrabold text-white">{h.symbol.split('.')[0]}</span>
+                                <span className="text-[9px] text-slate-500 font-bold">{h.name}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-extrabold text-slate-350">{formatCurrency(h.currentValue)}</span>
+                                <span className="block text-[9px] text-violet-400 font-black">{weight}%</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {stockHoldings.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-slate-400">
+                    <span>Total Stocks Listed</span>
+                    <span className="text-white font-extrabold">{stockHoldings.length} Companies</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

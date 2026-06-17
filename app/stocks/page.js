@@ -20,7 +20,7 @@ import {
   Percent,
   Coins
 } from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 export default function StocksPage() {
   const { user, loading: authLoading } = useAuth();
@@ -266,6 +266,12 @@ export default function StocksPage() {
     value: h.currentValue,
   })).filter(item => item.value > 0);
 
+  const performanceData = holdings.map(h => ({
+    name: h.symbol.split('.')[0],
+    Invested: h.investedValue,
+    Current: h.currentValue,
+  }));
+
   const COLORS = [
     '#8b5cf6', // Violet
     '#06b6d4', // Cyan
@@ -450,6 +456,50 @@ export default function StocksPage() {
             </div>
           </div>
         </div>
+
+        {/* Portfolio Performance Chart */}
+        {holdings.length > 0 && (
+          <div className="glass-card p-6 mb-8 text-left">
+            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 bg-violet-500 rounded-full animate-pulse"></span> Portfolio Growth
+                </span>
+                <h2 className="text-lg font-black text-white mt-1">Invested Capital vs Current Market Value</h2>
+              </div>
+              <div className="flex gap-4 text-xs font-bold text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-md bg-violet-600"></span> Invested
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-3 h-3 rounded-md bg-cyan-500"></span> Current Value
+                </div>
+              </div>
+            </div>
+
+            <div className="h-72 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={performanceData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
+                  <YAxis stroke="#475569" fontSize={10} tickLine={false} tickFormatter={(val) => formatCurrency(val).replace(/\.00$/, '')} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: '12px',
+                      fontSize: '11px',
+                      fontFamily: 'inherit',
+                    }}
+                    formatter={(value) => [formatCurrency(value), '']}
+                  />
+                  <Bar dataKey="Invested" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                  <Bar dataKey="Current" fill="#06b6d4" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
 
         {/* Holdings Table Section */}
         <div className="glass-card p-6">
