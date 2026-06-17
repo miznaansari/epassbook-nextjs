@@ -101,6 +101,18 @@ export default function Assistant() {
     return () => window.removeEventListener('resize', checkScreen);
   }, []);
 
+  // Prevent page scroll when software keyboard is active (keeps navbar locked at the top)
+  useEffect(() => {
+    if (!isMobile) return;
+    const handleScroll = () => {
+      if (isKeyboardActive) {
+        window.scrollTo(0, 0);
+      }
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isKeyboardActive, isMobile]);
+
   // Fetch all chat sessions for the user
   const loadSessions = async (selectLatest = false) => {
     try {
@@ -632,6 +644,11 @@ export default function Assistant() {
               onFocus={() => {
                 setIsKeyboardActive(true);
                 document.body.classList.add('keyboard-active');
+                if (isMobile) {
+                  setTimeout(() => {
+                    window.scrollTo(0, 0);
+                  }, 60);
+                }
               }}
               onBlur={() => {
                 setIsKeyboardActive(false);
@@ -643,7 +660,7 @@ export default function Assistant() {
                   : "Ask Gemini (e.g. Compare my spending)"
               }
               className="flex-grow pl-4 pr-3 py-2.5 md:py-3.5 bg-slate-950/60 border border-white/10 rounded-xl md:rounded-2xl text-white placeholder-slate-600 text-xs md:text-sm focus:outline-none focus:border-violet-500 font-semibold focus:ring-1 focus:ring-violet-500/20"
-              disabled={isGenerating || isLoadingMessages}
+              disabled={isLoadingMessages}
             />
             <button
               type="submit"
