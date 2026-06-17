@@ -61,6 +61,7 @@ export default function Assistant() {
 
   // Scroll Container Ref
   const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   // Suggested Prompts list
   const suggestions = [
@@ -329,6 +330,7 @@ export default function Assistant() {
   const handleFormSubmit = (e) => {
     e.preventDefault();
     sendMessage();
+    inputRef.current?.focus();
   };
 
   if (loading || !user) {
@@ -548,7 +550,10 @@ export default function Assistant() {
                       return (
                         <button
                           key={idx}
-                          onClick={() => sendMessage(s.text)}
+                          onClick={() => {
+                            sendMessage(s.text);
+                            inputRef.current?.focus();
+                          }}
                           className="flex items-center gap-2.5 px-3.5 py-2.5 bg-slate-950/50 hover:bg-violet-600/10 border border-white/5 hover:border-violet-500/30 text-slate-350 hover:text-white rounded-xl text-[11px] font-bold text-left transition-all cursor-pointer group"
                         >
                           <div className="w-7 h-7 rounded-lg bg-violet-600/10 group-hover:bg-violet-500/20 text-violet-400 flex items-center justify-center shrink-0">
@@ -620,6 +625,7 @@ export default function Assistant() {
             }`}
           >
             <input
+              ref={inputRef}
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -642,6 +648,8 @@ export default function Assistant() {
             <button
               type="submit"
               disabled={isGenerating || isLoadingMessages || !input.trim()}
+              onMouseDown={(e) => e.preventDefault()}
+              onTouchStart={(e) => e.preventDefault()}
               className="p-2.5 md:p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl md:rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
             >
               <Send className="w-4 h-4 md:w-5 md:h-5" />
