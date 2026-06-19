@@ -22,7 +22,8 @@ import {
   Menu,
   X,
   History,
-  Loader2
+  Loader2,
+  ChevronDown
 } from 'lucide-react';
 
 // Parse message content to render **text** as bold elements smoothly
@@ -41,6 +42,30 @@ const formatMessageContent = (content) => {
 export default function Assistant() {
   const { user, loading } = useAuth();
   const router = useRouter();
+
+  const AVAILABLE_MODELS = [
+    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemma-4-26b', name: 'Gemma 4 26B' },
+    { id: 'gemma-4-31b', name: 'Gemma 4 31B' }
+  ];
+
+  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
+
+  // Load selected model from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedModel = localStorage.getItem('assistant_model');
+      if (savedModel) {
+        setSelectedModel(savedModel);
+      }
+    }
+  }, []);
+
+  const handleModelChange = (modelId) => {
+    setSelectedModel(modelId);
+    localStorage.setItem('assistant_model', modelId);
+  };
 
   // Chat Sessions List & Active ID
   const [sessions, setSessions] = useState([]);
@@ -276,6 +301,7 @@ export default function Assistant() {
         body: JSON.stringify({
           messages: updatedMessages,
           sessionId: currentSessionId,
+          model: selectedModel,
         }),
       });
 
@@ -469,9 +495,27 @@ export default function Assistant() {
               </div>
             </div>
 
-            {/* Syncing Indicators */}
-            <div className="flex items-center gap-2">
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-wider">
+            {/* Syncing Indicators & Model Selector */}
+            <div className="flex items-center gap-2.5">
+              {/* Model Dropdown */}
+              <div className="relative flex items-center">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  className="appearance-none bg-slate-950/60 hover:bg-slate-900 border border-white/10 hover:border-white/20 text-[10px] md:text-xs font-black uppercase tracking-wider text-slate-300 hover:text-white rounded-xl py-2 pl-3.5 pr-9 focus:outline-none focus:border-violet-500/50 transition-all cursor-pointer shadow-md shadow-slate-950/40"
+                >
+                  {AVAILABLE_MODELS.map((model) => (
+                    <option key={model.id} value={model.id} className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider">
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-3 flex items-center text-violet-400">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
+
+              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                 Ledger Linked
               </span>
@@ -630,7 +674,7 @@ export default function Assistant() {
       {/* FOOTER */}
       <footer className="border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 text-slate-600 text-[10px] text-center font-bold uppercase tracking-wider">
-          Powered by Google Gemini 2.5 Flash with Database Tool Access & Session History.
+          Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Database Tool Access & Session History.
         </div>
       </footer>
     </div>

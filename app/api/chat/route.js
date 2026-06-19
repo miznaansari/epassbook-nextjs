@@ -47,7 +47,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages, sessionId } = await req.json();
+    const { messages, sessionId, model: requestModel } = await req.json();
     const userId = user.id;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -131,9 +131,21 @@ export async function POST(req) {
     const currentYear = currentDate.getFullYear();
     const currentMonthName = currentDate.toLocaleString('en-US', { month: 'long' });
 
+    // Map requestModel to the exact model name or default to gemini-3.1-flash-lite
+    let chosenModel = 'gemini-3.1-flash-lite';
+    if (requestModel === 'gemini-2.5-flash') {
+      chosenModel = 'gemini-2.5-flash';
+    } else if (requestModel === 'gemma-4-26b' || requestModel === 'gemma-4-26b-a4b-it') {
+      chosenModel = 'gemma-4-26b-a4b-it';
+    } else if (requestModel === 'gemma-4-31b' || requestModel === 'gemma-4-31b-it') {
+      chosenModel = 'gemma-4-31b-it';
+    } else if (requestModel === 'gemini-3.1-flash-lite') {
+      chosenModel = 'gemini-3.1-flash-lite';
+    }
+
     const ai = new GoogleGenerativeAI(apiKey);
     const model = ai.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: chosenModel,
       systemInstruction: `You are Antigravity Finance AI, a Gen-Z styled hyper-advanced monthly personal finance assistant for "Manage Monthly Money".
 You have real-time access to the user's financial ledger via database tools.
 Always maintain a premium, friendly, highly analytical, slightly witty and helpful tone. Feel free to use emojis to keep it engaging and modern!
