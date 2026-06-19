@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 const AuthContext = createContext({
   user: null,
   loading: true,
+  login: async (email, password) => {},
   logout: async () => {},
   refreshUser: async () => {},
 });
@@ -17,7 +18,7 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  // Load and sync user profile from Prisma database
+  // Load and sync user profile from Prisma database (Firebase flow)
   const syncUserProfile = async (firebaseUser) => {
     if (!firebaseUser) {
       setUser(null);
@@ -26,7 +27,6 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      // Fetch or create user in our DB
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,7 +47,6 @@ export function AuthProvider({ children }) {
           ...dbUser,
         });
       } else {
-        // Fallback to basic firebase user data
         setUser({
           uid: firebaseUser.uid,
           email: firebaseUser.email,
@@ -69,18 +68,120 @@ export function AuthProvider({ children }) {
   };
 
   const refreshUser = async () => {
+    // Try to refresh via custom session first
+    try {
+      const res = await fetch('/api/auth/verify-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.valid) {
+          setUser({
+            uid: data.user.id,
+            email: data.user.email,
+            displayName: data.user.name || '',
+            ...data.user,
+          });
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Error refreshing custom session:', e);
+    }
+
+    // Fallback to Firebase
     if (auth.currentUser) {
       await syncUserProfile(auth.currentUser);
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setLoading(true);
-      await syncUserProfile(firebaseUser);
-    });
+  const login = async (email, password) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setUser({
+          uid: data.user.id,
+          email: data.user.email,
+          displayName: data.user.name || '',
+          ...data.user,
+        });
+        setLoading(false);
+        return { success: true };
+      } else {
+        setLoading(false);
+        return { success: false, error: data.error, passwordNotSet: data.passwordNotSet };
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setLoading(false);
+      return { success: false, error: 'A network error occurred.' };
+    }
+  };
 
-    return () => unsubscribe();
+  useEffect(() => {
+    let active = true;
+
+    async function checkCustomSession() {
+      try {
+        const res = await fetch('/api/auth/verify-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.valid && active) {
+            setUser({
+              uid: data.user.id,
+              email: data.user.email,
+              displayName: data.user.name || '',
+              ...data.user,
+            });
+            setLoading(false);
+            return true;
+          }
+        }
+      } catch (e) {
+        console.error('Error checking custom session:', e);
+      }
+      return false;
+    }
+
+    async function initAuth() {
+      const isCustomValid = await checkCustomSession();
+      if (isCustomValid) return () => {};
+
+      // Fallback to Firebase onAuthStateChanged if no custom session active
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        if (!active) return;
+        setLoading(true);
+        if (firebaseUser) {
+          await syncUserProfile(firebaseUser);
+        } else {
+          setUser(null);
+          setLoading(false);
+        }
+      });
+
+      return unsubscribe;
+    }
+
+    let unsubPromise = initAuth();
+
+    return () => {
+      active = false;
+      unsubPromise.then((unsub) => {
+        if (unsub) unsub();
+      });
+    };
   }, []);
 
   const logout = async () => {
@@ -90,14 +191,18 @@ export function AuthProvider({ children }) {
     } catch (e) {
       console.error('Error logging out from server session:', e);
     }
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (e) {
+      console.error('Error signing out from Firebase:', e);
+    }
     setUser(null);
     setLoading(false);
     router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

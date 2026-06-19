@@ -15,7 +15,7 @@ export default function Signup() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loadingState, setLoadingState] = useState(false);
-  const { user, loading } = useAuth();
+  const { user, loading, login } = useAuth();
   const router = useRouter();
 
   const [showRetry, setShowRetry] = useState(false);
@@ -58,26 +58,16 @@ export default function Signup() {
     setLoadingState(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      // Explicitly set cookie & sync session instantly from the action handler
-      await fetch('/api/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          name: userCredential.user.displayName,
-        }),
-      });
+      const result = await login(email, password);
+      if (result.success) {
+        // Success: AuthContext user state changes and user is redirected to dashboard
+      } else {
+        setError(result.error || 'Failed to create account.');
+        setLoadingState(false);
+      }
     } catch (err) {
       console.error('Signup error:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setError('This email address is already registered.');
-      } else if (err.code === 'auth/invalid-email') {
-        setError('Invalid email address format.');
-      } else {
-        setError('Failed to create account. Please try again.');
-      }
+      setError('Failed to create account. Please try again.');
       setLoadingState(false);
     }
   };

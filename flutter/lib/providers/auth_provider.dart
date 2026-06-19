@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 import '../config/constants.dart';
 
@@ -120,7 +121,21 @@ class AuthProvider extends ChangeNotifier {
         final fb.GoogleAuthProvider googleProvider = fb.GoogleAuthProvider();
         await _auth.signInWithPopup(googleProvider);
       } else {
-        throw UnsupportedError("Google Sign-In is only implemented on Web for now.");
+        final GoogleSignIn googleSignIn = GoogleSignIn(
+          scopes: ['email'],
+        );
+        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+        if (googleUser != null) {
+          final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+          final fb.OAuthCredential credential = fb.GoogleAuthProvider.credential(
+            accessToken: googleAuth.accessToken,
+            idToken: googleAuth.idToken,
+          );
+          await _auth.signInWithCredential(credential);
+        } else {
+          _loading = false;
+          notifyListeners();
+        }
       }
     } catch (e) {
       _loading = false;
@@ -133,7 +148,32 @@ class AuthProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim(),
+          'password': password,
+        }),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (data['passwordNotSet'] == true) {
+          throw Exception(data['error'] ?? 'Password not set. A link was sent to your email.');
+        }
+
+        _user = UserModel.fromJson(data['user']);
+        _sessionToken = data['sessionToken'].toString();
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('session_token', _sessionToken!);
+        _loading = false;
+        notifyListeners();
+      } else {
+        throw Exception(data['error'] ?? 'Invalid email or password.');
+      }
     } catch (e) {
       _loading = false;
       notifyListeners();
@@ -145,9 +185,32 @@ class AuthProvider extends ChangeNotifier {
     _loading = true;
     notifyListeners();
     try {
-      final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
-      if (cred.user != null) {
-        await cred.user!.updateDisplayName(name);
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim(),
+          'password': password,
+          'name': name.trim(),
+        }),
+      );
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        if (data['passwordNotSet'] == true) {
+          throw Exception(data['error'] ?? 'Account setup initiated. Check email.');
+        }
+
+        _user = UserModel.fromJson(data['user']);
+        _sessionToken = data['sessionToken'].toString();
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('session_token', _sessionToken!);
+        _loading = false;
+        notifyListeners();
+      } else {
+        throw Exception(data['error'] ?? 'Failed to register account.');
       }
     } catch (e) {
       _loading = false;

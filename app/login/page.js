@@ -14,7 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loadingState, setLoadingState] = useState(false);
-  const { user, loading } = useAuth();
+  const { user, loading, login } = useAuth();
   const router = useRouter();
 
   const [showRetry, setShowRetry] = useState(false);
@@ -49,26 +49,20 @@ export default function Login() {
     setLoadingState(true);
 
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      // Explicitly set cookie & sync session instantly from the action handler
-      await fetch('/api/user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          uid: userCredential.user.uid,
-          email: userCredential.user.email,
-          name: userCredential.user.displayName,
-        }),
-      });
+      const result = await login(email, password);
+      if (result.success) {
+        // Success: AuthContext user state changes and user is redirected to dashboard
+      } else {
+        if (result.passwordNotSet) {
+          setError('Password not set. We have sent an email with a setup link.');
+        } else {
+          setError(result.error || 'Invalid email or password.');
+        }
+        setLoadingState(false);
+      }
     } catch (err) {
       console.error('Login error:', err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-        setError('Invalid email or password.');
-      } else if (err.code === 'auth/user-not-found') {
-        setError('No account exists with this email.');
-      } else {
-        setError('Failed to log in. Please try again.');
-      }
+      setError('Failed to log in. Please try again.');
       setLoadingState(false);
     }
   };

@@ -3,14 +3,19 @@ import { db } from '@/lib/db';
 
 export async function POST(req) {
   try {
-    const { token } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    let tokenVal = body.token;
 
-    if (!token) {
+    if (!tokenVal) {
+      tokenVal = req.cookies.get('session_token')?.value;
+    }
+
+    if (!tokenVal) {
       return NextResponse.json({ error: 'Missing session token' }, { status: 400 });
     }
 
     const session = await db.userSession.findUnique({
-      where: { token },
+      where: { token: tokenVal },
       include: { user: true },
     });
 
