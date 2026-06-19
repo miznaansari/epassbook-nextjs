@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,9 +18,12 @@ import {
   TrendingUp as ProfitIcon,
   HelpCircle,
   Percent,
-  Coins
+  Coins,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { isMarketHours } from '@/lib/market';
 
 export default function StocksPage() {
   const { user, loading: authLoading } = useAuth();
@@ -37,6 +40,7 @@ export default function StocksPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [expandedSymbol, setExpandedSymbol] = useState(null);
 
   // Add stock modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -114,11 +118,45 @@ export default function StocksPage() {
     }
   };
 
+  const [inMarketHours, setInMarketHours] = useState(false);
+
+  // Check market hours status on mount and update it periodically
+  useEffect(() => {
+    const checkMarketStatus = () => {
+      setInMarketHours(isMarketHours());
+    };
+    checkMarketStatus();
+    const interval = setInterval(checkMarketStatus, 15000); // Check every 15 seconds
+    return () => clearInterval(interval);
+  }, []);
+
   useEffect(() => {
     if (user) {
       fetchHoldings();
     }
   }, [user]);
+
+  // Polling effect: Poll every 5 seconds during market hours
+  useEffect(() => {
+    if (!user || !inMarketHours) return;
+
+    const pollRefresh = async () => {
+      try {
+        const res = await fetch('/api/stocks/refresh', {
+          method: 'POST',
+        });
+        if (res.ok) {
+          await fetchHoldings(true);
+        }
+      } catch (err) {
+        console.error('Polling error during market hours:', err);
+      }
+    };
+
+    // Initial delay/trigger, then poll every 5 seconds
+    const interval = setInterval(pollRefresh, 5000);
+    return () => clearInterval(interval);
+  }, [user, inMarketHours]);
 
   // Handle click outside search dropdown to close it
   useEffect(() => {
@@ -323,22 +361,29 @@ export default function StocksPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={handleRefresh}
-              disabled={refreshing || apiLimitRemaining <= 0}
-              className={`px-4 py-2 border text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md w-full sm:w-auto ${
-                apiLimitRemaining <= 0
-                  ? 'bg-slate-900/40 border-white/5 text-slate-500 cursor-not-allowed'
-                  : 'bg-slate-950/80 border-white/10 hover:border-white/20 hover:bg-slate-900 text-white cursor-pointer'
-              }`}
-              title={`Daily Refresh Limit: 10 refreshes. Remaining today: ${apiLimitRemaining}`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-              <span>
-                <span className="inline sm:hidden">Refresh ({apiLimitRemaining}/10)</span>
-                <span className="hidden sm:inline">Refresh Prices ({apiLimitRemaining}/10 remaining)</span>
-              </span>
-            </button>
+            {inMarketHours ? (
+              <div className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold rounded-xl flex items-center justify-center gap-2 w-full sm:w-auto select-none shadow-md">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Live Auto-Refreshing (Every 5s)</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing || apiLimitRemaining <= 0}
+                className={`px-4 py-2 border text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all active:scale-95 shadow-md w-full sm:w-auto ${
+                  apiLimitRemaining <= 0
+                    ? 'bg-slate-900/40 border-white/5 text-slate-500 cursor-not-allowed'
+                    : 'bg-slate-950/80 border-white/10 hover:border-white/20 hover:bg-slate-900 text-white cursor-pointer'
+                }`}
+                title={`Daily Refresh Limit: 10 refreshes. Remaining today: ${apiLimitRemaining}`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                <span>
+                  <span className="inline sm:hidden">Refresh ({apiLimitRemaining}/10)</span>
+                  <span className="hidden sm:inline">Refresh Prices ({apiLimitRemaining}/10 remaining)</span>
+                </span>
+              </button>
+            )}
             
             <button
               onClick={() => setIsModalOpen(true)}
@@ -544,35 +589,113 @@ export default function StocksPage() {
                   <tbody className="divide-y divide-white/[0.03] text-xs font-semibold">
                     {holdings.map((h) => {
                       const rowProfit = h.totalReturns >= 0;
+                      const isExpanded = expandedSymbol === h.symbol;
                       return (
-                        <tr key={h.id} className="hover:bg-white/[0.01] transition-colors">
-                          <td className="py-4 px-4">
-                            <div className="font-extrabold text-slate-200">{h.name}</div>
-                            <div className="text-[10px] text-slate-500 font-bold tracking-wider mt-0.5">{h.symbol}</div>
-                          </td>
-                          <td className="py-4 px-4 text-right font-mono font-bold text-slate-300">{h.quantity}</td>
-                          <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.buyPrice)}</td>
-                          <td className="py-4 px-4 text-right font-mono text-slate-200">{formatCurrency(h.currentPrice)}</td>
-                          <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.investedValue)}</td>
-                          <td className="py-4 px-4 text-right font-mono font-bold text-slate-200">{formatCurrency(h.currentValue)}</td>
-                          <td className="py-4 px-4 text-right">
-                            <div className={`font-mono font-bold ${rowProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                              {rowProfit ? '+' : ''}{formatCurrency(h.totalReturns)}
-                            </div>
-                            <div className={`text-[10px] font-bold mt-0.5 ${rowProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
-                              {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
-                            </div>
-                          </td>
-                          <td className="py-4 px-4 text-center">
-                            <button
-                              onClick={() => handleDeleteHolding(h.id, h.name)}
-                              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer"
-                              title="Delete Stock Holding"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
+                        <Fragment key={h.symbol}>
+                          <tr 
+                            onClick={() => setExpandedSymbol(isExpanded ? null : h.symbol)}
+                            className="hover:bg-white/[0.01] transition-colors cursor-pointer select-none"
+                          >
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-2">
+                                <div className="text-slate-500 shrink-0">
+                                  {isExpanded ? <ChevronUp className="w-4 h-4 text-violet-400" /> : <ChevronDown className="w-4 h-4" />}
+                                </div>
+                                <div>
+                                  <div className="font-extrabold text-slate-200">{h.name}</div>
+                                  <div className="text-[10px] text-slate-500 font-bold tracking-wider mt-0.5">{h.symbol}</div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-right font-mono font-bold text-slate-300">{h.quantity}</td>
+                            <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.buyPrice)}</td>
+                            <td className="py-4 px-4 text-right font-mono text-slate-200">{formatCurrency(h.currentPrice)}</td>
+                            <td className="py-4 px-4 text-right font-mono text-slate-400">{formatCurrency(h.investedValue)}</td>
+                            <td className="py-4 px-4 text-right font-mono font-bold text-slate-200">{formatCurrency(h.currentValue)}</td>
+                            <td className="py-4 px-4 text-right">
+                              <div className={`font-mono font-bold ${rowProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {rowProfit ? '+' : ''}{formatCurrency(h.totalReturns)}
+                              </div>
+                              <div className={`text-[10px] font-bold mt-0.5 ${rowProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
+                              </div>
+                            </td>
+                            <td className="py-4 px-4 text-center text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                              {isExpanded ? 'Hide' : 'View'}
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr className="bg-slate-950/40">
+                              <td colSpan={8} className="py-3 px-6">
+                                <div className="border-l-2 border-violet-500/50 pl-4 py-2 my-1 space-y-2 text-left">
+                                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">
+                                    Purchase History / Ledger Transactions
+                                  </div>
+                                  <div className="overflow-hidden rounded-xl border border-white/5 bg-slate-950/60 max-w-3xl">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                      <thead>
+                                        <tr className="border-b border-white/5 bg-white/[0.02] text-[9px] uppercase tracking-wider text-slate-500 font-black">
+                                          <th className="py-2 px-3">Purchase Date</th>
+                                          <th className="py-2 px-3 text-right">Quantity</th>
+                                          <th className="py-2 px-3 text-right">Purchase Price</th>
+                                          <th className="py-2 px-3 text-right">Total Invested</th>
+                                          <th className="py-2 px-3 text-right">Returns (P&L)</th>
+                                          <th className="py-2 px-3 text-center">Action</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-white/[0.02] font-semibold">
+                                        {h.purchases.map((p) => {
+                                          const pInvested = p.quantity * p.buyPrice;
+                                          const pCurrentValue = p.quantity * h.currentPrice;
+                                          const pReturns = pCurrentValue - pInvested;
+                                          const pReturnsPercentage = p.buyPrice > 0 ? ((h.currentPrice - p.buyPrice) / p.buyPrice) * 100 : 0;
+                                          const pProfit = pReturns >= 0;
+
+                                          return (
+                                            <tr key={p.id} className="hover:bg-white/[0.01]">
+                                              <td className="py-2 px-3 text-slate-400 font-mono">
+                                                {new Date(p.createdAt).toLocaleDateString(undefined, {
+                                                  year: 'numeric',
+                                                  month: 'short',
+                                                  day: 'numeric',
+                                                  hour: '2-digit',
+                                                  minute: '2-digit'
+                                                })}
+                                              </td>
+                                              <td className="py-2 px-3 text-right text-slate-300 font-mono">{p.quantity}</td>
+                                              <td className="py-2 px-3 text-right text-slate-350 font-mono">{formatCurrency(p.buyPrice)}</td>
+                                              <td className="py-2 px-3 text-right text-slate-200 font-mono">{formatCurrency(pInvested)}</td>
+                                              <td className="py-2 px-3 text-right font-mono">
+                                                <div className={`font-bold ${pProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                                  {pProfit ? '+' : ''}{formatCurrency(pReturns)}
+                                                </div>
+                                                <div className={`text-[9px] font-bold ${pProfit ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                  {pProfit ? '+' : ''}{pReturnsPercentage.toFixed(2)}%
+                                                </div>
+                                              </td>
+                                              <td className="py-2 px-3 text-center">
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteHolding(p.id, `${h.name} (Bought for ${formatCurrency(p.buyPrice)})`);
+                                                  }}
+                                                  className="p-1 text-slate-500 hover:text-rose-450 hover:bg-rose-500/5 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer"
+                                                  title="Delete this purchase transaction"
+                                                >
+                                                  <Trash2 className="w-3 h-3" />
+                                                </button>
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </tbody>
@@ -583,12 +706,13 @@ export default function StocksPage() {
               <div className="md:hidden space-y-4">
                 {holdings.map((h) => {
                   const rowProfit = h.totalReturns >= 0;
+                  const isExpanded = expandedSymbol === h.symbol;
                   return (
                     <div 
-                      key={h.id} 
+                      key={h.symbol} 
                       className="bg-white/[0.02] border border-white/[0.05] rounded-2xl p-4 flex flex-col gap-3 relative hover:border-white/[0.08] transition-all"
                     >
-                      {/* Ticker & Name & Delete button */}
+                      {/* Ticker & Name & Expand toggle */}
                       <div className="flex items-start justify-between">
                         <div className="min-w-0 pr-10 text-left">
                           <h4 className="font-extrabold text-slate-100 truncate text-xs">{h.name}</h4>
@@ -596,13 +720,16 @@ export default function StocksPage() {
                             {h.symbol}
                           </span>
                         </div>
-                        {/* Delete holding */}
+                        {/* Expand/Collapse Toggle */}
                         <button
-                          onClick={() => handleDeleteHolding(h.id, h.name)}
-                          className="absolute top-3 right-3 p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 rounded-xl border border-white/5 transition-all cursor-pointer"
-                          title="Delete Stock Holding"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedSymbol(isExpanded ? null : h.symbol);
+                          }}
+                          className="absolute top-3 right-3 p-2 text-slate-400 hover:text-white bg-white/5 rounded-xl border border-white/5 transition-all cursor-pointer"
+                          title="Toggle Purchase History"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-violet-400" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                       </div>
 
@@ -646,6 +773,67 @@ export default function StocksPage() {
                           </div>
                         </div>
                       </div>
+
+                      {/* Collapsible Mobile Purchase History */}
+                      {isExpanded && (
+                        <div className="mt-2 pt-3 border-t border-white/[0.05] space-y-2 text-left">
+                          <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wider block">
+                            Purchase Transactions
+                          </span>
+                          <div className="space-y-2">
+                            {h.purchases.map((p) => {
+                              const pInvested = p.quantity * p.buyPrice;
+                              const pCurrentValue = p.quantity * h.currentPrice;
+                              const pReturns = pCurrentValue - pInvested;
+                              const pReturnsPercentage = p.buyPrice > 0 ? ((h.currentPrice - p.buyPrice) / p.buyPrice) * 100 : 0;
+                              const pProfit = pReturns >= 0;
+
+                              return (
+                                <div 
+                                  key={p.id} 
+                                  className="bg-slate-950/45 border border-white/5 rounded-xl p-2.5 flex items-center justify-between text-xs font-semibold"
+                                >
+                                  <div>
+                                    <div className="text-slate-400 font-mono text-[9px]">
+                                      {new Date(p.createdAt).toLocaleDateString(undefined, {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                      })}
+                                    </div>
+                                    <div className="text-[10px] text-slate-500 font-bold mt-0.5">
+                                      {p.quantity} shares @ {formatCurrency(p.buyPrice)}
+                                    </div>
+                                    <div className="text-[9px] text-slate-450 mt-0.5 font-bold">
+                                      Cost: {formatCurrency(pInvested)}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3">
+                                    <div className="text-right">
+                                      <div className={`font-mono text-xs font-bold ${pProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {pProfit ? '+' : ''}{formatCurrency(pReturns)}
+                                      </div>
+                                      <span className={`inline-block text-[8px] font-black px-1.5 py-0.5 rounded ${pProfit ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                                        {pProfit ? '+' : ''}{pReturnsPercentage.toFixed(2)}%
+                                      </span>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteHolding(p.id, `${h.name} (Bought for ${formatCurrency(p.buyPrice)})`);
+                                      }}
+                                      className="p-1.5 text-slate-500 hover:text-rose-450 hover:bg-rose-500/5 rounded-lg border border-white/5 transition-all cursor-pointer"
+                                      title="Delete this transaction"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

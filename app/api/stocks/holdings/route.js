@@ -28,35 +28,68 @@ export async function GET(req) {
       priceMap[p.symbol] = parseFloat(p.price);
     });
 
-    // 3. Process each holding and compute totals
+    // 3. Process holdings by grouping them by symbol
+    const groupedMap = {};
+
+    holdings.forEach(h => {
+      if (!groupedMap[h.symbol]) {
+        groupedMap[h.symbol] = {
+          symbol: h.symbol,
+          name: h.name,
+          totalQuantity: 0,
+          totalInvested: 0,
+          purchases: [],
+          latestUpdatedAt: h.updatedAt,
+        };
+      }
+      
+      const quantity = h.quantity;
+      const buyPrice = parseFloat(h.buyPrice);
+      const investedValue = quantity * buyPrice;
+
+      groupedMap[h.symbol].totalQuantity += quantity;
+      groupedMap[h.symbol].totalInvested += investedValue;
+      groupedMap[h.symbol].purchases.push({
+        id: h.id,
+        quantity,
+        buyPrice,
+        createdAt: h.createdAt,
+      });
+
+      if (new Date(h.updatedAt) > new Date(groupedMap[h.symbol].latestUpdatedAt)) {
+        groupedMap[h.symbol].latestUpdatedAt = h.updatedAt;
+      }
+    });
+
     let totalInvested = 0;
     let totalCurrentValue = 0;
 
-    const enrichedHoldings = holdings.map(h => {
-      const quantity = h.quantity;
-      const buyPrice = parseFloat(h.buyPrice);
-      const currentPrice = priceMap[h.symbol] !== undefined ? priceMap[h.symbol] : buyPrice;
+    const enrichedHoldings = Object.values(groupedMap).map(group => {
+      const currentPrice = priceMap[group.symbol] !== undefined ? priceMap[group.symbol] : (group.totalInvested / group.totalQuantity);
+      
+      const currentValue = group.totalQuantity * currentPrice;
+      const totalReturns = currentValue - group.totalInvested;
+      const returnsPercentage = group.totalInvested > 0 ? (totalReturns / group.totalInvested) * 100 : 0;
 
-      const investedValue = quantity * buyPrice;
-      const currentValue = quantity * currentPrice;
-      const totalReturns = currentValue - investedValue;
-      const returnsPercentage = investedValue > 0 ? (totalReturns / investedValue) * 100 : 0;
-
-      totalInvested += investedValue;
+      totalInvested += group.totalInvested;
       totalCurrentValue += currentValue;
 
+      // Sort purchases by date desc
+      group.purchases.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
       return {
-        id: h.id,
-        symbol: h.symbol,
-        name: h.name,
-        quantity,
-        buyPrice,
+        id: group.symbol, // Use symbol as unique key identifier
+        symbol: group.symbol,
+        name: group.name,
+        quantity: group.totalQuantity,
+        buyPrice: group.totalInvested / group.totalQuantity, // average buying price
         currentPrice,
-        investedValue,
+        investedValue: group.totalInvested,
         currentValue,
         totalReturns,
         returnsPercentage,
-        updatedAt: h.updatedAt,
+        updatedAt: group.latestUpdatedAt,
+        purchases: group.purchases,
       };
     });
 

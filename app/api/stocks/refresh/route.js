@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/requireUser';
+import { isMarketHours } from '@/lib/market';
 
 export async function POST(req) {
   try {
@@ -22,26 +23,30 @@ export async function POST(req) {
       return NextResponse.json({ success: true, message: 'No holdings to refresh.' });
     }
 
-    // 2. Check daily limit
+    // 2. Check daily limit (bypassed during Indian Stock Market hours)
     const todayStr = new Date().toISOString().split('T')[0];
-    const apiUsage = await db.stockApiUsage.findUnique({
-      where: {
-        userId_date: {
-          userId: user.id,
-          date: todayStr,
-        },
-      },
-    });
+    const inMarketHours = isMarketHours();
 
-    const currentCount = apiUsage ? apiUsage.count : 0;
-    if (currentCount >= 10) {
-      return NextResponse.json(
-        { 
-          error: 'LIMIT_EXCEEDED', 
-          message: 'You have reached the limit of 10 stock refreshes per day.' 
-        }, 
-        { status: 429 }
-      );
+    if (!inMarketHours) {
+      const apiUsage = await db.stockApiUsage.findUnique({
+        where: {
+          userId_date: {
+            userId: user.id,
+            date: todayStr,
+          },
+        },
+      });
+
+      const currentCount = apiUsage ? apiUsage.count : 0;
+      if (currentCount >= 10) {
+        return NextResponse.json(
+          { 
+            error: 'LIMIT_EXCEEDED', 
+            message: 'You have reached the limit of 10 stock refreshes per day.' 
+          }, 
+          { status: 429 }
+        );
+      }
     }
 
     // 3. Fetch latest prices from Yahoo Finance Chart API in parallel
@@ -69,7 +74,7 @@ export async function POST(req) {
 
     await Promise.all(fetchPromises);
 
-    // 4. Update the cached prices in the database and increment usage counter
+    // 4. Update the cached prices in the database and increment usage counter if outside market hours
     const updatedCount = await db.$transaction(async (tx) => {
       // Upsert all fetched prices
       for (const update of priceUpdates) {
@@ -78,6 +83,19 @@ export async function POST(req) {
           update: { price: update.price },
           create: { symbol: update.symbol, price: update.price },
         });
+      }
+
+      if (inMarketHours) {
+        // Do not increment count during market hours, just get the current count
+        const apiUsage = await tx.stockApiUsage.findUnique({
+          where: {
+            userId_date: {
+              userId: user.id,
+              date: todayStr,
+            },
+          },
+        });
+        return apiUsage ? apiUsage.count : 0;
       }
 
       // Increment usage count
