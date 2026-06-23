@@ -14,7 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loadingState, setLoadingState] = useState(false);
-  const { user, loading, login } = useAuth();
+  const { user, loading, login, refreshUser } = useAuth();
   const router = useRouter();
 
   const [showRetry, setShowRetry] = useState(false);
@@ -51,7 +51,7 @@ export default function Login() {
     try {
       const result = await login(email, password);
       if (result.success) {
-        // Success: AuthContext user state changes and user is redirected to dashboard
+        router.push('/dashboard');
       } else {
         if (result.passwordNotSet) {
           setError('Password not set. We have sent an email with a setup link.');
@@ -74,7 +74,7 @@ export default function Login() {
     try {
       const userCredential = await signInWithPopup(auth, googleProvider);
       // Explicitly set cookie & sync session instantly from the action handler
-      await fetch('/api/user', {
+      const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -83,6 +83,14 @@ export default function Login() {
           name: userCredential.user.displayName,
         }),
       });
+
+      if (res.ok) {
+        await refreshUser();
+        router.push('/dashboard');
+      } else {
+        setError('Failed to sync session. Please try again.');
+        setLoadingState(false);
+      }
     } catch (err) {
       console.error('Google Auth Error:', err);
       if (err.code !== 'auth/popup-closed-by-user') {

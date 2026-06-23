@@ -68,6 +68,7 @@ export function AuthProvider({ children }) {
   };
 
   const refreshUser = async () => {
+    setLoading(true);
     // Try to refresh via custom session first
     try {
       const res = await fetch('/api/auth/verify-user', {
@@ -84,6 +85,7 @@ export function AuthProvider({ children }) {
             displayName: data.user.name || '',
             ...data.user,
           });
+          setLoading(false);
           return;
         }
       }
@@ -94,6 +96,8 @@ export function AuthProvider({ children }) {
     // Fallback to Firebase
     if (auth.currentUser) {
       await syncUserProfile(auth.currentUser);
+    } else {
+      setLoading(false);
     }
   };
 
