@@ -562,7 +562,7 @@ export default function Assistant() {
       <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Main Split Layout Container */}
-      <div className="flex-grow flex w-full max-w-7xl mx-auto px-4 md:px-6 py-6 gap-6 relative overflow-hidden h-[calc(100vh-4rem)]">
+      <div className="flex-grow flex w-full max-w-7xl mx-auto px-2.5 md:px-6 pt-4 pb-20 md:py-6 gap-4 md:gap-6 relative overflow-hidden h-[calc(100vh-4rem)]">
 
         {/* SIDEBAR Panel (ChatGPT history) */}
         <AnimatePresence>
@@ -666,7 +666,7 @@ export default function Assistant() {
         {/* MAIN CHAT CONSOLE */}
         <motion.main
           layout
-          className="flex-grow glass-card border border-white/5 p-4 md:p-6 flex flex-col gap-4 overflow-hidden relative"
+          className="flex-grow glass-card border border-white/5 p-3 md:p-6 flex flex-col gap-3 md:gap-4 overflow-hidden relative"
         >
 
           {/* Header Row */}
@@ -683,7 +683,9 @@ export default function Assistant() {
 
               <div>
                 <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                  <Brain className="w-6 h-6 text-violet-400 shrink-0" /> Gemini Finance Assistant
+                  <Brain className="w-6 h-6 text-violet-400 shrink-0" />
+                  <span className="hidden md:inline">Gemini Finance Assistant</span>
+                  <span className="inline md:hidden">Assistant</span>
                 </h1>
                 <p className="text-slate-400 text-[10px] md:text-xs mt-0.5 font-semibold">
                   Real-time ledger analytics & budget optimization.
@@ -750,7 +752,7 @@ export default function Assistant() {
           )}
 
           {/* CHAT VIEWPORT scroll container */}
-          <div className="flex-grow overflow-y-auto flex flex-col gap-6 pr-2 scrollbar-thin scroll-smooth min-h-0">
+          <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 pr-1 md:pr-2 scrollbar-thin scroll-smooth min-h-0">
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
@@ -799,15 +801,21 @@ export default function Assistant() {
                   return (
                     <div
                       key={idx}
-                      className={`flex gap-3.5 text-left ${isAi ? 'justify-start' : 'justify-end'}`}
+                      className={`flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left ${isAi ? 'justify-start items-start' : 'justify-end items-end md:items-start'}`}
                     >
                       {isAi && (
-                        <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50">
-                          <Bot className="w-5 h-5" />
+                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50">
+                          <Bot className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                       )}
 
-                      <div className={`p-4 rounded-2xl max-w-[85%] md:max-w-xl text-sm leading-relaxed shadow-sm ${isAi
+                      {!isAi && (
+                        <div className="md:hidden w-8 h-8 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
+                          <UserIcon className="w-4 h-4" />
+                        </div>
+                      )}
+
+                      <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-sm ${isAi
                           ? 'bg-slate-950/50 border border-white/5 text-slate-200 font-medium'
                           : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
                         }`}>
@@ -817,7 +825,7 @@ export default function Assistant() {
                       </div>
 
                       {!isAi && (
-                        <div className="w-9 h-9 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
+                        <div className="hidden md:flex w-9 h-9 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
                           <UserIcon className="w-5 h-5" />
                         </div>
                       )}
@@ -826,11 +834,11 @@ export default function Assistant() {
                 })}
 
                 {isGenerating && (
-                  <div className="flex gap-3.5 text-left justify-start">
-                    <div className="w-9 h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
-                      <Bot className="w-5 h-5" />
+                  <div className="flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left justify-start items-start">
+                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
+                      <Bot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <div className="p-4 rounded-2xl bg-slate-950/50 border border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-slate-950/50 border border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
                       Analyzing Database ledger...
                     </div>
@@ -868,7 +876,7 @@ export default function Assistant() {
       </div>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
+      <footer className="hidden md:block border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 text-slate-600 text-[10px] text-center font-bold uppercase tracking-wider">
           Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Database Tool Access & Session History.
         </div>

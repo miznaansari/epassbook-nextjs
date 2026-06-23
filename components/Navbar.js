@@ -187,12 +187,25 @@ export default function Navbar() {
                   </span>
                   <span className="text-sm">MonthlyMoney</span>
                 </div>
-                <button 
-                  onClick={() => setDrawerOpen(false)} 
-                  className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent hover:border-white/5 transition-all cursor-pointer"
-                >
-                  <X className="w-4.5 h-4.5" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      logout();
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer active:scale-95"
+                    title="Log Out"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => setDrawerOpen(false)} 
+                    className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent hover:border-white/5 transition-all cursor-pointer"
+                    aria-label="Close navigation menu"
+                  >
+                    <X className="w-4.5 h-4.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Drawer Content Area */}
@@ -240,19 +253,7 @@ export default function Navbar() {
                 </div>
               </div>
 
-              {/* Log Out at the bottom */}
-              <div className="p-5 border-t border-white/[0.05]">
-                <button
-                  onClick={() => {
-                    setDrawerOpen(false);
-                    logout();
-                  }}
-                  className="flex items-center gap-2 w-full justify-center py-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 hover:text-rose-350 rounded-xl text-xs font-black tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer font-black"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Log Out Session</span>
-                </button>
-              </div>
+
             </motion.div>
           </div>
         )}
