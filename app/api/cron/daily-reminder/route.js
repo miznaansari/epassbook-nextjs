@@ -1,7 +1,81 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getCycleRange, getLogicalCyclePeriod } from '@/lib/cycle';
 import { calculateStreaks } from '@/lib/streaks';
+
+function getIstParts(date) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(new Date(date));
+  const getPartVal = (type) => parseInt(parts.find(p => p.type === type)?.value, 10);
+  return {
+    year: getPartVal('year'),
+    month: getPartVal('month') - 1, // 0-indexed month
+    day: getPartVal('day'),
+    hour: getPartVal('hour'),
+    minute: getPartVal('minute'),
+    second: getPartVal('second')
+  };
+}
+
+function getUtcDateFromIst(year, month, day, hour = 0, minute = 0, second = 0, millisecond = 0) {
+  const utcMs = Date.UTC(year, month, day, hour, minute, second, millisecond);
+  // Subtract 5.5 hours to convert IST to UTC
+  return new Date(utcMs - (5.5 * 60 * 60 * 1000));
+}
+
+function getCycleRangeIst(dateRef, cycleDate = 1) {
+  const { year, month, day } = getIstParts(dateRef);
+
+  let startYear = year;
+  let startMonth = month;
+
+  if (day >= cycleDate) {
+    startMonth = month;
+  } else {
+    startMonth = month - 1;
+    if (startMonth < 0) {
+      startMonth = 11;
+      startYear = year - 1;
+    }
+  }
+
+  const startDate = getUtcDateFromIst(startYear, startMonth, cycleDate, 0, 0, 0, 0);
+
+  let endMonth = startMonth + 1;
+  let endYear = startYear;
+  if (endMonth > 11) {
+    endMonth = 0;
+    endYear = startYear + 1;
+  }
+
+  const endDate = getUtcDateFromIst(endYear, endMonth, cycleDate - 1, 23, 59, 59, 999);
+
+  return { startDate, endDate };
+}
+
+function getLogicalCyclePeriodIst(dateRef, cycleDate = 1) {
+  const { year, month, day } = getIstParts(dateRef);
+
+  if (day >= cycleDate) {
+    return { month: month + 1, year };
+  } else {
+    let logicalMonth = month; // which is month - 1 + 1
+    let logicalYear = year;
+    if (logicalMonth === 0) {
+      logicalMonth = 12;
+      logicalYear = year - 1;
+    }
+    return { month: logicalMonth, year: logicalYear };
+  }
+}
 
 export async function GET(req) {
   try {
@@ -95,7 +169,7 @@ export async function GET(req) {
 
     // 3. Process each user timezone-aware
     for (const user of users) {
-      const tzString = user.timezone || 'UTC';
+      const tzString = 'Asia/Kolkata';
       let localYear, localMonth, localDay, localHour, localMinute;
 
       try {
@@ -381,7 +455,7 @@ export async function GET(req) {
         if (isCycleEndToday && !alreadySentCycleThisMonth) {
           // Calculate budget spent vs remaining balance
           try {
-            const { startDate, endDate } = getCycleRange(userLocalDate, user.salaryCycleDate);
+            const { startDate, endDate } = getCycleRangeIst(userLocalDate, user.salaryCycleDate);
 
             // Period spending (SPENDING entries in cycle range)
             const periodEntries = await db.financialEntry.findMany({
@@ -400,8 +474,8 @@ export async function GET(req) {
             });
 
             // Period salaries & deductions to compute salaryBalance
-            const startPeriod = getLogicalCyclePeriod(startDate, user.salaryCycleDate);
-            const endPeriod = getLogicalCyclePeriod(endDate, user.salaryCycleDate);
+            const startPeriod = getLogicalCyclePeriodIst(startDate, user.salaryCycleDate);
+            const endPeriod = getLogicalCyclePeriodIst(endDate, user.salaryCycleDate);
 
             let periodSalaries = [];
             if (startPeriod.year === endPeriod.year) {
@@ -512,14 +586,14 @@ export async function GET(req) {
 
         if (localTotalMinutes >= targetTotalMinutesStreak && !alreadySentL1Today) {
           const { streakLevel1 } = await calculateStreaks(user.id);
-          
+
           if (streakLevel1 >= 1) {
             const title = "Zero Spending Streak! 🔥";
             const body = `Awesome! You've logged 0 spending for ${streakLevel1} consecutive day${streakLevel1 > 1 ? 's' : ''}! Keep it up!`;
 
             await db.user.update({
               where: { id: user.id },
-              data: { 
+              data: {
                 lastStreakLevel1SentAt: now,
                 streakLevel1
               }
@@ -565,7 +639,7 @@ export async function GET(req) {
 
         if (localTotalMinutes >= targetTotalMinutesStreak && !alreadySentL2Today) {
           const { streakLevel2, limit: currentLimit } = await calculateStreaks(user.id);
-          
+
           if (streakLevel2 >= 1) {
             const currencySuffix = user.currency === 'INR' ? 'rs' : (user.currency || 'USD');
             const title = "Smart Spending Streak! ⚡";
@@ -573,7 +647,7 @@ export async function GET(req) {
 
             await db.user.update({
               where: { id: user.id },
-              data: { 
+              data: {
                 lastStreakLevel2SentAt: now,
                 streakLevel2
               }
@@ -614,10 +688,10 @@ export async function GET(req) {
           // Check target time of day (HH:MM)
           const campaignTime = campaign.time || '12:00';
           const [targetHour, targetMinute] = campaignTime.split(':').map(Number);
-          
+
           const localTotalMinutes = localHour * 60 + localMinute;
           const targetTotalMinutes = targetHour * 60 + targetMinute;
-          
+
           // Only trigger if local time is at or after scheduled time
           if (localTotalMinutes < targetTotalMinutes) {
             continue;
@@ -625,7 +699,7 @@ export async function GET(req) {
 
           let shouldSend = false;
           const lastSent = campaign.lastSentAt ? new Date(campaign.lastSentAt) : null;
-          
+
           if (!lastSent) {
             shouldSend = true;
           } else {
@@ -642,7 +716,7 @@ export async function GET(req) {
               const sentMonth = sentParts.find(p => p.type === 'month')?.value;
               const sentDay = sentParts.find(p => p.type === 'day')?.value;
               lastSentDateStr = `${sentYear}-${sentMonth}-${sentDay}`;
-            } catch (e) {}
+            } catch (e) { }
 
             // If already sent today, skip
             if (lastSentDateStr === userLocalDateStr) {
@@ -650,7 +724,7 @@ export async function GET(req) {
             } else {
               const diffTime = now.getTime() - lastSent.getTime();
               const diffDays = diffTime / (1000 * 60 * 60 * 24);
-              
+
               if (campaign.frequency === 'DAILY') {
                 shouldSend = true;
               } else if (campaign.frequency === 'WEEKLY') {
@@ -676,10 +750,9 @@ export async function GET(req) {
               include: { deductions: true }
             });
 
-            // Calculate current period logical dates
-            const localDate = userLocalDate;
-            const currentMonthNum = localDate.getMonth() + 1;
-            const currentYearNum = localDate.getFullYear();
+            // Calculate current period logical dates in IST
+            const currentMonthNum = localMonth + 1;
+            const currentYearNum = localYear;
 
             // Find salary & bonus for this month
             const matchingSalary = userSalaries.find(s => s.month === currentMonthNum && s.year === currentYearNum);
@@ -708,8 +781,8 @@ export async function GET(req) {
 
             const leftSalary = Math.max(0, (salaryAmt + bonusAmt) - periodDeductions);
 
-            // Savings tracked in cycle range
-            const { startDate, endDate } = getCycleRange(userLocalDate, user.salaryCycleDate || 1);
+            // Savings tracked in cycle range (IST boundary)
+            const { startDate, endDate } = getCycleRangeIst(userLocalDate, user.salaryCycleDate || 1);
             const periodOutflows = userEntries.filter(e => {
               const d = new Date(e.date);
               return d >= startDate && d <= endDate && e.type === 'SAVINGS';
@@ -717,40 +790,33 @@ export async function GET(req) {
             const generalSavingsAmt = periodOutflows.filter(e => !e.useSalaryBalance).reduce((sum, e) => sum + parseFloat(e.amount), 0);
             const totalSavingsThisMonth = savingsDeductions + generalSavingsAmt;
 
-            // Calculate spending variables timezone-aware
+            // Calculate spending variables timezone-aware in IST
             const fortyDaysAgo = new Date(now.getTime() - 40 * 24 * 60 * 60 * 1000);
             const userSpends = userEntries.filter(e => e.type === 'SPENDING' && new Date(e.date) >= fortyDaysAgo);
 
             let todaySpend = 0;
             let thisWeekSpend = 0;
             let thisMonthSpend = 0;
-            const startOfWeekDate = new Date(userLocalDate.getFullYear(), userLocalDate.getMonth(), userLocalDate.getDate() - userLocalDate.getDay());
+
+            // Day of week in IST (0 = Sunday, 1 = Monday, etc.)
+            const currentDayOfWeek = new Date(Date.UTC(localYear, localMonth, localDay)).getUTCDay();
+            const startOfWeekDateUtc = new Date(Date.UTC(localYear, localMonth, localDay) - currentDayOfWeek * 24 * 60 * 60 * 1000);
 
             for (const entry of userSpends) {
               try {
-                const entryParts = new Intl.DateTimeFormat('en-US', {
-                  timeZone: tzString,
-                  year: 'numeric',
-                  month: 'numeric',
-                  day: 'numeric'
-                }).formatToParts(new Date(entry.date));
-                const entryYear = parseInt(entryParts.find(p => p.type === 'year')?.value, 10);
-                const entryMonth = parseInt(entryParts.find(p => p.type === 'month')?.value, 10) - 1;
-                const entryDay = parseInt(entryParts.find(p => p.type === 'day')?.value, 10);
-                
-                const entryLocalDate = new Date(entryYear, entryMonth, entryDay, 0, 0, 0);
-                const entryLocalDateStr = `${entryYear}-${entryMonth + 1}-${entryDay}`;
+                const entryIstParts = getIstParts(entry.date);
+                const entryDateUtc = new Date(Date.UTC(entryIstParts.year, entryIstParts.month, entryIstParts.day));
 
-                if (entryLocalDateStr === userLocalDateStr) {
+                if (entryIstParts.year === localYear && entryIstParts.month === localMonth && entryIstParts.day === localDay) {
                   todaySpend += parseFloat(entry.amount);
                 }
-                if (entryLocalDate >= startOfWeekDate) {
+                if (entryDateUtc.getTime() >= startOfWeekDateUtc.getTime()) {
                   thisWeekSpend += parseFloat(entry.amount);
                 }
-                if (entryYear === userLocalDate.getFullYear() && entryMonth === userLocalDate.getMonth()) {
+                if (entryIstParts.year === localYear && entryIstParts.month === localMonth) {
                   thisMonthSpend += parseFloat(entry.amount);
                 }
-              } catch (e) {}
+              } catch (e) { }
             }
 
             // Stock Holdings value

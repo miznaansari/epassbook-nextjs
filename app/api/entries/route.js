@@ -162,10 +162,10 @@ export async function POST(req) {
       // Refund to the original deduction months/types
       if (parentEntry.useSalaryBalance) {
         let remainingRepayment = parsedAmount;
-        
+
         for (const pd of parentEntry.deductions) {
           if (remainingRepayment <= 0) break;
-          
+
           const pdAmt = parseFloat(pd.amount);
           let alreadyRefunded = 0;
           for (const prevRepay of existingRepayments) {
@@ -192,7 +192,7 @@ export async function POST(req) {
             remainingRepayment -= refundAmt;
           }
         }
-        
+
         if (deductionsToCreate.length > 0) {
           entryData.useSalaryBalance = true;
           entryData.salaryMonth = deductionsToCreate[0].month;
@@ -418,10 +418,10 @@ export async function PUT(req) {
 
       if (parentEntry.useSalaryBalance) {
         let remainingRepayment = parsedAmount;
-        
+
         for (const pd of parentEntry.deductions) {
           if (remainingRepayment <= 0) break;
-          
+
           const pdAmt = parseFloat(pd.amount);
           let alreadyRefunded = 0;
           for (const prevRepay of existingRepayments) {
@@ -448,7 +448,7 @@ export async function PUT(req) {
             remainingRepayment -= refundAmt;
           }
         }
-        
+
         if (deductionsToCreate.length > 0) {
           updateData.useSalaryBalance = true;
           updateData.salaryMonth = deductionsToCreate[0].month;
