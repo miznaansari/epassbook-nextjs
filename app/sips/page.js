@@ -43,6 +43,10 @@ export default function SipTracker() {
   const [selectedPeriod, setSelectedPeriod] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
+  // Paid Transaction Modal State
+  const [paidTxModalOpen, setPaidTxModalOpen] = useState(false);
+  const [selectedTx, setSelectedTx] = useState(null);
+
   // Redirect if unauthenticated
   useEffect(() => {
     if (!loading && !user) {
@@ -143,6 +147,14 @@ export default function SipTracker() {
     setSelectedSip(sip);
     setSelectedPeriod(period);
     setConfirmModalOpen(true);
+  };
+
+  // Open Paid Transaction Detail Modal
+  const triggerPaidTxModal = (period) => {
+    if (period.transaction) {
+      setSelectedTx(period.transaction);
+      setPaidTxModalOpen(true);
+    }
   };
 
   // Submit confirmed payment
@@ -504,8 +516,14 @@ export default function SipTracker() {
                       return (
                         <div
                           key={idx}
-                          onClick={() => triggerConfirmModal(sip, period)}
-                          className={`flex flex-col items-center min-w-[72px] p-2.5 rounded-xl border transition-all select-none ${period.status !== 'PAID' ? 'cursor-pointer active:scale-95' : 'cursor-default'} ${config.bg}`}
+                          onClick={() => {
+                            if (period.status === 'PAID') {
+                              triggerPaidTxModal(period);
+                            } else {
+                              triggerConfirmModal(sip, period);
+                            }
+                          }}
+                          className={`flex flex-col items-center min-w-[72px] p-2.5 rounded-xl border transition-all select-none cursor-pointer active:scale-95 ${config.bg}`}
                         >
                           <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1.5">
                             {period.label}
@@ -598,6 +616,73 @@ export default function SipTracker() {
                   className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition-all text-sm cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
                   {confirmLoading ? 'Confirming...' : 'Confirm & Log'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {paidTxModalOpen && selectedTx && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="glass-card p-6 border border-white/10 max-w-md w-full shadow-2xl space-y-6"
+            >
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white tracking-tight">Successful Transaction</h3>
+                  <p className="text-slate-400 text-sm mt-1.5 leading-relaxed font-medium">
+                    This SIP cycle has been successfully paid and recorded in your ledger.
+                  </p>
+                </div>
+              </div>
+
+              {/* Transaction Details */}
+              <div className="p-4 bg-slate-950/60 border border-white/5 rounded-xl space-y-2.5 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Transaction Title:</span>
+                  <span className="text-white font-bold">{selectedTx.title}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Category:</span>
+                  <span className="text-amber-400 font-bold uppercase text-xs border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                    SAVINGS
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Payment Date:</span>
+                  <span className="text-white font-bold">
+                    {new Date(selectedTx.date).toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between pt-2.5 border-t border-white/5">
+                  <span className="text-slate-400 font-bold">Amount:</span>
+                  <span className="text-emerald-400 font-black text-base">
+                    {formatCurrency(selectedTx.amount)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPaidTxModalOpen(false);
+                    setSelectedTx(null);
+                  }}
+                  className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white rounded-xl font-bold transition-all text-sm cursor-pointer"
+                >
+                  Okay
                 </button>
               </div>
             </motion.div>

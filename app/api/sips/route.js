@@ -42,7 +42,7 @@ export async function GET(req) {
           const targetDate = new Date(year, month, targetDay, 23, 59, 59, 999);
 
           // Find if there is a matching transaction in this month
-          const isPaid = savings.some(entry => {
+          const matchingEntry = savings.find(entry => {
             const entryDate = new Date(entry.date);
             return (
               entry.title.toLowerCase() === sip.title.toLowerCase() &&
@@ -50,6 +50,7 @@ export async function GET(req) {
               entryDate.getMonth() === month
             );
           });
+          const isPaid = !!matchingEntry;
 
           // Check if missed (unpaid and targetDate is in the past)
           let status = 'PENDING';
@@ -63,7 +64,13 @@ export async function GET(req) {
             label: `${String(month + 1).padStart(2, '0')}/${String(year).slice(-2)}`,
             targetDate: targetDate.toISOString(),
             status,
-            isPaid
+            isPaid,
+            transaction: matchingEntry ? {
+              id: matchingEntry.id,
+              title: matchingEntry.title,
+              amount: parseFloat(matchingEntry.amount),
+              date: matchingEntry.date.toISOString(),
+            } : null
           });
         }
       } else if (sip.frequency === 'WEEKLY') {
@@ -84,7 +91,7 @@ export async function GET(req) {
           targetDate.setHours(23, 59, 59, 999);
 
           // Check if paid in this week
-          const isPaid = savings.some(entry => {
+          const matchingEntry = savings.find(entry => {
             const entryDate = new Date(entry.date);
             return (
               entry.title.toLowerCase() === sip.title.toLowerCase() &&
@@ -92,6 +99,7 @@ export async function GET(req) {
               entryDate <= sunday
             );
           });
+          const isPaid = !!matchingEntry;
 
           let status = 'PENDING';
           if (isPaid) {
@@ -104,7 +112,13 @@ export async function GET(req) {
             label: `${String(targetDate.getDate()).padStart(2, '0')}/${String(targetDate.getMonth() + 1).padStart(2, '0')}`,
             targetDate: targetDate.toISOString(),
             status,
-            isPaid
+            isPaid,
+            transaction: matchingEntry ? {
+              id: matchingEntry.id,
+              title: matchingEntry.title,
+              amount: parseFloat(matchingEntry.amount),
+              date: matchingEntry.date.toISOString(),
+            } : null
           });
         }
       }
