@@ -26,17 +26,213 @@ import {
   ChevronDown
 } from 'lucide-react';
 
-// Parse message content to render **text** as bold elements smoothly
-const formatMessageContent = (content) => {
-  if (!content) return '';
-  const parts = content.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, idx) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const boldText = part.slice(2, -2);
-      return <strong key={idx} className="font-extrabold text-white bg-white/5 px-1 py-0.5 rounded">{boldText}</strong>;
+// Parse message content to render markdown elements (bold, inline code, tables, lists, HR) smoothly
+const formatMessageContent = (content, isAi = false) => {
+  if (!content) return [];
+
+  const renderTextWithFormatting = (text) => {
+    if (!text) return '';
+    const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+    const parts = text.split(regex);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const boldText = part.slice(2, -2);
+        return (
+          <strong key={idx} className="font-extrabold text-white bg-white/5 px-1 py-0.5 rounded">
+            {boldText}
+          </strong>
+        );
+      }
+      if (part.startsWith('`') && part.endsWith('`')) {
+        const codeText = part.slice(1, -1);
+        return (
+          <code key={idx} className="font-mono text-cyan-400 bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20 text-xs">
+            {codeText}
+          </code>
+        );
+      }
+      return part;
+    });
+  };
+
+  const renderCellContent = (cell) => {
+    const trimmed = cell.trim();
+    if (trimmed.startsWith('+')) {
+      return <span className="text-emerald-400 font-semibold">{renderTextWithFormatting(cell)}</span>;
     }
-    return part;
-  });
+    if (trimmed.startsWith('-') && !trimmed.startsWith('---')) {
+      return <span className="text-rose-400 font-semibold">{renderTextWithFormatting(cell)}</span>;
+    }
+    return renderTextWithFormatting(cell);
+  };
+
+  const lines = content.split('\n');
+  const elements = [];
+  let currentTable = null;
+  let currentList = null; // { type: 'ul'|'ol', items: [] }
+  let paragraphText = [];
+
+  const flushParagraph = (key) => {
+    if (paragraphText.length > 0) {
+      const text = paragraphText.join('\n').trim();
+      if (text) {
+        elements.push(
+          <p key={`p-${key}`} className="whitespace-pre-line break-words mb-3 last:mb-0 leading-relaxed">
+            {renderTextWithFormatting(text)}
+          </p>
+        );
+      }
+      paragraphText = [];
+    }
+  };
+
+  const flushTable = (key) => {
+    if (currentTable) {
+      elements.push(
+        <div key={`table-wrapper-${key}`} className="my-4 overflow-x-auto rounded-xl border border-white/10 bg-slate-900/40 shadow-inner">
+          <table className="w-full border-collapse text-left text-xs md:text-sm">
+            <thead>
+              <tr className="border-b border-white/10 bg-white/5">
+                {currentTable.headers.map((h, hIdx) => (
+                  <th key={hIdx} className="px-4 py-3 font-bold text-white tracking-wider">
+                    {renderTextWithFormatting(h)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {currentTable.rows.map((row, rIdx) => (
+                <tr key={rIdx} className="hover:bg-white/5 transition-colors">
+                  {row.map((cell, cIdx) => (
+                    <td key={cIdx} className="px-4 py-3 text-slate-300">
+                      {renderCellContent(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      currentTable = null;
+    }
+  };
+
+  const flushList = (key) => {
+    if (currentList) {
+      if (currentList.type === 'ul') {
+        elements.push(
+          <ul key={`ul-${key}`} className={`list-disc list-inside space-y-1.5 my-3 pl-2 leading-relaxed ${isAi ? 'text-slate-300' : 'text-white'}`}>
+            {currentList.items.map((item, itemIdx) => (
+              <li key={itemIdx}>
+                {renderTextWithFormatting(item)}
+              </li>
+            ))}
+          </ul>
+        );
+      } else {
+        elements.push(
+          <ol key={`ol-${key}`} className={`list-decimal list-inside space-y-1.5 my-3 pl-2 leading-relaxed ${isAi ? 'text-slate-300' : 'text-white'}`}>
+            {currentList.items.map((item, itemIdx) => (
+              <li key={itemIdx}>
+                {renderTextWithFormatting(item)}
+              </li>
+            ))}
+          </ol>
+        );
+      }
+      currentList = null;
+    }
+  };
+
+  const flushAll = (key) => {
+    flushParagraph(key);
+    flushTable(key);
+    flushList(key);
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // 1. Table parsing
+    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
+      flushParagraph(i);
+      flushList(i);
+
+      const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+      const isSeparator = cells.every((c) => /^:?-+:?$/.test(c));
+
+      if (isSeparator) {
+        continue;
+      }
+
+      if (!currentTable) {
+        currentTable = {
+          headers: cells,
+          rows: [],
+        };
+      } else {
+        const rowCells = [...cells];
+        while (rowCells.length < currentTable.headers.length) {
+          rowCells.push('');
+        }
+        currentTable.rows.push(rowCells.slice(0, currentTable.headers.length));
+      }
+    }
+    // 2. Unordered list parsing
+    else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      flushParagraph(i);
+      flushTable(i);
+
+      const itemText = trimmed.slice(2).trim();
+      if (currentList && currentList.type === 'ul') {
+        currentList.items.push(itemText);
+      } else {
+        flushList(i);
+        currentList = {
+          type: 'ul',
+          items: [itemText],
+        };
+      }
+    }
+    // 3. Ordered list parsing
+    else if (/^\d+\.\s/.test(trimmed)) {
+      flushParagraph(i);
+      flushTable(i);
+
+      const match = trimmed.match(/^(\d+)\.\s(.*)/);
+      const itemText = match ? match[2].trim() : trimmed;
+      if (currentList && currentList.type === 'ol') {
+        currentList.items.push(itemText);
+      } else {
+        flushList(i);
+        currentList = {
+          type: 'ol',
+          items: [itemText],
+        };
+      }
+    }
+    // 4. Horizontal Rule
+    else if (trimmed === '---' || trimmed === '***') {
+      flushAll(i);
+      elements.push(<hr key={`hr-${i}`} className="my-4 border-white/10" />);
+    }
+    // 5. Normal text / empty line
+    else {
+      if (trimmed === '') {
+        flushAll(i);
+      } else {
+        flushTable(i);
+        flushList(i);
+        paragraphText.push(line);
+      }
+    }
+  }
+
+  flushAll(lines.length);
+
+  return elements;
 };
 
 export default function Assistant() {
@@ -615,8 +811,8 @@ export default function Assistant() {
                           ? 'bg-slate-950/50 border border-white/5 text-slate-200 font-medium'
                           : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
                         }`}>
-                        <div className="whitespace-pre-line break-words">
-                          {formatMessageContent(msg.content)}
+                        <div className="break-words">
+                          {formatMessageContent(msg.content, isAi)}
                         </div>
                       </div>
 
