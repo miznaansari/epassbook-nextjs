@@ -47,6 +47,7 @@ model User {
   stockHoldings      StockHolding[]
   stockApiUsages     StockApiUsage[]
   notificationCampaigns NotificationCampaign[]
+  sips               Sip[]
 
   @@index([createdAt])
 }
@@ -234,4 +235,22 @@ model NotificationCampaign {
   updatedAt   DateTime  @updatedAt
 
   @@index([userId, isDeleted, createdAt])
+}
+
+model Sip {
+  id                 Int       @id @default(autoincrement())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount             Decimal   @db.Decimal(12, 2)
+  title              String
+  frequency          String    // "WEEKLY" or "MONTHLY"
+  dayOfMonth         Int?      // 1 to 31 (for Monthly SIPs)
+  dayOfWeek          Int?      // 1 to 7 (for Weekly SIPs: 1 = Monday, 7 = Sunday)
+  reminderTime       String    @default("10:00") // Custom notification time (HH:MM in local timezone)
+  isActive           Boolean   @default(true)
+  lastReminderSentAt DateTime? // Tracks when the last due notification was sent
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId])
 }

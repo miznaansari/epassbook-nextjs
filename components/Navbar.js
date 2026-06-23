@@ -18,7 +18,8 @@ import {
   Bell,
   Menu,
   X,
-  ChevronRight
+  ChevronRight,
+  Coins
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -31,6 +32,7 @@ export default function Navbar() {
     { name: 'E-Passbook', path: '/transactions', icon: ReceiptText },
     { name: 'Stocks', path: '/stocks', icon: TrendingUp },
     { name: 'Reports', path: '/reports', icon: AreaChart },
+    { name: 'SIP Tracker', path: '/sips', icon: Coins },
     { name: 'Campaigns', path: '/notifications', icon: Bell },
     { name: 'AI Assistant', path: '/assistant', icon: MessageSquare },
     { name: 'Settings', path: '/settings', icon: Settings },

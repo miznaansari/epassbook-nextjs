@@ -133,8 +133,8 @@ export default function TransactionModal({
     setAmount(parseFloat(suggestion.amount).toString());
     setType(suggestion.type);
     setUseSalaryBalance(!!suggestion.useSalaryBalance);
-    if (suggestion.salaryMonth) setSalaryMonth(suggestion.salaryMonth.toString());
-    if (suggestion.salaryYear) setSalaryYear(suggestion.salaryYear.toString());
+    setSalaryMonth((new Date().getMonth() + 1).toString());
+    setSalaryYear(new Date().getFullYear().toString());
     setShowSuggestions(false);
   };
 

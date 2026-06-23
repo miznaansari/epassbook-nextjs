@@ -114,7 +114,10 @@ export async function GET(req) {
         streakLevel2Limit: true,
         lastStreakLevel1SentAt: true,
         lastStreakLevel2SentAt: true,
-        createdAt: true
+        createdAt: true,
+        sips: {
+          where: { isActive: true }
+        }
       }
     });
 
@@ -668,6 +671,125 @@ export async function GET(req) {
               });
               report.errors.push({ userId: user.id, type: 'STREAK_LEVEL_2', error: pushResult.reason });
             }
+          }
+        }
+      }
+
+      // ==========================================
+      // TRIGGER: SIP DUE DATE REMINDERS
+      // ==========================================
+      if (user.sips && user.sips.length > 0) {
+        for (const sip of user.sips) {
+          try {
+            const frequency = sip.frequency;
+            const dayOfMonth = sip.dayOfMonth;
+            const dayOfWeek = sip.dayOfWeek;
+            const reminderTime = sip.reminderTime || '10:00';
+
+            // Check if today is the due day in local user timezone
+            let isDueToday = false;
+            if (frequency === 'MONTHLY') {
+              const lastDayOfCurrentMonth = new Date(localYear, localMonth + 1, 0).getDate();
+              const targetDay = Math.min(dayOfMonth, lastDayOfCurrentMonth);
+              isDueToday = (localDay === targetDay);
+            } else if (frequency === 'WEEKLY') {
+              const jsDay = new Date(localYear, localMonth, localDay).getDay();
+              const currentDayOfWeek = jsDay === 0 ? 7 : jsDay; // Mon=1, ..., Sun=7
+              isDueToday = (currentDayOfWeek === dayOfWeek);
+            }
+
+            if (isDueToday) {
+              const [targetHour, targetMinute] = reminderTime.split(':').map(Number);
+              const localTotalMinutes = localHour * 60 + localMinute;
+              const targetTotalMinutes = targetHour * 60 + targetMinute;
+
+              // Local time has reached or passed custom reminder time
+              if (localTotalMinutes >= targetTotalMinutes) {
+                // Check if already sent today
+                let lastReminderSentStr = null;
+                if (sip.lastReminderSentAt) {
+                  try {
+                    const sentParts = new Intl.DateTimeFormat('en-US', {
+                      timeZone: tzString,
+                      year: 'numeric',
+                      month: 'numeric',
+                      day: 'numeric'
+                    }).formatToParts(new Date(sip.lastReminderSentAt));
+                    const sentYear = sentParts.find(p => p.type === 'year')?.value;
+                    const sentMonth = sentParts.find(p => p.type === 'month')?.value;
+                    const sentDay = sentParts.find(p => p.type === 'day')?.value;
+                    lastReminderSentStr = `${sentYear}-${sentMonth}-${sentDay}`;
+                  } catch (e) { }
+                }
+
+                const alreadySentToday = (lastReminderSentStr === userLocalDateStr);
+
+                if (!alreadySentToday) {
+                  // Check if paid/logged for the current cycle
+                  let isPaid = false;
+                  if (frequency === 'MONTHLY') {
+                    const monthStart = new Date(Date.UTC(localYear, localMonth, 1));
+                    const monthEnd = new Date(Date.UTC(localYear, localMonth + 1, 0, 23, 59, 59, 999));
+                    const existingPaid = await db.financialEntry.findFirst({
+                      where: {
+                        userId: user.id,
+                        type: 'SAVINGS',
+                        title: { equals: sip.title },
+                        date: { gte: monthStart, lte: monthEnd }
+                      }
+                    });
+                    isPaid = !!existingPaid;
+                  } else {
+                    const jsDay = new Date(localYear, localMonth, localDay).getDay();
+                    const distanceToMonday = jsDay === 0 ? -6 : 1 - jsDay;
+                    const monday = new Date(localYear, localMonth, localDay + distanceToMonday);
+                    monday.setHours(0, 0, 0, 0);
+                    const sunday = new Date(monday.getTime() + 6 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 999);
+                    const existingPaid = await db.financialEntry.findFirst({
+                      where: {
+                        userId: user.id,
+                        type: 'SAVINGS',
+                        title: { equals: sip.title },
+                        date: { gte: monday, lte: sunday }
+                      }
+                    });
+                    isPaid = !!existingPaid;
+                  }
+
+                  if (!isPaid) {
+                    const currencyCode = user.currency || 'USD';
+                    const title = "SIP Due Today 💸";
+                    const body = `Your SIP '${sip.title}' of ${parseFloat(sip.amount)} ${currencyCode} is due today. Open the app to confirm your payment!`;
+
+                    // Update database checkpoint first
+                    await db.sip.update({
+                      where: { id: sip.id },
+                      data: { lastReminderSentAt: now }
+                    });
+
+                    const pushResult = await sendPush(user.id, title, body);
+                    if (pushResult.success) {
+                      report.dispatches.push({
+                        userId: user.id,
+                        type: 'SIP_DUE_REMINDER',
+                        sipId: sip.id,
+                        title
+                      });
+                    } else {
+                      // Rollback on failure
+                      await db.sip.update({
+                        where: { id: sip.id },
+                        data: { lastReminderSentAt: sip.lastReminderSentAt }
+                      });
+                      report.errors.push({ userId: user.id, type: 'SIP_DUE_REMINDER', sipId: sip.id, error: pushResult.reason });
+                    }
+                  }
+                }
+              }
+            }
+          } catch (sipErr) {
+            console.error(`[Cron Engine] Error processing SIP reminder for user ${user.id}, sip ${sip.id}:`, sipErr);
+            report.errors.push({ userId: user.id, type: 'SIP_DUE_REMINDER', sipId: sip.id, error: sipErr.message });
           }
         }
       }
