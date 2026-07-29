@@ -96,6 +96,8 @@ export async function GET(req) {
         id: true,
         email: true,
         name: true,
+        oneSignalId: true,
+        oneSignalSubId: true,
         dailyReminderTime: true,
         dailySpendReminderTime: true,
         timezone: true,
@@ -131,22 +133,30 @@ export async function GET(req) {
       errors: []
     };
 
-    // Helper to send OneSignal push notification using Firebase UID as external_id
-    const sendPush = async (userId, title, body) => {
+    // Helper to send OneSignal push notification using direct subscription ID or Firebase UID external_id
+    const sendPush = async (target, title, body) => {
       if (!restApiKey) {
         console.warn("[Cron Engine] ONESIGNAL_REST_API_KEY is not defined.");
         return { success: false, reason: 'ONESIGNAL_REST_API_KEY not configured' };
       }
+
+      const userId = typeof target === 'object' ? target.id : target;
+      const subId = typeof target === 'object' ? target.oneSignalSubId : null;
 
       const payload = {
         app_id: oneSignalAppId,
         headings: { en: title },
         contents: { en: body },
         target_channel: "push",
-        include_aliases: {
-          external_id: [userId]
-        }
       };
+
+      if (subId) {
+        payload.include_subscription_ids = [subId];
+      } else {
+        payload.include_aliases = {
+          external_id: [userId]
+        };
+      }
 
       try {
         const response = await fetch("https://api.onesignal.com/notifications?c=push", {
@@ -246,7 +256,7 @@ export async function GET(req) {
             data: { lastDailyReminderSentAt: now }
           });
 
-          const pushResult = await sendPush(user.id, title, body);
+          const pushResult = await sendPush(user, title, body);
           if (pushResult.success) {
             report.dispatches.push({
               userId: user.id,
@@ -355,7 +365,7 @@ export async function GET(req) {
             data: { lastDailySpendReminderSentAt: now }
           });
 
-          const pushResult = await sendPush(user.id, title, body);
+          const pushResult = await sendPush(user, title, body);
           if (pushResult.success) {
             report.dispatches.push({
               userId: user.id,
@@ -408,7 +418,7 @@ export async function GET(req) {
             });
 
 
-            const pushResult = await sendPush(user.id, title, body);
+            const pushResult = await sendPush(user, title, body);
             if (pushResult.success) {
               report.dispatches.push({
                 userId: user.id,
@@ -537,7 +547,7 @@ export async function GET(req) {
               data: { lastCycleReminderSentAt: now }
             });
 
-            const pushResult = await sendPush(user.id, title, body);
+            const pushResult = await sendPush(user, title, body);
             if (pushResult.success) {
               report.dispatches.push({
                 userId: user.id,
@@ -602,7 +612,7 @@ export async function GET(req) {
               }
             });
 
-            const pushResult = await sendPush(user.id, title, body);
+            const pushResult = await sendPush(user, title, body);
             if (pushResult.success) {
               report.dispatches.push({
                 userId: user.id,
@@ -656,7 +666,7 @@ export async function GET(req) {
               }
             });
 
-            const pushResult = await sendPush(user.id, title, body);
+            const pushResult = await sendPush(user, title, body);
             if (pushResult.success) {
               report.dispatches.push({
                 userId: user.id,
@@ -767,7 +777,7 @@ export async function GET(req) {
                       data: { lastReminderSentAt: now }
                     });
 
-                    const pushResult = await sendPush(user.id, title, body);
+                    const pushResult = await sendPush(user, title, body);
                     if (pushResult.success) {
                       report.dispatches.push({
                         userId: user.id,

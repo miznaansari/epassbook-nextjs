@@ -9,14 +9,25 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { onesignalId, subscriptionId, timezone } = await req.json();
+    const { onesignalId, oneSignalId: altOneSignalId, subscriptionId, timezone } = await req.json();
 
-    const data = {
-      oneSignalId: onesignalId || null,
-      oneSignalSubId: subscriptionId || null,
-    };
-    if (timezone) {
+    const targetOneSignalId = onesignalId || altOneSignalId;
+    const data = {};
+
+    if (targetOneSignalId && typeof targetOneSignalId === 'string' && targetOneSignalId.trim() !== '') {
+      data.oneSignalId = targetOneSignalId;
+    }
+
+    if (subscriptionId && typeof subscriptionId === 'string' && subscriptionId.trim() !== '') {
+      data.oneSignalSubId = subscriptionId;
+    }
+
+    if (timezone && typeof timezone === 'string' && timezone.trim() !== '') {
       data.timezone = timezone;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ success: true, message: 'No valid OneSignal fields to update' });
     }
 
     // Update user record with OneSignal IDs using authenticated user id
@@ -25,7 +36,7 @@ export async function POST(req) {
       data,
     });
 
-    console.log(`[OneSignal Sync] Updated user ${user.id} with OneSignalId: ${onesignalId}, SubscriptionId: ${subscriptionId}, Timezone: ${timezone}`);
+    console.log(`[OneSignal Sync] Updated user ${user.id} with data:`, data);
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {
@@ -33,3 +44,4 @@ export async function POST(req) {
     return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
   }
 }
+

@@ -8,128 +8,17 @@ let initialized = false;
 let listenersAdded = false;
 
 export default function OneSignalProvider() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const syncingRef = useRef(false);
+  const userRef = useRef(user);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-
-    const init = async () => {
-      try {
-        // =========================
-        // INIT
-        // =========================
-        if (!initialized) {
-          await OneSignal.init({
-            appId: '722dd7e4-705a-4a0e-a0b8-b4e2a3c93057',
-            allowLocalhostAsSecureOrigin: true,
-            serviceWorkerPath: '/OneSignalSDKWorker.js',
-            notifyButton: {
-              enable: false,
-            },
-            autoRegister: false,
-          });
-
-          initialized = true;
-          console.log('[OneSignal] Initialized');
-        }
-
-        // =========================
-        // ADD LISTENERS ONCE
-        // =========================
-        if (!listenersAdded) {
-          OneSignal.User.PushSubscription.addEventListener(
-            'change',
-            async () => {
-              console.log(
-                '[OneSignal] Subscription changed:',
-                OneSignal.User.PushSubscription.id
-              );
-              await syncSubscription();
-            }
-          );
-
-          listenersAdded = true;
-        }
-
-        // =========================
-        // LOGOUT
-        // =========================
-        if (!user?.uid) {
-          console.log('[OneSignal] Logout');
-          await OneSignal.logout();
-          return;
-        }
-
-        // =========================
-        // LOGIN
-        // =========================
-        console.log('[OneSignal] User login:', user.uid);
-        await OneSignal.login(user.uid);
-
-        // =========================
-        // TAGS
-        // =========================
-        await OneSignal.User.addTags({
-          user_id: user.uid,
-          email: user.email || '',
-          name: user.displayName || '',
-          dailyReminderTime: user.dailyReminderTime || '23:00',
-          notifDaily: user.notifDaily ? 'true' : 'false',
-          notifCycle: user.notifCycle ? 'true' : 'false',
-          dailySpendReminderTime: user.dailySpendReminderTime || '22:00',
-          notifDailySpend: user.notifDailySpend ? 'true' : 'false',
-          currency: user.currency || 'USD'
-        });
-
-        // =========================
-        // ASK PERMISSION
-        // =========================
-        const permission = OneSignal.Notifications.permission;
-        console.log('[OneSignal] Permission:', permission);
-
-        if (permission === 'default') {
-          console.log('[OneSignal] Requesting permission...');
-          await OneSignal.Notifications.requestPermission();
-        }
-
-        // =========================
-        // OPT IN
-        // =========================
-        const pushSubscription = OneSignal.User.PushSubscription;
-
-        if (
-          OneSignal.Notifications.permission === 'granted' &&
-          pushSubscription &&
-          !pushSubscription.optedIn
-        ) {
-          console.log('[OneSignal] Opting in...');
-          await pushSubscription.optIn();
-        }
-
-        // =========================
-        // WAIT FOR SUBSCRIPTION
-        // =========================
-        let retry = 0;
-        while (!OneSignal.User.PushSubscription.id && retry < 10) {
-          console.log('[OneSignal] Waiting for subscription id...');
-          await new Promise((r) => setTimeout(r, 1000));
-          retry++;
-        }
-
-        console.log(
-          '[OneSignal] Subscription ID:',
-          OneSignal.User.PushSubscription.id
-        );
-
-        // =========================
-        // SYNC DATABASE
-        // =========================
-        await syncSubscription();
-      } catch (err) {
-        console.error('[OneSignal] Init Error:', err);
-      }
-    };
+    if (loading) return; // Do not execute SDK actions while auth state is resolving
 
     const syncSubscription = async () => {
       try {
@@ -145,7 +34,7 @@ export default function OneSignalProvider() {
           return;
         }
 
-        console.log('[OneSignal] Syncing:', {
+        console.log('[OneSignal] Syncing subscription to backend:', {
           subscriptionId,
           oneSignalId,
         });
@@ -158,13 +47,13 @@ export default function OneSignalProvider() {
           body: JSON.stringify({
             subscriptionId,
             oneSignalId,
-            onesignalId: oneSignalId, // compatibility fallback for backend route
+            onesignalId: oneSignalId, // compatibility fallback
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
         });
 
         const data = await res.json();
-        console.log('[OneSignal] Backend synced:', data);
+        console.log('[OneSignal] Backend synced response:', data);
         syncingRef.current = false;
       } catch (err) {
         syncingRef.current = false;
@@ -172,8 +61,133 @@ export default function OneSignalProvider() {
       }
     };
 
+    const syncAndLogin = async () => {
+      const currentUser = userRef.current;
+      if (!currentUser?.uid) return;
+
+      try {
+        console.log('[OneSignal] Re-authenticating / login user on app open:', currentUser.uid);
+        await OneSignal.login(currentUser.uid);
+
+        // Update user tags for targeting & notifications
+        await OneSignal.User.addTags({
+          user_id: currentUser.uid,
+          email: currentUser.email || '',
+          name: currentUser.displayName || '',
+          dailyReminderTime: currentUser.dailyReminderTime || '23:00',
+          notifDaily: currentUser.notifDaily !== false ? 'true' : 'false',
+          notifCycle: currentUser.notifCycle !== false ? 'true' : 'false',
+          dailySpendReminderTime: currentUser.dailySpendReminderTime || '22:00',
+          notifDailySpend: currentUser.notifDailySpend !== false ? 'true' : 'false',
+          currency: currentUser.currency || 'USD',
+        });
+
+        // Request permission if not yet decided
+        const permission = OneSignal.Notifications.permission;
+        console.log('[OneSignal] Notification permission status:', permission);
+
+        if (permission === 'default') {
+          console.log('[OneSignal] Requesting notification permission...');
+          await OneSignal.Notifications.requestPermission();
+        }
+
+        // Re-enforce optIn if native permission is granted
+        const pushSubscription = OneSignal.User.PushSubscription;
+        if (
+          OneSignal.Notifications.permission === 'granted' &&
+          pushSubscription &&
+          !pushSubscription.optedIn
+        ) {
+          console.log('[OneSignal] Re-opting in push subscription...');
+          await pushSubscription.optIn();
+        }
+
+        // Poll for subscription id if needed
+        let retry = 0;
+        while (!OneSignal.User.PushSubscription.id && retry < 5) {
+          await new Promise((r) => setTimeout(r, 800));
+          retry++;
+        }
+
+        console.log('[OneSignal] Active Subscription ID:', OneSignal.User.PushSubscription.id);
+
+        // Always sync backend database on app open / focus
+        await syncSubscription();
+      } catch (err) {
+        console.error('[OneSignal] syncAndLogin error:', err);
+      }
+    };
+
+    const init = async () => {
+      try {
+        // =========================
+        // 1. INITIALIZE SDK
+        // =========================
+        if (!initialized) {
+          await OneSignal.init({
+            appId: '722dd7e4-705a-4a0e-a0b8-b4e2a3c93057',
+            allowLocalhostAsSecureOrigin: true,
+            serviceWorkerPath: '/OneSignalSDKWorker.js',
+            notifyButton: {
+              enable: false,
+            },
+            autoRegister: false,
+          });
+
+          initialized = true;
+          console.log('[OneSignal] SDK Initialized');
+        }
+
+        // =========================
+        // 2. LISTENERS
+        // =========================
+        if (!listenersAdded) {
+          OneSignal.User.PushSubscription.addEventListener(
+            'change',
+            async () => {
+              console.log(
+                '[OneSignal] Subscription changed:',
+                OneSignal.User.PushSubscription.id
+              );
+              await syncAndLogin();
+            }
+          );
+
+          listenersAdded = true;
+        }
+
+        // =========================
+        // 3. EXECUTE LOGIN & SYNC IF AUTHENTICATED
+        // =========================
+        if (user?.uid) {
+          await syncAndLogin();
+        }
+      } catch (err) {
+        console.error('[OneSignal] Init Error:', err);
+      }
+    };
+
     init();
-  }, [user]);
+
+    // =========================
+    // 4. APP OPEN / FOCUS LISTENERS
+    // =========================
+    const handleAppOpenOrFocus = async () => {
+      if (document.visibilityState === 'visible' && userRef.current?.uid) {
+        console.log('[OneSignal] App focused/opened - triggering login & sync API...');
+        await syncAndLogin();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleAppOpenOrFocus);
+    window.addEventListener('focus', handleAppOpenOrFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleAppOpenOrFocus);
+      window.removeEventListener('focus', handleAppOpenOrFocus);
+    };
+  }, [user, loading]);
 
   return null;
 }
+
