@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -19,24 +19,64 @@ import {
   Menu,
   X,
   ChevronRight,
+  ChevronDown,
   Coins,
-  Cpu
+  Cpu,
+  Sparkles,
+  Layers
 } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
-  const links = [
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setMoreDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setMoreDropdownOpen(false);
+  }, [pathname]);
+
+  // Primary Navigation Links (Always easily accessible)
+  const primaryLinks = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'E-Passbook', path: '/transactions', icon: ReceiptText },
     { name: 'Stocks', path: '/stocks', icon: TrendingUp },
-    { name: 'Reports', path: '/reports', icon: AreaChart },
+    { name: 'Reports', path: '/reports', icon: AreaChart, hideOnMd: true }, // Shown on lg+
+    { name: 'AI Assistant', path: '/assistant', icon: Sparkles, isAi: true },
+  ];
+
+  // Secondary Tools (Grouped in sleek "More" dropdown on desktop)
+  const secondaryLinks = [
+    { name: 'Reports & Analytics', path: '/reports', icon: AreaChart, desc: 'Contribution graph & trends', showOnlyOnMd: true },
+    { name: 'SIP Tracker', path: '/sips', icon: Coins, desc: 'Recurring investment plans' },
+    { name: 'Campaigns & Streaks', path: '/notifications', icon: Bell, desc: 'Automated push alerts & streaks' },
+    { name: 'MCP & Developer API', path: '/mcp', icon: Cpu, desc: 'External MCP server & API keys' },
+    { name: 'Settings & Preferences', path: '/settings', icon: Settings, desc: 'Salary cycles & currency' },
+  ];
+
+  // All links for mobile slide-out drawer
+  const allLinks = [
+    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'E-Passbook', path: '/transactions', icon: ReceiptText },
+    { name: 'Stocks Portfolio', path: '/stocks', icon: TrendingUp },
+    { name: 'Reports & Insights', path: '/reports', icon: AreaChart },
+    { name: 'AI Vision Assistant', path: '/assistant', icon: Sparkles },
     { name: 'SIP Tracker', path: '/sips', icon: Coins },
-    { name: 'Campaigns', path: '/notifications', icon: Bell },
-    { name: 'AI Assistant', path: '/assistant', icon: MessageSquare },
-    { name: 'MCP & API', path: '/mcp', icon: Cpu },
+    { name: 'Campaigns & Streaks', path: '/notifications', icon: Bell },
+    { name: 'MCP & API Keys', path: '/mcp', icon: Cpu },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -45,24 +85,27 @@ export default function Navbar() {
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'E-Passbook', path: '/transactions', icon: ReceiptText },
     { name: 'Stocks', path: '/stocks', icon: TrendingUp },
-    { name: 'AI Assistant', path: '/assistant', icon: MessageSquare },
+    { name: 'AI Assistant', path: '/assistant', icon: Sparkles },
   ];
+
+  // Check if any secondary link is currently active
+  const isSecondaryActive = secondaryLinks.some(link => pathname === link.path);
 
   return (
     <>
-      <header className="sticky top-0 z-50 glass-nav">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-50 w-full glass-nav">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-lg text-white hover:opacity-95">
-            <span className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white">
+          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-lg text-white hover:opacity-95 shrink-0">
+            <span className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white shadow-md shadow-violet-600/20">
               <Wallet className="w-4.5 h-4.5" />
             </span>
-            <span>Monthly<span className="text-violet-400">Money</span></span>
+            <span className="tracking-tight">Monthly<span className="text-violet-400">Money</span></span>
           </Link>
 
-          {/* Navigation Links (Desktop Only) */}
-          <nav className="hidden md:flex items-center gap-1 sm:gap-2" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
-            {links.map((link) => {
+          {/* Navigation Links (Desktop & Tablet: md & md+) */}
+          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
+            {primaryLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.path;
 
@@ -70,21 +113,117 @@ export default function Navbar() {
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-300 border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-xl text-xs font-semibold transition-all duration-200 border ${
+                    link.hideOnMd ? 'hidden lg:flex' : 'flex'
+                  } ${
                     isActive
-                      ? 'bg-gradient-to-r from-violet-600/15 to-cyan-500/15 text-violet-350 border-violet-500/30 shadow-[0_0_15px_-3px_rgba(139,92,246,0.2)]'
+                      ? 'bg-gradient-to-r from-violet-600/20 to-cyan-500/20 text-violet-300 border-violet-500/35 shadow-[0_0_15px_-3px_rgba(139,92,246,0.25)]'
                       : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`} />
+                  <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-110 text-violet-400' : 'text-slate-400'}`} />
                   <span>{link.name}</span>
+                  {link.isAi && (
+                    <span className="px-1.5 py-0.2 bg-gradient-to-r from-violet-500 to-cyan-400 text-[9px] font-black text-white rounded-full uppercase tracking-tighter shadow-sm">
+                      AI
+                    </span>
+                  )}
                 </Link>
               );
             })}
+
+            {/* Smart "More Tools" Dropdown Menu */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setMoreDropdownOpen(!moreDropdownOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer ${
+                  isSecondaryActive || moreDropdownOpen
+                    ? 'bg-violet-600/15 text-violet-300 border-violet-500/30'
+                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'
+                }`}
+                title="More features and settings"
+              >
+                <Layers className={`w-4 h-4 ${isSecondaryActive ? 'text-violet-400' : 'text-slate-400'}`} />
+                <span>More</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${moreDropdownOpen ? 'rotate-180 text-violet-400' : 'text-slate-500'}`} />
+              </button>
+
+              <AnimatePresence>
+                {moreDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 mt-2 w-64 bg-slate-950/95 border border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-2xl z-50 text-left"
+                  >
+                    <div className="px-3 py-2 border-b border-white/5 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Tools & Integrations
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      {secondaryLinks.map((link) => {
+                        const Icon = link.icon;
+                        const isActive = pathname === link.path;
+
+                        // Hide Reports in dropdown if screen is lg+ (since it's already shown in primary bar)
+                        if (link.showOnlyOnMd) {
+                          return (
+                            <div key={link.path} className="lg:hidden">
+                              <Link
+                                href={link.path}
+                                onClick={() => setMoreDropdownOpen(false)}
+                                className={`flex items-start gap-3 p-2.5 rounded-xl text-xs transition-all ${
+                                  isActive
+                                    ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
+                                    : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                                }`}
+                              >
+                                <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${isActive ? 'bg-violet-500/20 text-violet-400' : 'bg-slate-900 text-slate-400'}`}>
+                                  <Icon className="w-4 h-4" />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-bold text-white block truncate">{link.name}</span>
+                                  <span className="text-[10px] text-slate-400 block truncate">{link.desc}</span>
+                                </div>
+                              </Link>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <Link
+                            key={link.path}
+                            href={link.path}
+                            onClick={() => setMoreDropdownOpen(false)}
+                            className={`flex items-start gap-3 p-2.5 rounded-xl text-xs transition-all ${
+                              isActive
+                                ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
+                                : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                            }`}
+                          >
+                            <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${isActive ? 'bg-violet-500/20 text-violet-400' : 'bg-slate-900 text-slate-400'}`}>
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="font-bold text-white block truncate">{link.name}</span>
+                              <span className="text-[10px] text-slate-400 block truncate">{link.desc}</span>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </nav>
 
           {/* User Actions & Mobile Hamburger */}
-          <div className="flex items-center gap-3" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
+          <div className="flex items-center gap-3 shrink-0" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
             <div className="flex items-center gap-2 max-w-[150px]">
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-75 transition duration-500"></div>
@@ -105,7 +244,7 @@ export default function Navbar() {
             {/* Desktop Logout Button */}
             <button
               onClick={logout}
-              className="hidden md:flex p-2 text-slate-400 hover:text-rose-455 hover:bg-rose-500/10 rounded-xl border border-transparent hover:border-rose-500/20 transition-all cursor-pointer active:scale-90"
+              className="hidden md:flex p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl border border-transparent hover:border-rose-500/20 transition-all cursor-pointer active:scale-90"
               title="Log Out"
               style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}
             >
@@ -236,7 +375,7 @@ export default function Navbar() {
 
                 {/* Navigation Links list */}
                 <div className="space-y-1">
-                  {links.map((link) => {
+                  {allLinks.map((link) => {
                     const Icon = link.icon;
                     const isActive = pathname === link.path;
 

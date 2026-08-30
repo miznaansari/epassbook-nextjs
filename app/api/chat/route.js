@@ -47,7 +47,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages, sessionId, model: requestModel } = await req.json();
+    const { messages, sessionId, model: requestModel, image } = await req.json();
     const userId = user.id;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -80,13 +80,21 @@ export async function POST(req) {
 
     // 2. Persist the latest User Message in the database
     const lastUserMsg = messages[messages.length - 1];
-    const userMessageContent = lastUserMsg.content;
-    
+    let userMessageContent = (lastUserMsg.content || '').trim();
+    if (!userMessageContent && image) {
+      userMessageContent = "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval to create transactions.";
+    }
+
+    // If image was attached, append image preview representation for chat persistence
+    const dbContentToStore = image?.data
+      ? (userMessageContent ? `${userMessageContent}\n\n[Attached Receipt Image]` : `[Attached Receipt Image]`)
+      : userMessageContent;
+
     await db.chatMessage.create({
       data: {
         chatSessionId: activeSessionId,
         role: 'user',
-        content: userMessageContent,
+        content: dbContentToStore,
       },
     });
 
@@ -94,7 +102,7 @@ export async function POST(req) {
     if (session.title === 'New Chat' || !session.title) {
       const truncatedTitle = userMessageContent.length > 35
         ? userMessageContent.substring(0, 32) + '...'
-        : userMessageContent;
+        : (image ? 'Receipt Analysis' : userMessageContent);
       await db.chatSession.update({
         where: { id: activeSessionId },
         data: { title: truncatedTitle },
@@ -131,10 +139,12 @@ export async function POST(req) {
     const currentYear = currentDate.getFullYear();
     const currentMonthName = currentDate.toLocaleString('en-US', { month: 'long' });
 
-    // Map requestModel to the exact model name or default to gemini-3.1-flash-lite
+    // Map requestModel to the exact model name (if image is attached, ensure a vision-capable Gemini model is used)
     let chosenModel = 'gemini-3.1-flash-lite';
-    if (requestModel === 'gemini-2.5-flash') {
-      chosenModel = 'gemini-2.5-flash';
+    if (image) {
+      chosenModel = requestModel === 'gemini-3.5-flash-lite' ? 'gemini-3.5-flash-lite' : 'gemini-3.1-flash-lite';
+    } else if (requestModel === 'gemini-3.5-flash-lite') {
+      chosenModel = 'gemini-3.5-flash-lite';
     } else if (requestModel === 'gemma-4-26b' || requestModel === 'gemma-4-26b-a4b-it') {
       chosenModel = 'gemma-4-26b-a4b-it';
     } else if (requestModel === 'gemma-4-31b' || requestModel === 'gemma-4-31b-it') {
@@ -149,7 +159,7 @@ export async function POST(req) {
       systemInstruction: `You are Antigravity Finance AI, a Gen-Z styled hyper-advanced monthly personal finance assistant for "Manage Monthly Money".
 You have real-time access to the user's financial ledger via database tools.
 Always maintain a premium, friendly, highly analytical, slightly witty and helpful tone. Feel free to use emojis to keep it engaging and modern!
-Always structure calculations beautifully. Format all numerical figures into professional currencies (e.g. $1,250.00).
+Always structure calculations beautifully. Format all numerical figures into professional currencies (e.g. ₹1,250.00 or $1,250.00).
 
 CRITICAL DATE & TIME INSTRUCTIONS:
 Today is ${currentDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
@@ -161,10 +171,26 @@ DEFAULT MONTH DETECTION RULE:
 - Never make up or hallucinate spending data. Always call the tools to fetch actual records first.
 - The user's unique identifier is "${userId}".
 
-When the user asks questions related to their expenses, salary balances, loans/lending, categories, or monthly comparisons:
-1. Always choose and invoke the appropriate tool (e.g. getMonthlyExpenses, compareMonthlySpending, getLoanSummary, getTopSpendingCategory).
-2. Wait for the tool output, interpret the exact database records returned, and provide deep analytics. Do not make up fake data.
-3. If no salaries or transactions are recorded for a period, let them know and encourage them to log some entries on the dashboard!`,
+IMAGE & RECEIPT SCANNING / EXTRACTION WORKFLOW:
+When an image (e.g. receipt, shopping bill, grocery invoice, expense note) is provided by the user:
+1. Thoroughly analyze the image and extract all purchased items, individual costs/prices, discounts, vendor/store name, and transaction date.
+2. Present a clear, neat Markdown table summarizing: Item Name, Price, Category, and Total.
+3. ALWAYS include a structured JSON block in your response formatted exactly as:
+\`\`\`json:transaction_proposal
+{
+  "items": [
+    { "title": "Item 1", "amount": 100, "type": "SPENDING", "useSalaryBalance": true },
+    { "title": "Item 2", "amount": 50, "type": "SPENDING", "useSalaryBalance": true }
+  ]
+}
+\`\`\`
+4. Explicitly ask for user confirmation/approval before creating the transactions (e.g., "Would you like me to record these transactions into your e-Passbook? You can click 'Approve & Create All' above or reply 'Yes' / 'Confirm'!").
+5. When the user confirms or gives approval (e.g., says "Yes", "Confirm", "Add them", "Approve"), invoke the "createMultipleTransactions" or "createTransaction" tool to permanently record them into the user's ledger!
+
+DIRECT TRANSACTION CREATION:
+If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka petrol liya add kardo" or "Yes, create the extracted transactions"):
+- Invoke "createTransaction" or "createMultipleTransactions" with useSalaryBalance=true (for SPENDING) so it automatically deducts from the active month's salary balance.
+- Inform the user of the newly created entries with their titles and remaining balance!`,
     });
 
     // 5. Perform Gemini Call with Tool Configurations
@@ -174,18 +200,30 @@ When the user asks questions related to their expenses, salary balances, loans/l
       tools: geminiTools,
     });
 
-    const lastMessageText = contents[contents.length - 1].parts[0].text;
-    let response = await chatSession.sendMessage(lastMessageText);
+    // Prepare last message parts (multimodal if image provided)
+    const lastParts = [];
+    if (image && image.data && image.mimeType) {
+      const cleanBase64 = image.data.replace(/^data:[^;]+;base64,/, '');
+      lastParts.push({
+        inlineData: {
+          data: cleanBase64,
+          mimeType: image.mimeType,
+        },
+      });
+    }
+    lastParts.push({ text: userMessageContent });
+
+    let response = await chatSession.sendMessage(lastParts);
 
     // 6. Handle Potential Tool Calling Loop
     let functionCalls = getFunctionCalls(response);
-    
+
     while (functionCalls && functionCalls.length > 0) {
       const toolResults = [];
 
       for (const call of functionCalls) {
         const { name, args } = call;
-        
+
         try {
           const result = await executeTool(name, args, userId);
           toolResults.push({
@@ -243,7 +281,7 @@ When the user asks questions related to their expenses, salary balances, loans/l
       start(controller) {
         const words = textResponse.split(/(\s+)/);
         let i = 0;
-        
+
         function pushNext() {
           if (i < words.length) {
             controller.enqueue(encoder.encode(words[i]));

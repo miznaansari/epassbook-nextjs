@@ -23,12 +23,228 @@ import {
   X,
   History,
   Loader2,
-  ChevronDown
+  ChevronDown,
+  Camera,
+  Image as ImageIcon,
+  Receipt,
+  Check,
+  CheckCheck,
+  Maximize2,
+  CheckCircle2
 } from 'lucide-react';
 
-// Parse message content to render markdown elements (bold, inline code, tables, lists, HR) smoothly
-const formatMessageContent = (content, isAi = false) => {
+// Interactive Transaction Proposal Card Component
+function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated }) {
+  const [items, setItems] = useState(initialItems || []);
+  const [status, setStatus] = useState('pending'); // 'pending' | 'saving' | 'approved' | 'error'
+  const [errorMsg, setErrorMsg] = useState('');
+  const [createdCount, setCreatedCount] = useState(0);
+
+  const currencySymbol = userCurrency === 'USD' ? '$' : '₹';
+  const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+  const handleCreateAll = async () => {
+    if (items.length === 0 || status === 'saving' || status === 'approved') return;
+    setStatus('saving');
+    setErrorMsg('');
+
+    try {
+      let count = 0;
+      const now = new Date();
+      const currentMonth = now.getMonth() + 1;
+      const currentYear = now.getFullYear();
+
+      for (const item of items) {
+        const amt = parseFloat(item.amount);
+        if (isNaN(amt) || amt <= 0) continue;
+
+        const res = await fetch('/api/entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: item.title?.trim() || 'Untitled Expense',
+            amount: amt,
+            type: item.type || 'SPENDING',
+            useSalaryBalance: item.useSalaryBalance !== false,
+            salaryMonth: item.salaryMonth || currentMonth,
+            salaryYear: item.salaryYear || currentYear,
+            description: item.description || 'Logged via AI Assistant Receipt OCR',
+            date: item.date ? new Date(item.date).toISOString() : now.toISOString()
+          })
+        });
+
+        if (res.ok) {
+          count++;
+        } else {
+          const errData = await res.json();
+          throw new Error(errData.error || errData.message || 'Failed to create transaction.');
+        }
+      }
+
+      setCreatedCount(count);
+      setStatus('approved');
+      if (onCreated) onCreated(count, totalAmount);
+    } catch (err) {
+      console.error('Error creating transactions:', err);
+      setErrorMsg(err.message || 'Failed to create transactions.');
+      setStatus('error');
+    }
+  };
+
+  const handleRemoveItem = (index) => {
+    setItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleUpdateItem = (index, field, value) => {
+    setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
+
+  if (items.length === 0 && status !== 'approved') return null;
+
+  return (
+    <div className="my-4 p-4 rounded-2xl bg-slate-900/90 border border-violet-500/35 shadow-2xl backdrop-blur-2xl text-left">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/10 gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-2 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white shrink-0 shadow-md shadow-violet-600/20">
+            <Receipt className="w-4 h-4" />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider truncate">
+              {status === 'approved' ? 'Transactions Recorded' : 'Extracted Receipt Items for Approval'}
+            </h4>
+            <span className="text-[10px] text-slate-400 font-semibold block">
+              {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
+            </span>
+          </div>
+        </div>
+
+        {status === 'approved' ? (
+          <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-full flex items-center gap-1 shrink-0">
+            <CheckCheck className="w-3.5 h-3.5" /> Added to Passbook
+          </span>
+        ) : (
+          <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-extrabold uppercase tracking-wider rounded-full shrink-0 animate-pulse">
+            Pending Approval
+          </span>
+        )}
+      </div>
+
+      {errorMsg && (
+        <div className="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Items list */}
+      <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
+        {items.map((item, idx) => (
+          <div key={idx} className="p-2.5 bg-slate-950/70 border border-white/5 hover:border-violet-500/20 rounded-xl flex items-center justify-between gap-3 transition-all">
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              <span className="w-5 h-5 rounded-lg bg-white/5 text-slate-400 text-[10px] font-bold flex items-center justify-center shrink-0">
+                {idx + 1}
+              </span>
+              <input
+                type="text"
+                disabled={status === 'approved' || status === 'saving'}
+                value={item.title}
+                onChange={(e) => handleUpdateItem(idx, 'title', e.target.value)}
+                placeholder="Item name"
+                className="bg-transparent border-b border-transparent focus:border-violet-500 text-xs font-bold text-white focus:outline-none w-full truncate disabled:opacity-80"
+              />
+              <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+                {item.type || 'SPENDING'}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 font-mono text-xs font-black text-emerald-400 bg-emerald-500/5 px-2 py-1 rounded-lg border border-emerald-500/15">
+                <span>{currencySymbol}</span>
+                <input
+                  type="number"
+                  disabled={status === 'approved' || status === 'saving'}
+                  value={item.amount}
+                  onChange={(e) => handleUpdateItem(idx, 'amount', e.target.value)}
+                  className="bg-transparent text-xs font-black text-emerald-400 focus:outline-none w-14 text-right disabled:opacity-80"
+                />
+              </div>
+
+              {status !== 'approved' && (
+                <button
+                  type="button"
+                  onClick={() => handleRemoveItem(idx)}
+                  className="p-1 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  title="Remove item"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Action Footer */}
+      {status !== 'approved' ? (
+        <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between gap-3">
+          <span className="text-[10px] text-slate-400 font-semibold">
+            Deducts from active salary balance
+          </span>
+          <button
+            type="button"
+            disabled={status === 'saving' || items.length === 0}
+            onClick={handleCreateAll}
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            {status === 'saving' ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Recording in Passbook...</span>
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>Approve & Create All ({currencySymbol}{totalAmount.toLocaleString()})</span>
+              </>
+            )}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-emerald-400 font-bold">
+          <span className="flex items-center gap-1.5">
+            <CheckCircle2 className="w-4 h-4" />
+            Successfully recorded {createdCount} entries into your ledger.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Parse message content to render markdown elements (bold, inline code, tables, lists, HR, and interactive proposal cards)
+const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCreated = null) => {
   if (!content) return [];
+
+  // Check for embedded proposal JSON blocks
+  const proposalRegex = /```(?:json:transaction_proposal|json)\s*([\s\S]*?\{[\s\S]*?"items"[\s\S]*?\})\s*```/;
+  const proposalMatch = content.match(proposalRegex);
+
+  let proposalItems = null;
+  let textToRender = content;
+
+  if (proposalMatch) {
+    try {
+      const parsed = JSON.parse(proposalMatch[1]);
+      if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
+        proposalItems = parsed.items;
+      }
+    } catch (err) {
+      console.error('Error parsing transaction proposal JSON:', err);
+    }
+    // Remove the raw proposal code block from textual render
+    textToRender = content.replace(proposalRegex, '').trim();
+  }
 
   const renderTextWithFormatting = (text) => {
     if (!text) return '';
@@ -66,7 +282,7 @@ const formatMessageContent = (content, isAi = false) => {
     return renderTextWithFormatting(cell);
   };
 
-  const lines = content.split('\n');
+  const lines = textToRender.split('\n');
   const elements = [];
   let currentTable = null;
   let currentList = null; // { type: 'ul'|'ol', items: [] }
@@ -232,6 +448,18 @@ const formatMessageContent = (content, isAi = false) => {
 
   flushAll(lines.length);
 
+  // If there are proposed transactions, append the interactive proposal card
+  if (proposalItems) {
+    elements.push(
+      <TransactionProposalCard
+        key="proposal-card"
+        initialItems={proposalItems}
+        userCurrency={userCurrency}
+        onCreated={onCreated}
+      />
+    );
+  }
+
   return elements;
 };
 
@@ -241,7 +469,7 @@ export default function Assistant() {
 
   const AVAILABLE_MODELS = [
     { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-3.5-flash-lite', name: 'Gemini 2.5 Flash' },
     { id: 'gemma-4-26b', name: 'Gemma 4 26B' },
     { id: 'gemma-4-31b', name: 'Gemma 4 31B' }
   ];
@@ -279,14 +507,19 @@ export default function Assistant() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
 
+  // Image Upload / Receipt OCR State
+  const [attachedImage, setAttachedImage] = useState(null); // { data: base64, mimeType, name, previewUrl }
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const fileInputRef = useRef(null);
+
   // Scroll Container Ref
   const messagesEndRef = useRef(null);
 
   // Suggested Prompts list
   const suggestions = [
-    { text: "Where did I spend the most money?", icon: TrendingUp },
-    { text: "Compare this month with last month.", icon: LineChart },
-    { text: "Suggest some smart savings ideas.", icon: Lightbulb },
+    { text: "Scan my grocery / restaurant receipt image", icon: Receipt, isImagePrompt: true },
+    { text: "Where did I spend the most money this month?", icon: TrendingUp },
+    { text: "Compare this month spending with last month.", icon: LineChart },
     { text: "Give me my loan and lending summary.", icon: PiggyBank }
   ];
 
@@ -344,7 +577,7 @@ export default function Assistant() {
       setMessages([
         {
           role: 'assistant',
-          content: "Yo! 👋 I am your Antigravity Finance AI. I've synced up with your e-passbook. Ask me where you spent the most, compare monthly spending, map your active loans, or get some customized savings tips! What's on your mind today?"
+          content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload a photo of your receipt/bill to extract items and log transactions directly into your passbook!"
         }
       ]);
       return;
@@ -362,7 +595,7 @@ export default function Assistant() {
           setMessages([
             {
               role: 'assistant',
-              content: "Yo! 👋 Welcome back to this chat session. Ask me anything about your e-passbook ledger, compare monthly spending, map your active loans, or get some customized savings tips!"
+              content: "Yo! 👋 Welcome back to this chat session. Ask me questions about your ledger or upload a receipt photo to scan and log transactions!"
             }
           ]);
         }
@@ -390,7 +623,66 @@ export default function Assistant() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isGenerating, isLoadingMessages]);
+  }, [messages, isGenerating, isLoadingMessages, attachedImage]);
+
+  // Handle Image File Selection
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file (PNG, JPG, WEBP).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64Url = event.target.result;
+      setAttachedImage({
+        data: base64Url,
+        previewUrl: base64Url,
+        name: file.name,
+        mimeType: file.type || 'image/jpeg',
+      });
+      setError('');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  // Handle Paste Event from Clipboard (Ctrl+V / Cmd+V)
+  const handlePaste = (e) => {
+    const clipboardItems = e.clipboardData?.items;
+    if (!clipboardItems) return;
+
+    for (let i = 0; i < clipboardItems.length; i++) {
+      const item = clipboardItems[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            setAttachedImage({
+              data: event.target.result,
+              previewUrl: event.target.result,
+              name: 'Pasted Image',
+              mimeType: file.type || 'image/jpeg',
+            });
+            setError('');
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    }
+  };
+
+  // Remove attached image
+  const handleRemoveAttachedImage = () => {
+    setAttachedImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   // Create a brand new blank chat session
   const handleCreateSession = async () => {
@@ -434,7 +726,7 @@ export default function Assistant() {
             setMessages([
               {
                 role: 'assistant',
-                content: "Yo! 👋 I am your Antigravity Finance AI. I've synced up with your e-passbook. Ask me where you spent the most, compare monthly spending, map your active loans, or get some customized savings tips! What's on your mind today?"
+                content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload a photo of your receipt/bill to extract items and log transactions directly into your passbook!"
               }
             ]);
           }
@@ -449,12 +741,16 @@ export default function Assistant() {
   };
 
   // Handle message sending
-  const sendMessage = async (textToSend) => {
-    const prompt = textToSend || input;
-    if (!prompt.trim() || isGenerating) return;
+  const sendMessage = async (textToSend, customImage = null) => {
+    const imageToSend = customImage || attachedImage;
+    const prompt = textToSend !== undefined ? textToSend : input;
+
+    if ((!prompt.trim() && !imageToSend) || isGenerating) return;
 
     setError('');
     setInput('');
+    const imageToClear = attachedImage;
+    setAttachedImage(null);
     setIsGenerating(true);
 
     let currentSessionId = activeSessionId;
@@ -462,10 +758,11 @@ export default function Assistant() {
     // 1. If no active session exists, automatically create one first!
     if (!currentSessionId) {
       try {
+        const sessionTitle = prompt.trim() || (imageToSend ? 'Receipt Scan' : 'New Chat');
         const res = await fetch('/api/chat/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: prompt.trim() }),
+          body: JSON.stringify({ title: sessionTitle }),
         });
         if (res.ok) {
           const newSession = await res.json();
@@ -479,26 +776,44 @@ export default function Assistant() {
         console.error(err);
         setError('Failed to establish a new chat session context.');
         setIsGenerating(false);
+        setAttachedImage(imageToClear);
         return;
       }
     }
 
-    // 2. Append User Message
-    const userMessage = { role: 'user', content: prompt.trim() };
-    // Clear default initial instructions greeting if sending first message
-    const cleanMessages = messages.filter(m => m.id || m.content !== "Yo! 👋 I am your Antigravity Finance AI. I've synced up with your e-passbook. Ask me where you spent the most, compare monthly spending, map your active loans, or get some customized savings tips! What's on your mind today?");
+    // 2. Append User Message to UI
+    const defaultMsg = imageToSend && !prompt.trim()
+      ? "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions."
+      : prompt.trim();
+
+    const userMessage = {
+      role: 'user',
+      content: defaultMsg,
+      imagePreview: imageToSend?.previewUrl || null,
+    };
+
+    const cleanMessages = messages.filter(m => m.id || !m.content.includes("Yo! 👋 I am your Antigravity Finance AI."));
     const updatedMessages = [...cleanMessages, userMessage];
     setMessages(updatedMessages);
 
     try {
+      const payload = {
+        messages: updatedMessages,
+        sessionId: currentSessionId,
+        model: selectedModel,
+      };
+
+      if (imageToSend) {
+        payload.image = {
+          data: imageToSend.data,
+          mimeType: imageToSend.mimeType || 'image/jpeg',
+        };
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updatedMessages,
-          sessionId: currentSessionId,
-          model: selectedModel,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -534,7 +849,7 @@ export default function Assistant() {
 
     } catch (err) {
       console.error('Chat error:', err);
-      setError(err.message || 'Something went wrong. Please ensure your GEMINI_API_KEY is configured in the `.env` file.');
+      setError(err.message || 'Something went wrong. Please ensure your GEMINI_API_KEY is configured in the backend.');
     } finally {
       setIsGenerating(false);
     }
@@ -587,8 +902,8 @@ export default function Assistant() {
               exit={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className={`glass-card border border-white/5 flex flex-col p-4 shrink-0 overflow-hidden z-20 ${isMobile
-                  ? 'absolute top-6 bottom-6 left-4 w-72 shadow-2xl bg-slate-950/95 border-white/10'
-                  : 'w-72'
+                ? 'absolute top-6 bottom-6 left-4 w-72 shadow-2xl bg-slate-950/95 border-white/10'
+                : 'w-72'
                 }`}
             >
               {/* Header with New Chat Button */}
@@ -624,7 +939,7 @@ export default function Assistant() {
                   </div>
                 ) : sessions.length === 0 ? (
                   <div className="text-center py-8 px-4 text-xs font-semibold text-slate-600">
-                    No active sessions. Send a message to start a new chat!
+                    No active sessions. Send a message or upload a receipt to start!
                   </div>
                 ) : (
                   sessions.map((s) => {
@@ -634,11 +949,11 @@ export default function Assistant() {
                         key={s.id}
                         onClick={() => {
                           setActiveSessionId(s.id);
-                          if (isMobile) setIsSidebarOpen(false); // close sidebar on select
+                          if (isMobile) setIsSidebarOpen(false);
                         }}
                         className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${isActive
-                            ? 'bg-violet-600/15 border-violet-500/40 text-violet-100 shadow-md shadow-violet-950/20'
-                            : 'bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-400 hover:text-white'
+                          ? 'bg-violet-600/15 border-violet-500/40 text-violet-100 shadow-md shadow-violet-950/20'
+                          : 'bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-400 hover:text-white'
                           }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-6">
@@ -672,7 +987,6 @@ export default function Assistant() {
           {/* Header Row */}
           <div className="flex items-center justify-between border-b border-white/5 pb-4 shrink-0">
             <div className="text-left flex items-center gap-3">
-              {/* Sidebar toggle button (always visible, or mobile-first) */}
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                 className="p-2 hover:bg-white/5 border border-white/10 hover:border-violet-500/20 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer mr-1"
@@ -684,18 +998,17 @@ export default function Assistant() {
               <div>
                 <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
                   <Brain className="w-6 h-6 text-violet-400 shrink-0" />
-                  <span className="hidden md:inline">Gemini Finance Assistant</span>
+                  <span className="hidden md:inline">Gemini Vision & Finance Assistant</span>
                   <span className="inline md:hidden">Assistant</span>
                 </h1>
                 <p className="text-slate-400 text-[10px] md:text-xs mt-0.5 font-semibold">
-                  Real-time ledger analytics & budget optimization.
+                  Receipt OCR extraction & real-time ledger intelligence.
                 </p>
               </div>
             </div>
 
             {/* Syncing Indicators & Model Selector */}
             <div className="flex items-center gap-2.5">
-              {/* Model Dropdown */}
               <div className="relative flex items-center">
                 <select
                   value={selectedModel}
@@ -765,22 +1078,28 @@ export default function Assistant() {
                   <Sparkles className="w-8 h-8" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <h3 className="text-white text-lg font-black tracking-tight">AI Personal Finance Assistant</h3>
+                  <h3 className="text-white text-lg font-black tracking-tight">AI Vision & Personal Finance Assistant</h3>
                   <p className="text-slate-400 text-xs font-semibold leading-relaxed">
-                    This hyper-intelligent AI is linked directly with your transaction books. Compare cycles, locate spending outliers, analyze active lending logs, or create smart savings strategies instantly.
+                    Upload receipt/bill photos to automatically extract item prices, or ask questions to audit your balances, salary deductions, and active lending logs.
                   </p>
                 </div>
 
                 {/* Suggestions Tags */}
                 <div className="w-full flex flex-col gap-2 mt-4">
-                  <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider text-left pl-2">Suggested Analytics</span>
+                  <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {suggestions.map((s, idx) => {
                       const Icon = s.icon;
                       return (
                         <button
                           key={idx}
-                          onClick={() => sendMessage(s.text)}
+                          onClick={() => {
+                            if (s.isImagePrompt) {
+                              fileInputRef.current?.click();
+                            } else {
+                              sendMessage(s.text);
+                            }
+                          }}
                           className="flex items-center gap-3 px-4 py-3.5 bg-slate-950/50 hover:bg-violet-600/10 border border-white/5 hover:border-violet-500/30 text-slate-300 hover:text-white rounded-2xl text-xs font-bold text-left transition-all cursor-pointer group"
                         >
                           <div className="w-8 h-8 rounded-xl bg-violet-600/10 group-hover:bg-violet-500/20 text-violet-400 flex items-center justify-center shrink-0">
@@ -816,11 +1135,25 @@ export default function Assistant() {
                       )}
 
                       <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-sm ${isAi
-                          ? 'bg-slate-950/50 border border-white/5 text-slate-200 font-medium'
-                          : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
+                        ? 'bg-slate-950/50 border border-white/5 text-slate-200 font-medium'
+                        : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
                         }`}>
+
+                        {/* If user attached an image, render preview inside bubble */}
+                        {!isAi && msg.imagePreview && (
+                          <div className="mb-3">
+                            <img
+                              src={msg.imagePreview}
+                              alt="Attached Receipt"
+                              onClick={() => setLightboxImage(msg.imagePreview)}
+                              className="max-h-48 rounded-xl object-cover border border-white/20 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                            />
+                            <span className="text-[10px] text-white/80 font-bold block mt-1">Receipt Attachment (Click to zoom)</span>
+                          </div>
+                        )}
+
                         <div className="break-words">
-                          {formatMessageContent(msg.content, isAi)}
+                          {formatMessageContent(msg.content, isAi, user?.currency, () => loadSessions(false))}
                         </div>
                       </div>
 
@@ -838,9 +1171,9 @@ export default function Assistant() {
                     <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
                       <Bot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-slate-950/50 border border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-slate-950/50 border border-white/5 text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
-                      Analyzing Database ledger...
+                      Analyzing Vision & Ledger Data...
                     </div>
                   </div>
                 )}
@@ -849,24 +1182,81 @@ export default function Assistant() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Attached Image Preview Pill above Input Form */}
+          {attachedImage && (
+            <div className="flex items-center justify-between gap-3 p-2.5 px-3 bg-violet-950/40 border border-violet-500/30 rounded-2xl animate-fade-in text-left">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src={attachedImage.previewUrl}
+                  alt="Receipt Preview"
+                  className="w-10 h-10 rounded-lg object-cover border border-violet-500/40 shadow-sm"
+                />
+                <div className="min-w-0">
+                  <span className="text-xs font-black text-white truncate block">
+                    {attachedImage.name || 'Receipt Image Attached'}
+                  </span>
+                  <span className="text-[10px] text-violet-300 font-semibold block">
+                    Ready to scan & extract all item prices with Gemini Vision
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleRemoveAttachedImage}
+                className="p-1.5 hover:bg-white/10 text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer shrink-0"
+                title="Remove image"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           {/* Form Input Panel */}
-          <form onSubmit={handleFormSubmit} className="flex gap-3 items-center shrink-0 border-t border-white/5 pt-4">
+          <form onSubmit={handleFormSubmit} className="flex gap-2.5 items-center shrink-0 border-t border-white/5 pt-3">
+            {/* Hidden File Input for Image Upload / Camera */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleImageSelect}
+            />
+
+            {/* Upload Button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isGenerating || isLoadingMessages}
+              className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${attachedImage
+                  ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
+                  : 'bg-slate-950/60 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                }`}
+              title="Attach receipt image or photo (or paste from clipboard)"
+            >
+              <Camera className="w-5 h-5" />
+            </button>
+
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onPaste={handlePaste}
               placeholder={
                 isGenerating
-                  ? "Gemini is auditing balance sheets..."
-                  : "Ask Gemini (e.g. Compare my spending or Smart savings tips)"
+                  ? "Gemini is scanning ledger..."
+                  : attachedImage
+                    ? "Add optional notes or hit send to extract items..."
+                    : "Ask anything or paste/upload a receipt photo..."
               }
-              className="flex-grow pl-5 pr-4 py-3.5 bg-slate-950/60 border border-white/10 rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 font-semibold focus:ring-1 focus:ring-violet-500/20"
+              className="flex-grow pl-4 pr-4 py-3.5 bg-slate-950/60 border border-white/10 rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 font-semibold focus:ring-1 focus:ring-violet-500/20"
               disabled={isGenerating || isLoadingMessages}
             />
+
             <button
               type="submit"
-              disabled={isGenerating || isLoadingMessages || !input.trim()}
-              className="p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+              disabled={isGenerating || isLoadingMessages || (!input.trim() && !attachedImage)}
+              className="p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
             >
               <Send className="w-5 h-5" />
             </button>
@@ -875,10 +1265,32 @@ export default function Assistant() {
         </motion.main>
       </div>
 
+      {/* Lightbox Modal for Receipt Image Preview */}
+      {lightboxImage && (
+        <div
+          onClick={() => setLightboxImage(null)}
+          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-3xl max-h-[90vh] bg-slate-900 border border-white/10 rounded-2xl p-2 shadow-2xl">
+            <img
+              src={lightboxImage}
+              alt="Receipt Zoom"
+              className="max-h-[80vh] max-w-full rounded-xl object-contain"
+            />
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="absolute top-4 right-4 p-2 bg-slate-950/80 text-white rounded-full hover:bg-rose-500 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* FOOTER */}
       <footer className="hidden md:block border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 text-slate-600 text-[10px] text-center font-bold uppercase tracking-wider">
-          Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Database Tool Access & Session History.
+          Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Multimodal Receipt OCR, Database Tools & Ledger Sync.
         </div>
       </footer>
     </div>
