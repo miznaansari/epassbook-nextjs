@@ -236,8 +236,8 @@ export async function POST(req) {
                     content: [
                       {
                         type: 'text',
-                        text: typeof executionResult === 'string' 
-                          ? executionResult 
+                        text: typeof executionResult === 'string'
+                          ? executionResult
                           : JSON.stringify(executionResult, null, 2),
                       },
                     ],
