@@ -513,11 +513,16 @@ export default function Assistant() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
 
-  // Live Speech Recognition & Transcript Voice State
+  // Live Speech Recognition & Sarvam AI Voice State
   const [isListening, setIsListening] = useState(false);
+  const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
   const [speakingMsgIdx, setSpeakingMsgIdx] = useState(null);
+  const [audioLoadingMsgIdx, setAudioLoadingMsgIdx] = useState(null);
   const [copiedMsgIdx, setCopiedMsgIdx] = useState(null);
   const recognitionRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const activeAudioPlayerRef = useRef(null);
 
   // Image Upload / Receipt OCR State
   const [attachedImage, setAttachedImage] = useState(null); // { data: base64, mimeType, name, previewUrl }
@@ -867,19 +872,94 @@ export default function Assistant() {
     }
   };
 
-  // Toggle Live Speech-to-Text Microphone
-  const toggleSpeechRecognition = () => {
+  // Toggle Live Speech-to-Text (Sarvam AI Saaras v3 + Web Speech Fallback)
+  const toggleSpeechRecognition = async () => {
     if (typeof window === 'undefined') return;
 
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setError('Live voice input is not supported in this browser. Please use Chrome or Edge.');
+    if (isListening) {
+      // User is stopping recording
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+    // Try Sarvam AI Audio Recording via MediaRecorder
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        audioChunksRef.current = [];
+
+        // Pick supported mime type
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? 'audio/webm;codecs=opus'
+          : MediaRecorder.isTypeSupported('audio/webm')
+            ? 'audio/webm'
+            : MediaRecorder.isTypeSupported('audio/mp4')
+              ? 'audio/mp4'
+              : '';
+
+        const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            audioChunksRef.current.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          // Stop all mic tracks
+          stream.getTracks().forEach(track => track.stop());
+
+          if (audioChunksRef.current.length === 0) return;
+
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          setIsTranscribingAudio(true);
+          setError('');
+
+          try {
+            const formData = new FormData();
+            formData.append('file', audioBlob, 'speech.webm');
+
+            const res = await fetch('/api/audio/transcribe', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (res.ok) {
+              const data = await res.json();
+              if (data.transcript) {
+                setInput(prev => prev ? `${prev} ${data.transcript}` : data.transcript);
+              }
+            } else {
+              const errData = await res.json();
+              console.warn('Sarvam transcription fallback:', errData.error);
+            }
+          } catch (sttErr) {
+            console.error('Sarvam STT Error:', sttErr);
+          } finally {
+            setIsTranscribingAudio(false);
+          }
+        };
+
+        mediaRecorder.start(200);
+        setIsListening(true);
+        setError('');
+        return;
+      } catch (micErr) {
+        console.warn('MediaRecorder mic access error, falling back to Web Speech API:', micErr);
+      }
+    }
+
+    // Fallback: Web Speech Recognition API
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError('Microphone access is not supported in this browser. Please enable microphone permissions or use Chrome/Edge.');
       return;
     }
 
@@ -924,29 +1004,87 @@ export default function Assistant() {
     }
   };
 
-  // Text-to-Speech (TTS) for AI Responses
-  const handleSpeak = (text, idx) => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+  // Sarvam AI Text-to-Speech (Bulbul v3 / Web Speech Synthesis fallback)
+  const handleSpeak = async (text, idx) => {
+    if (typeof window === 'undefined') return;
 
+    // If already speaking this message, stop it
     if (speakingMsgIdx === idx) {
-      window.speechSynthesis.cancel();
+      if (activeAudioPlayerRef.current) {
+        activeAudioPlayerRef.current.pause();
+        activeAudioPlayerRef.current = null;
+      }
+      window.speechSynthesis?.cancel();
       setSpeakingMsgIdx(null);
       return;
     }
 
-    window.speechSynthesis.cancel();
-    const cleanText = text
-      .replace(/```json:transaction_proposal[\s\S]*?```/g, 'I have prepared a transaction approval list below for your review.')
-      .replace(/[*_#`]/g, '');
+    // Stop any active playing audio
+    if (activeAudioPlayerRef.current) {
+      activeAudioPlayerRef.current.pause();
+      activeAudioPlayerRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
 
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.onend = () => setSpeakingMsgIdx(null);
-    utterance.onerror = () => setSpeakingMsgIdx(null);
+    setAudioLoadingMsgIdx(idx);
+    setError('');
 
-    setSpeakingMsgIdx(idx);
-    window.speechSynthesis.speak(utterance);
+    try {
+      // 1. Attempt high-fidelity Sarvam AI Bulbul v3 Text-to-Speech
+      const res = await fetch('/api/audio/speech', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: text,
+          language_code: 'hi-IN',
+          speaker: 'shubh',
+          pace: 1.05,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.audio) {
+          const audio = new Audio(`data:audio/wav;base64,${data.audio}`);
+          activeAudioPlayerRef.current = audio;
+
+          audio.onended = () => {
+            setSpeakingMsgIdx(null);
+            activeAudioPlayerRef.current = null;
+          };
+
+          audio.onerror = () => {
+            setSpeakingMsgIdx(null);
+            activeAudioPlayerRef.current = null;
+          };
+
+          setSpeakingMsgIdx(idx);
+          await audio.play();
+          setAudioLoadingMsgIdx(null);
+          return;
+        }
+      }
+    } catch (sarvamErr) {
+      console.warn('Sarvam TTS unavailable, falling back to browser Web Speech:', sarvamErr);
+    } finally {
+      setAudioLoadingMsgIdx(null);
+    }
+
+    // 2. Fallback to Browser Speech Synthesis
+    if (window.speechSynthesis) {
+      const cleanText = text
+        .replace(/```json:transaction_proposal[\s\S]*?```/g, 'I have prepared a transaction approval list below for your review.')
+        .replace(/[*_#`]/g, '');
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.onend = () => setSpeakingMsgIdx(null);
+      utterance.onerror = () => setSpeakingMsgIdx(null);
+
+      setSpeakingMsgIdx(idx);
+      window.speechSynthesis.speak(utterance);
+    }
   };
 
   // Copy transcript to clipboard
@@ -958,12 +1096,18 @@ export default function Assistant() {
     }
   };
 
-  // Cleanup speech synthesis on unmount
+  // Cleanup speech synthesis & audio player on unmount
   useEffect(() => {
     return () => {
       if (typeof window !== 'undefined') {
         window.speechSynthesis?.cancel();
+        if (activeAudioPlayerRef.current) {
+          activeAudioPlayerRef.current.pause();
+        }
         recognitionRef.current?.stop();
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+          mediaRecorderRef.current.stop();
+        }
       }
     };
   }, []);
@@ -1040,6 +1184,11 @@ export default function Assistant() {
                 <ChevronDown className="w-3.5 h-3.5" />
               </div>
             </div>
+
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 rounded-xl text-[10px] font-black uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+              Sarvam AI Audio
+            </span>
 
             <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -1403,18 +1552,33 @@ export default function Assistant() {
                               <span>Gemini Transcript</span>
                             </span>
                             <div className="flex items-center gap-1.5">
-                              {/* Read Aloud TTS Speaker */}
+                              {/* Read Aloud TTS Speaker (Sarvam AI Bulbul v3) */}
                               <button
                                 type="button"
                                 onClick={() => handleSpeak(msg.content, idx)}
+                                disabled={audioLoadingMsgIdx === idx}
                                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                   speakingMsgIdx === idx
-                                    ? 'bg-violet-500/20 text-violet-300 animate-pulse'
-                                    : 'hover:bg-white/10 text-slate-400 hover:text-white'
+                                    ? 'bg-violet-500/25 text-violet-300 animate-pulse'
+                                    : audioLoadingMsgIdx === idx
+                                      ? 'bg-violet-500/15 text-violet-400'
+                                      : 'hover:bg-white/10 text-slate-400 hover:text-white'
                                 }`}
-                                title={speakingMsgIdx === idx ? "Stop speaking" : "Listen to transcript (TTS Audio)"}
+                                title={
+                                  audioLoadingMsgIdx === idx
+                                    ? "Synthesizing Sarvam AI voice..."
+                                    : speakingMsgIdx === idx
+                                      ? "Stop speaking"
+                                      : "Listen to transcript (Sarvam AI Voice)"
+                                }
                               >
-                                {speakingMsgIdx === idx ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                                {audioLoadingMsgIdx === idx ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
+                                ) : speakingMsgIdx === idx ? (
+                                  <VolumeX className="w-3.5 h-3.5" />
+                                ) : (
+                                  <Volume2 className="w-3.5 h-3.5" />
+                                )}
                               </button>
 
                               {/* Copy Transcript */}
@@ -1507,7 +1671,7 @@ export default function Assistant() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isGenerating || isLoadingMessages}
+                disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
                 className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
                   attachedImage
                     ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
@@ -1518,19 +1682,33 @@ export default function Assistant() {
                 <Camera className="w-5 h-5" />
               </button>
 
-              {/* Live Speech-to-Text Microphone Button */}
+              {/* Live Speech-to-Text Microphone Button (Sarvam AI Saaras v3) */}
               <button
                 type="button"
                 onClick={toggleSpeechRecognition}
-                disabled={isGenerating || isLoadingMessages}
+                disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
                 className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
                   isListening
                     ? 'bg-rose-500/25 border-rose-500 text-rose-300 animate-pulse shadow-md shadow-rose-900/50'
-                    : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                    : isTranscribingAudio
+                      ? 'bg-violet-600/25 border-violet-500 text-violet-300 animate-pulse'
+                      : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
                 }`}
-                title={isListening ? "Listening live... (Click to stop voice transcript)" : "Live Voice-to-Text Transcription (Mic)"}
+                title={
+                  isListening
+                    ? "Recording audio... (Click to transcribe with Sarvam AI)"
+                    : isTranscribingAudio
+                      ? "Sarvam AI Saaras v3 transcribing..."
+                      : "Live Voice-to-Text (Sarvam AI Saaras v3)"
+                }
               >
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {isTranscribingAudio ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                ) : isListening ? (
+                  <MicOff className="w-5 h-5" />
+                ) : (
+                  <Mic className="w-5 h-5" />
+                )}
               </button>
 
               <input
@@ -1540,24 +1718,28 @@ export default function Assistant() {
                 onPaste={handlePaste}
                 placeholder={
                   isListening
-                    ? "Listening live speech..."
-                    : isGenerating
-                      ? "Gemini is scanning ledger..."
-                      : attachedImage
-                        ? "Add optional notes or hit send..."
-                        : "Ask anything, speak (mic) or upload receipt..."
+                    ? "🎙️ Recording speech (Click mic again to transcribe)..."
+                    : isTranscribingAudio
+                      ? "⚡ Sarvam AI Saaras v3 transcribing speech..."
+                      : isGenerating
+                        ? "Gemini is scanning ledger..."
+                        : attachedImage
+                          ? "Add optional notes or hit send..."
+                          : "Ask anything, speak (Sarvam Mic) or upload receipt..."
                 }
                 className={`flex-grow pl-4 pr-3 py-3 md:py-3.5 bg-slate-950/80 border rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none font-semibold transition-all ${
                   isListening
                     ? 'border-rose-500/50 ring-2 ring-rose-500/20'
-                    : 'border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20'
+                    : isTranscribingAudio
+                      ? 'border-violet-500/50 ring-2 ring-violet-500/20'
+                      : 'border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20'
                 }`}
-                disabled={isGenerating || isLoadingMessages}
+                disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
               />
 
               <button
                 type="submit"
-                disabled={isGenerating || isLoadingMessages || (!input.trim() && !attachedImage)}
+                disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && !attachedImage)}
                 className="p-3 md:p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
               >
                 <Send className="w-5 h-5" />
