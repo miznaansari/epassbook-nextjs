@@ -112,10 +112,12 @@ export default function DashboardMobile({
   }, [setShowSuggestions]);
 
   return (
-    <div className="relative min-h-screen pb-24 bg-[#030712] text-slate-100 selection:bg-violet-500/30 overflow-x-hidden">
+    <div className="relative min-h-screen pb-24 bg-[#030712] text-slate-100 selection:bg-violet-500/30">
       {/* Ambient background glows */}
-      <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[30%] bg-gradient-to-br from-violet-600/10 to-transparent rounded-full blur-[100px] pointer-events-none z-0"></div>
-      <div className="absolute bottom-[20%] right-[-10%] w-[70%] h-[35%] bg-gradient-to-tr from-emerald-500/5 to-transparent rounded-full blur-[100px] pointer-events-none z-0"></div>
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[30%] bg-gradient-to-br from-violet-600/10 to-transparent rounded-full blur-[100px]" />
+        <div className="absolute bottom-[20%] right-[-10%] w-[70%] h-[35%] bg-gradient-to-tr from-emerald-500/5 to-transparent rounded-full blur-[100px]" />
+      </div>
 
       <Navbar />
 

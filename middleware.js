@@ -119,7 +119,7 @@ async function handleRequest(request) {
   }
 
   // 4. Secure User App Routes
-  const secureRoutes = ['/dashboard', '/transactions', '/reports', '/settings', '/assistant', '/stocks'];
+  const secureRoutes = ['/dashboard', '/transactions', '/reports', '/settings', '/assistant', '/stocks', '/mcp', '/sips', '/notifications'];
   const isSecureRoute = secureRoutes.some(route => pathname.startsWith(route));
 
   if (isSecureRoute) {

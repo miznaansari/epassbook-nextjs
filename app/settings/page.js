@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
@@ -17,7 +18,9 @@ import {
   Coins,
   Bell,
   Clock,
-  Volume2
+  Volume2,
+  Cpu,
+  ArrowRight
 } from 'lucide-react';
 
 export default function Settings() {
@@ -474,6 +477,25 @@ export default function Settings() {
                       ⚠️ Triggering this prompts browser native notification permission and registers a fresh active Push Subscription.
                     </span>
                   </div>
+                </div>
+
+                {/* Developer & MCP Integration Section */}
+                <div className="p-4 bg-gradient-to-r from-violet-950/20 to-cyan-950/20 border border-violet-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="text-left">
+                    <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                      <Cpu className="w-4 h-4 text-cyan-400" /> Remote Model Context Protocol (MCP)
+                    </span>
+                    <span className="block text-[10px] text-slate-400 font-semibold mt-0.5">
+                      Generate API keys and connect Cursor, Claude Desktop, or custom AI agents to your Passbook.
+                    </span>
+                  </div>
+                  <Link
+                    href="/mcp"
+                    className="px-3.5 py-2 bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/40 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0"
+                  >
+                    <span>Manage MCP Keys</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               </div>
             </div>

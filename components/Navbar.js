@@ -19,7 +19,8 @@ import {
   Menu,
   X,
   ChevronRight,
-  Coins
+  Coins,
+  Cpu
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -35,6 +36,7 @@ export default function Navbar() {
     { name: 'SIP Tracker', path: '/sips', icon: Coins },
     { name: 'Campaigns', path: '/notifications', icon: Bell },
     { name: 'AI Assistant', path: '/assistant', icon: MessageSquare },
+    { name: 'MCP & API', path: '/mcp', icon: Cpu },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];
 
@@ -124,9 +126,14 @@ export default function Navbar() {
 
       {/* Mobile Sticky Bottom Navigation Bar (Streamlined to 5 Items) */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-black/40 backdrop-blur-2xl border-t border-white/[0.07] shadow-[0_-10px_30px_rgba(0,0,0,0.5)] pt-2 px-1 flex items-center justify-between"
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#030712]/95 backdrop-blur-2xl border-t border-white/[0.08] shadow-[0_-10px_30px_rgba(0,0,0,0.7)] pt-2 px-1 flex items-center justify-between"
         style={{ 
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+          paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px))',
+          transform: 'translate3d(0, 0, 0)',
+          WebkitTransform: 'translate3d(0, 0, 0)',
+          willChange: 'transform',
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
           fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" 
         }}
       >
