@@ -14,7 +14,6 @@ import {
   PiggyBank,
   Lightbulb,
   LineChart,
-  Brain,
   AlertCircle,
   Plus,
   Trash2,
@@ -30,7 +29,14 @@ import {
   Check,
   CheckCheck,
   Maximize2,
-  CheckCircle2
+  CheckCircle2,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Copy,
+  Radio,
+  Activity
 } from 'lucide-react';
 
 // Interactive Transaction Proposal Card Component
@@ -469,7 +475,7 @@ export default function Assistant() {
 
   const AVAILABLE_MODELS = [
     { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
-    { id: 'gemini-3.5-flash-lite', name: 'Gemini 2.5 Flash' },
+    { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
     { id: 'gemma-4-26b', name: 'Gemma 4 26B' },
     { id: 'gemma-4-31b', name: 'Gemma 4 31B' }
   ];
@@ -506,6 +512,12 @@ export default function Assistant() {
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
+
+  // Live Speech Recognition & Transcript Voice State
+  const [isListening, setIsListening] = useState(false);
+  const [speakingMsgIdx, setSpeakingMsgIdx] = useState(null);
+  const [copiedMsgIdx, setCopiedMsgIdx] = useState(null);
+  const recognitionRef = useRef(null);
 
   // Image Upload / Receipt OCR State
   const [attachedImage, setAttachedImage] = useState(null); // { data: base64, mimeType, name, previewUrl }
@@ -855,8 +867,113 @@ export default function Assistant() {
     }
   };
 
+  // Toggle Live Speech-to-Text Microphone
+  const toggleSpeechRecognition = () => {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError('Live voice input is not supported in this browser. Please use Chrome or Edge.');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'hi-IN'; // Multi-lingual (Hindi & Indian English)
+      recognition.continuous = false;
+      recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setError('');
+      };
+
+      recognition.onresult = (event) => {
+        let currentTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+        }
+        if (currentTranscript) {
+          setInput(currentTranscript);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error !== 'no-speech') {
+          setError(`Voice input error: ${event.error}`);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Speech init error:', err);
+      setIsListening(false);
+    }
+  };
+
+  // Text-to-Speech (TTS) for AI Responses
+  const handleSpeak = (text, idx) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+
+    if (speakingMsgIdx === idx) {
+      window.speechSynthesis.cancel();
+      setSpeakingMsgIdx(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const cleanText = text
+      .replace(/```json:transaction_proposal[\s\S]*?```/g, 'I have prepared a transaction approval list below for your review.')
+      .replace(/[*_#`]/g, '');
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+    utterance.onend = () => setSpeakingMsgIdx(null);
+    utterance.onerror = () => setSpeakingMsgIdx(null);
+
+    setSpeakingMsgIdx(idx);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  // Copy transcript to clipboard
+  const handleCopyTranscript = (text, idx) => {
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard.writeText(text);
+      setCopiedMsgIdx(idx);
+      setTimeout(() => setCopiedMsgIdx(null), 2000);
+    }
+  };
+
+  // Cleanup speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.speechSynthesis?.cancel();
+        recognitionRef.current?.stop();
+      }
+    };
+  }, []);
+
   const handleFormSubmit = (e) => {
     e.preventDefault();
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+    }
     sendMessage();
   };
 
@@ -872,60 +989,207 @@ export default function Assistant() {
     <div className="relative min-h-screen flex flex-col overflow-hidden bg-background">
       <Navbar />
 
-      {/* Decorative Orbs */}
+      {/* Decorative Ambient Orbs */}
       <div className="absolute top-20 left-1/4 w-96 h-96 bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* Main Split Layout Container */}
-      <div className="flex-grow flex w-full max-w-7xl mx-auto px-2.5 md:px-6 pt-4 pb-20 md:py-6 gap-4 md:gap-6 relative overflow-hidden h-[calc(100vh-4rem)]">
+      {/* AI Assistant Dedicated Page Header Bar - Positioned right below Top Navbar */}
+      <div className="w-full border-b border-white/[0.08] bg-[#030712]/90 backdrop-blur-2xl shrink-0 z-30 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-2.5 md:py-3 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Sidebar toggle button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 hover:bg-white/5 border border-white/10 hover:border-violet-500/20 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shrink-0"
+              title={isSidebarOpen ? "Hide Chat Logs" : "Show Chat Logs"}
+            >
+              {isSidebarOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Menu className="w-4 h-4 md:w-5 md:h-5" />}
+            </button>
 
-        {/* SIDEBAR Panel (ChatGPT history) */}
-        <AnimatePresence>
-          {/* Mobile Drawer Overlay Backdrop */}
-          {isMobile && isSidebarOpen && (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="p-2 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white shadow-md shadow-violet-600/25 shrink-0 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 md:w-5 md:h-5 animate-pulse" />
+              </span>
+              <div className="min-w-0 text-left">
+                <h1 className="text-sm md:text-lg font-black text-white tracking-tight truncate flex items-center gap-2">
+                  <span>AI Assistant</span>
+                  <span className="hidden sm:inline text-xs font-bold text-slate-400">• Vision & Finance</span>
+                </h1>
+                <p className="text-slate-400 text-[10px] md:text-xs font-semibold truncate hidden xs:block sm:block">
+                  Receipt OCR extraction & real-time ledger intelligence.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Syncing Indicators & Model Selector */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="relative flex items-center">
+              <select
+                value={selectedModel}
+                onChange={(e) => handleModelChange(e.target.value)}
+                className="appearance-none bg-slate-950/80 hover:bg-slate-900 border border-white/10 hover:border-white/20 text-[10px] md:text-xs font-black uppercase tracking-wider text-slate-300 hover:text-white rounded-xl py-1.5 md:py-2 pl-3 pr-8 md:pr-9 focus:outline-none focus:border-violet-500/50 transition-all cursor-pointer shadow-md shadow-slate-950/40"
+              >
+                {AVAILABLE_MODELS.map((model) => (
+                  <option key={model.id} value={model.id} className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider">
+                    {model.name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute right-2.5 md:right-3 flex items-center text-violet-400">
+                <ChevronDown className="w-3.5 h-3.5" />
+              </div>
+            </div>
+
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              Ledger Linked
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 1. MOBILE SLIDE-OVER DRAWER (Rendered at root level outside overflow container) */}
+      <AnimatePresence>
+        {isMobile && isSidebarOpen && (
+          <div className="fixed inset-0 z-[100] md:hidden overflow-hidden">
+            {/* Backdrop Overlay */}
             <motion.div
-              key="sidebar-backdrop"
+              key="mobile-drawer-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm z-10 cursor-pointer"
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md cursor-pointer"
             />
-          )}
 
-          {isSidebarOpen && (
+            {/* Slide-out Drawer Panel */}
+            <motion.aside
+              key="mobile-drawer-panel"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
+              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[320px] bg-[#030712]/98 backdrop-blur-2xl border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.9)] flex flex-col justify-between p-4 z-10"
+              style={{
+                paddingTop: 'max(16px, env(safe-area-inset-top, 0px))',
+                paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))',
+              }}
+            >
+              {/* Header inside Mobile Drawer */}
+              <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10 shrink-0">
+                <div className="flex items-center gap-2 font-bold text-white">
+                  <span className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white">
+                    <Sparkles className="w-4 h-4" />
+                  </span>
+                  <span className="text-sm">Chat History & Logs</span>
+                </div>
+
+                <button
+                  onClick={() => setIsSidebarOpen(false)}
+                  className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
+                  title="Close Drawer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Create New Chat Session Button */}
+              <button
+                onClick={() => {
+                  handleCreateSession();
+                  setIsSidebarOpen(false);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 my-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wide transition-all shadow-md shadow-violet-600/20 cursor-pointer uppercase shrink-0 active:scale-98"
+              >
+                <Plus className="w-4 h-4" /> New Chat Session
+              </button>
+
+              {/* Scrollable list of sessions */}
+              <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin my-1">
+                {isLoadingSessions ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-xs">
+                    <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                    <span>Syncing past logs...</span>
+                  </div>
+                ) : sessions.length === 0 ? (
+                  <div className="text-center py-10 px-4 text-xs font-semibold text-slate-500">
+                    No active sessions. Start a new session or upload a receipt to chat!
+                  </div>
+                ) : (
+                  sessions.map((s) => {
+                    const isActive = activeSessionId === s.id;
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => {
+                          setActiveSessionId(s.id);
+                          setIsSidebarOpen(false);
+                        }}
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${
+                          isActive
+                            ? 'bg-violet-600/20 border-violet-500/50 text-violet-100 shadow-md shadow-violet-950/40'
+                            : 'bg-slate-950/60 hover:bg-slate-900/80 border-white/5 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 truncate pr-8">
+                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-slate-500'}`} />
+                          <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
+                        </div>
+
+                        {/* In-place Delete Button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSession(e, s.id);
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
+                          title="Delete Session"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Mobile Drawer Bottom Info */}
+              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-500 font-semibold shrink-0">
+                <span>{sessions.length} Saved Sessions</span>
+                <span className="text-violet-400 font-bold uppercase">{selectedModel}</span>
+              </div>
+            </motion.aside>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Split Layout Container */}
+      <div className="flex-grow flex w-full max-w-7xl mx-auto px-0 md:px-6 pt-2 md:pt-4 pb-0 md:pb-6 gap-4 md:gap-6 relative overflow-hidden h-[calc(100dvh-7.8rem)]">
+
+        {/* 2. DESKTOP IN-LINE SIDEBAR PANEL */}
+        <AnimatePresence>
+          {!isMobile && isSidebarOpen && (
             <motion.aside
               layout
-              key="sidebar-aside"
-              initial={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 1 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: isMobile ? -300 : 0, opacity: isMobile ? 0 : 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className={`glass-card border border-white/5 flex flex-col p-4 shrink-0 overflow-hidden z-20 ${isMobile
-                ? 'absolute top-6 bottom-6 left-4 w-72 shadow-2xl bg-slate-950/95 border-white/10'
-                : 'w-72'
-                }`}
+              key="desktop-sidebar-aside"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 288, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="glass-card border border-white/5 flex flex-col p-4 shrink-0 overflow-hidden h-full"
             >
               {/* Header with New Chat Button */}
               <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
                 <span className="text-sm font-bold text-white flex items-center gap-2">
                   <History className="w-4 h-4 text-violet-400" /> Chat Logs
                 </span>
-
-                {isMobile && (
-                  <button
-                    onClick={() => setIsSidebarOpen(false)}
-                    className="p-1 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
               </div>
 
               {/* Create new chat session button */}
               <button
                 onClick={handleCreateSession}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 mb-4 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wide transition-all shadow-md shadow-violet-600/15 cursor-pointer uppercase shrink-0"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 mb-4 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wide transition-all shadow-md shadow-violet-600/15 cursor-pointer uppercase shrink-0 active:scale-98"
               >
                 <Plus className="w-4 h-4" /> New Session
               </button>
@@ -947,14 +1211,12 @@ export default function Assistant() {
                     return (
                       <div
                         key={s.id}
-                        onClick={() => {
-                          setActiveSessionId(s.id);
-                          if (isMobile) setIsSidebarOpen(false);
-                        }}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${isActive
-                          ? 'bg-violet-600/15 border-violet-500/40 text-violet-100 shadow-md shadow-violet-950/20'
-                          : 'bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-400 hover:text-white'
-                          }`}
+                        onClick={() => setActiveSessionId(s.id)}
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${
+                          isActive
+                            ? 'bg-violet-600/15 border-violet-500/40 text-violet-100 shadow-md shadow-violet-950/20'
+                            : 'bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-400 hover:text-white'
+                        }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-6">
                           <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-slate-500'}`} />
@@ -981,61 +1243,12 @@ export default function Assistant() {
         {/* MAIN CHAT CONSOLE */}
         <motion.main
           layout
-          className="flex-grow glass-card border border-white/5 p-3 md:p-6 flex flex-col gap-3 md:gap-4 overflow-hidden relative"
+          className="flex-grow md:glass-card md:border md:border-white/5 p-3 md:p-6 flex flex-col justify-between overflow-hidden relative h-full"
         >
-
-          {/* Header Row */}
-          <div className="flex items-center justify-between border-b border-white/5 pb-4 shrink-0">
-            <div className="text-left flex items-center gap-3">
-              <button
-                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 hover:bg-white/5 border border-white/10 hover:border-violet-500/20 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer mr-1"
-                title={isSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
-              >
-                {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-
-              <div>
-                <h1 className="text-xl md:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-                  <Brain className="w-6 h-6 text-violet-400 shrink-0" />
-                  <span className="hidden md:inline">Gemini Vision & Finance Assistant</span>
-                  <span className="inline md:hidden">Assistant</span>
-                </h1>
-                <p className="text-slate-400 text-[10px] md:text-xs mt-0.5 font-semibold">
-                  Receipt OCR extraction & real-time ledger intelligence.
-                </p>
-              </div>
-            </div>
-
-            {/* Syncing Indicators & Model Selector */}
-            <div className="flex items-center gap-2.5">
-              <div className="relative flex items-center">
-                <select
-                  value={selectedModel}
-                  onChange={(e) => handleModelChange(e.target.value)}
-                  className="appearance-none bg-slate-950/60 hover:bg-slate-900 border border-white/10 hover:border-white/20 text-[10px] md:text-xs font-black uppercase tracking-wider text-slate-300 hover:text-white rounded-xl py-2 pl-3.5 pr-9 focus:outline-none focus:border-violet-500/50 transition-all cursor-pointer shadow-md shadow-slate-950/40"
-                >
-                  {AVAILABLE_MODELS.map((model) => (
-                    <option key={model.id} value={model.id} className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider">
-                      {model.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-3 flex items-center text-violet-400">
-                  <ChevronDown className="w-3.5 h-3.5" />
-                </div>
-              </div>
-
-              <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                Ledger Linked
-              </span>
-            </div>
-          </div>
 
           {/* Error Banner with Retry */}
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left">
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left mb-2">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
@@ -1065,7 +1278,7 @@ export default function Assistant() {
           )}
 
           {/* CHAT VIEWPORT scroll container */}
-          <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 pr-1 md:pr-2 scrollbar-thin scroll-smooth min-h-0">
+          <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 pb-36 md:pb-4 scrollbar-thin scroll-smooth min-h-0">
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
@@ -1077,7 +1290,7 @@ export default function Assistant() {
                 <div className="w-16 h-16 rounded-3xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-violet-600/20 animate-bounce">
                   <Sparkles className="w-8 h-8" />
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 px-4">
                   <h3 className="text-white text-lg font-black tracking-tight">AI Vision & Personal Finance Assistant</h3>
                   <p className="text-slate-400 text-xs font-semibold leading-relaxed">
                     Upload receipt/bill photos to automatically extract item prices, or ask questions to audit your balances, salary deductions, and active lending logs.
@@ -1085,7 +1298,7 @@ export default function Assistant() {
                 </div>
 
                 {/* Suggestions Tags */}
-                <div className="w-full flex flex-col gap-2 mt-4">
+                <div className="w-full flex flex-col gap-2 mt-4 px-2">
                   <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {suggestions.map((s, idx) => {
@@ -1114,16 +1327,22 @@ export default function Assistant() {
               </div>
             ) : (
               /* Message Bubbles list */
-              <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-5 md:gap-6">
                 {messages.map((msg, idx) => {
                   const isAi = msg.role === 'assistant';
+                  const isStreamingCurrent = isAi && isGenerating && idx === messages.length - 1;
+
                   return (
                     <div
                       key={idx}
                       className={`flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left ${isAi ? 'justify-start items-start' : 'justify-end items-end md:items-start'}`}
                     >
                       {isAi && (
-                        <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50">
+                        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50 transition-all ${
+                          isStreamingCurrent
+                            ? 'bg-violet-600/30 border-violet-500 text-violet-300 animate-pulse'
+                            : 'bg-violet-600/20 border-violet-500/20 text-violet-400'
+                        }`}>
                           <Bot className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                       )}
@@ -1134,10 +1353,25 @@ export default function Assistant() {
                         </div>
                       )}
 
-                      <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-sm ${isAi
-                        ? 'bg-slate-950/50 border border-white/5 text-slate-200 font-medium'
-                        : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
+                      <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-sm transition-all ${
+                        isAi
+                          ? isStreamingCurrent
+                            ? 'bg-slate-950/80 border border-violet-500/40 text-slate-200 font-medium shadow-lg shadow-violet-950/30'
+                            : 'bg-slate-950/60 border border-white/5 text-slate-200 font-medium'
+                          : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
                         }`}>
+
+                        {/* Live Streaming Gemini Transcript Banner */}
+                        {isStreamingCurrent && (
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-violet-500/20 text-[10px] font-bold text-violet-300">
+                            <span className="flex items-center gap-1.5">
+                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                              <Radio className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
+                              <span>Live Gemini Transcript Streaming...</span>
+                            </span>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">{selectedModel}</span>
+                          </div>
+                        )}
 
                         {/* If user attached an image, render preview inside bubble */}
                         {!isAi && msg.imagePreview && (
@@ -1154,7 +1388,47 @@ export default function Assistant() {
 
                         <div className="break-words">
                           {formatMessageContent(msg.content, isAi, user?.currency, () => loadSessions(false))}
+                          
+                          {/* Live typing cursor during streaming */}
+                          {isStreamingCurrent && (
+                            <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(139,92,246,0.8)]"></span>
+                          )}
                         </div>
+
+                        {/* Completed AI Transcript Actions */}
+                        {isAi && msg.content && !isStreamingCurrent && (
+                          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5 text-[10px] text-slate-400 font-semibold">
+                            <span className="flex items-center gap-1.5 text-slate-500 text-[9px] uppercase tracking-wider font-extrabold">
+                              <Sparkles className="w-3 h-3 text-violet-400" />
+                              <span>Gemini Transcript</span>
+                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {/* Read Aloud TTS Speaker */}
+                              <button
+                                type="button"
+                                onClick={() => handleSpeak(msg.content, idx)}
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                                  speakingMsgIdx === idx
+                                    ? 'bg-violet-500/20 text-violet-300 animate-pulse'
+                                    : 'hover:bg-white/10 text-slate-400 hover:text-white'
+                                }`}
+                                title={speakingMsgIdx === idx ? "Stop speaking" : "Listen to transcript (TTS Audio)"}
+                              >
+                                {speakingMsgIdx === idx ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
+                              </button>
+
+                              {/* Copy Transcript */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyTranscript(msg.content, idx)}
+                                className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                title="Copy full transcript"
+                              >
+                                {copiedMsgIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {!isAi && (
@@ -1166,14 +1440,17 @@ export default function Assistant() {
                   );
                 })}
 
-                {isGenerating && (
-                  <div className="flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left justify-start items-start">
+                {isGenerating && !messages[messages.length - 1]?.content && (
+                  <div className="flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left justify-start items-start animate-fade-in">
                     <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
                       <Bot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-slate-950/50 border border-white/5 text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-slate-950/70 border border-violet-500/20 text-slate-300 text-xs font-bold uppercase tracking-wider flex items-center gap-2.5 shadow-md shadow-violet-950/30">
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
-                      Analyzing Vision & Ledger Data...
+                      <span className="flex items-center gap-1.5">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                        <span>Analyzing Vision & Ledger Data...</span>
+                      </span>
                     </div>
                   </div>
                 )}
@@ -1182,85 +1459,111 @@ export default function Assistant() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Attached Image Preview Pill above Input Form */}
-          {attachedImage && (
-            <div className="flex items-center justify-between gap-3 p-2.5 px-3 bg-violet-950/40 border border-violet-500/30 rounded-2xl animate-fade-in text-left">
-              <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={attachedImage.previewUrl}
-                  alt="Receipt Preview"
-                  className="w-10 h-10 rounded-lg object-cover border border-violet-500/40 shadow-sm"
-                />
-                <div className="min-w-0">
-                  <span className="text-xs font-black text-white truncate block">
-                    {attachedImage.name || 'Receipt Image Attached'}
-                  </span>
-                  <span className="text-[10px] text-violet-300 font-semibold block">
-                    Ready to scan & extract all item prices with Gemini Vision
-                  </span>
+          {/* Pinned Input Container: Fixed on mobile right above bottom navbar, cleanly integrated at bottom on desktop */}
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#030712]/95 backdrop-blur-2xl border-t border-white/[0.08] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/5 md:shadow-none md:pt-3 space-y-2">
+            
+            {/* Attached Image Preview Pill */}
+            {attachedImage && (
+              <div className="flex items-center justify-between gap-3 p-2.5 px-3 bg-violet-950/50 border border-violet-500/30 rounded-2xl animate-fade-in text-left shadow-lg">
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src={attachedImage.previewUrl}
+                    alt="Receipt Preview"
+                    className="w-10 h-10 rounded-lg object-cover border border-violet-500/40 shadow-sm shrink-0"
+                  />
+                  <div className="min-w-0">
+                    <span className="text-xs font-black text-white truncate block">
+                      {attachedImage.name || 'Receipt Image Attached'}
+                    </span>
+                    <span className="text-[10px] text-violet-300 font-semibold block">
+                      Ready to scan & extract items with Gemini Vision
+                    </span>
+                  </div>
                 </div>
-              </div>
 
+                <button
+                  type="button"
+                  onClick={handleRemoveAttachedImage}
+                  className="p-1.5 hover:bg-white/10 text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer shrink-0"
+                  title="Remove image"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {/* Form Input Row */}
+            <form onSubmit={handleFormSubmit} className="flex gap-2 items-center">
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImageSelect}
+              />
+
+              {/* Camera / Image Upload Button */}
               <button
                 type="button"
-                onClick={handleRemoveAttachedImage}
-                className="p-1.5 hover:bg-white/10 text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer shrink-0"
-                title="Remove image"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          )}
-
-          {/* Form Input Panel */}
-          <form onSubmit={handleFormSubmit} className="flex gap-2.5 items-center shrink-0 border-t border-white/5 pt-3">
-            {/* Hidden File Input for Image Upload / Camera */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageSelect}
-            />
-
-            {/* Upload Button */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isGenerating || isLoadingMessages}
-              className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${attachedImage
-                  ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
-                  : 'bg-slate-950/60 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isGenerating || isLoadingMessages}
+                className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                  attachedImage
+                    ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
+                    : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
                 }`}
-              title="Attach receipt image or photo (or paste from clipboard)"
-            >
-              <Camera className="w-5 h-5" />
-            </button>
+                title="Attach receipt image or photo (or paste from clipboard)"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
 
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onPaste={handlePaste}
-              placeholder={
-                isGenerating
-                  ? "Gemini is scanning ledger..."
-                  : attachedImage
-                    ? "Add optional notes or hit send to extract items..."
-                    : "Ask anything or paste/upload a receipt photo..."
-              }
-              className="flex-grow pl-4 pr-4 py-3.5 bg-slate-950/60 border border-white/10 rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 font-semibold focus:ring-1 focus:ring-violet-500/20"
-              disabled={isGenerating || isLoadingMessages}
-            />
+              {/* Live Speech-to-Text Microphone Button */}
+              <button
+                type="button"
+                onClick={toggleSpeechRecognition}
+                disabled={isGenerating || isLoadingMessages}
+                className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                  isListening
+                    ? 'bg-rose-500/25 border-rose-500 text-rose-300 animate-pulse shadow-md shadow-rose-900/50'
+                    : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                }`}
+                title={isListening ? "Listening live... (Click to stop voice transcript)" : "Live Voice-to-Text Transcription (Mic)"}
+              >
+                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+              </button>
 
-            <button
-              type="submit"
-              disabled={isGenerating || isLoadingMessages || (!input.trim() && !attachedImage)}
-              className="p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </form>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onPaste={handlePaste}
+                placeholder={
+                  isListening
+                    ? "Listening live speech..."
+                    : isGenerating
+                      ? "Gemini is scanning ledger..."
+                      : attachedImage
+                        ? "Add optional notes or hit send..."
+                        : "Ask anything, speak (mic) or upload receipt..."
+                }
+                className={`flex-grow pl-4 pr-3 py-3 md:py-3.5 bg-slate-950/80 border rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none font-semibold transition-all ${
+                  isListening
+                    ? 'border-rose-500/50 ring-2 ring-rose-500/20'
+                    : 'border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20'
+                }`}
+                disabled={isGenerating || isLoadingMessages}
+              />
+
+              <button
+                type="submit"
+                disabled={isGenerating || isLoadingMessages || (!input.trim() && !attachedImage)}
+                className="p-3 md:p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
+              >
+                <Send className="w-5 h-5" />
+              </button>
+            </form>
+          </div>
 
         </motion.main>
       </div>
