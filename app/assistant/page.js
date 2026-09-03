@@ -525,7 +525,8 @@ export default function Assistant() {
   const activeAudioPlayerRef = useRef(null);
 
   // Image Upload / Receipt OCR State
-  const [attachedImage, setAttachedImage] = useState(null); // { data: base64, mimeType, name, previewUrl }
+  const [attachedImage, setAttachedImage] = useState(null); // { data: base64, mimeType, name, previewUrl, originalSizeStr, compressedSizeStr, isCompressed }
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
   const fileInputRef = useRef(null);
 
@@ -642,8 +643,111 @@ export default function Assistant() {
     scrollToBottom();
   }, [messages, isGenerating, isLoadingMessages, attachedImage]);
 
-  // Handle Image File Selection
-  const handleImageSelect = (e) => {
+  // Helper to format file sizes
+  const formatFileSize = (bytes) => {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  };
+
+  // Compress & prepare large mobile camera images on client before state assignment
+  const compressClientImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const originalSize = file.size;
+      const reader = new FileReader();
+
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+
+        // If file is already small (< 1MB), no need for client canvas downscaling
+        if (originalSize < 1024 * 1024) {
+          resolve({
+            data: dataUrl,
+            previewUrl: dataUrl,
+            name: file.name || 'Receipt Image',
+            mimeType: file.type || 'image/jpeg',
+            originalSizeStr: formatFileSize(originalSize),
+            compressedSizeStr: formatFileSize(originalSize),
+            isCompressed: false,
+          });
+          return;
+        }
+
+        // Downscale large mobile camera photo using offscreen canvas to prevent mobile memory spikes
+        const img = new Image();
+        img.onerror = () => {
+          // Fallback if image fails to decode on canvas
+          resolve({
+            data: dataUrl,
+            previewUrl: dataUrl,
+            name: file.name || 'Receipt Image',
+            mimeType: file.type || 'image/jpeg',
+            originalSizeStr: formatFileSize(originalSize),
+            compressedSizeStr: formatFileSize(originalSize),
+            isCompressed: false,
+          });
+        };
+
+        img.onload = () => {
+          try {
+            const MAX_DIM = 2048; // Crisp client-side max dimension
+            let width = img.width;
+            let height = img.height;
+
+            if (width > MAX_DIM || height > MAX_DIM) {
+              if (width > height) {
+                height = Math.round((height * MAX_DIM) / width);
+                width = MAX_DIM;
+              } else {
+                width = Math.round((width * MAX_DIM) / height);
+                height = MAX_DIM;
+              }
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+            const approxCompressedBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
+
+            resolve({
+              data: compressedDataUrl,
+              previewUrl: compressedDataUrl,
+              name: file.name || 'Camera Photo',
+              mimeType: 'image/jpeg',
+              originalSizeStr: formatFileSize(originalSize),
+              compressedSizeStr: formatFileSize(approxCompressedBytes),
+              isCompressed: true,
+            });
+          } catch (err) {
+            console.warn('Canvas compression error, falling back:', err);
+            resolve({
+              data: dataUrl,
+              previewUrl: dataUrl,
+              name: file.name || 'Receipt Image',
+              mimeType: file.type || 'image/jpeg',
+              originalSizeStr: formatFileSize(originalSize),
+              compressedSizeStr: formatFileSize(originalSize),
+              isCompressed: false,
+            });
+          }
+        };
+
+        img.src = dataUrl;
+      };
+
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Handle Image File Selection (Camera / File Picker)
+  const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -652,23 +756,23 @@ export default function Assistant() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64Url = event.target.result;
-      setAttachedImage({
-        data: base64Url,
-        previewUrl: base64Url,
-        name: file.name,
-        mimeType: file.type || 'image/jpeg',
-      });
-      setError('');
-    };
-    reader.readAsDataURL(file);
-    e.target.value = '';
+    setIsProcessingImage(true);
+    setError('');
+
+    try {
+      const processed = await compressClientImage(file);
+      setAttachedImage(processed);
+    } catch (err) {
+      console.error('Error processing image:', err);
+      setError('Failed to process image file.');
+    } finally {
+      setIsProcessingImage(false);
+      e.target.value = '';
+    }
   };
 
   // Handle Paste Event from Clipboard (Ctrl+V / Cmd+V)
-  const handlePaste = (e) => {
+  const handlePaste = async (e) => {
     const clipboardItems = e.clipboardData?.items;
     if (!clipboardItems) return;
 
@@ -677,17 +781,20 @@ export default function Assistant() {
       if (item.type.indexOf('image') !== -1) {
         const file = item.getAsFile();
         if (file) {
-          const reader = new FileReader();
-          reader.onload = (event) => {
+          setIsProcessingImage(true);
+          setError('');
+          try {
+            const processed = await compressClientImage(file);
             setAttachedImage({
-              data: event.target.result,
-              previewUrl: event.target.result,
+              ...processed,
               name: 'Pasted Image',
-              mimeType: file.type || 'image/jpeg',
             });
-            setError('');
-          };
-          reader.readAsDataURL(file);
+          } catch (err) {
+            console.error('Error processing pasted image:', err);
+            setError('Failed to process pasted image.');
+          } finally {
+            setIsProcessingImage(false);
+          }
         }
       }
     }
@@ -1633,14 +1740,27 @@ export default function Assistant() {
                   <img
                     src={attachedImage.previewUrl}
                     alt="Receipt Preview"
-                    className="w-10 h-10 rounded-lg object-cover border border-violet-500/40 shadow-sm shrink-0"
+                    onClick={() => setLightboxImage(attachedImage.previewUrl)}
+                    className="w-11 h-11 rounded-xl object-cover border border-violet-500/40 shadow-sm shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
                   />
                   <div className="min-w-0">
-                    <span className="text-xs font-black text-white truncate block">
-                      {attachedImage.name || 'Receipt Image Attached'}
-                    </span>
-                    <span className="text-[10px] text-violet-300 font-semibold block">
-                      Ready to scan & extract items with Gemini Vision
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-xs font-black text-white truncate max-w-[150px] md:max-w-[220px] block">
+                        {attachedImage.name || 'Receipt Image Attached'}
+                      </span>
+                      {attachedImage.isCompressed ? (
+                        <span className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[9px] font-extrabold rounded-md shrink-0">
+                          {attachedImage.originalSizeStr} → {attachedImage.compressedSizeStr}
+                        </span>
+                      ) : attachedImage.originalSizeStr ? (
+                        <span className="px-1.5 py-0.5 bg-violet-500/20 border border-violet-500/30 text-violet-300 text-[9px] font-extrabold rounded-md shrink-0">
+                          {attachedImage.originalSizeStr}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-[10px] text-violet-300 font-semibold flex items-center gap-1 mt-0.5">
+                      <Sparkles className="w-3 h-3 text-cyan-400 shrink-0" />
+                      <span>Optimized for Gemini AI Vision</span>
                     </span>
                   </div>
                 </div>
@@ -1671,15 +1791,21 @@ export default function Assistant() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
+                disabled={isGenerating || isLoadingMessages || isTranscribingAudio || isProcessingImage}
                 className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
-                  attachedImage
-                    ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
-                    : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                  isProcessingImage
+                    ? 'bg-violet-600/20 border-violet-500 text-violet-300 animate-pulse'
+                    : attachedImage
+                      ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
+                      : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
                 }`}
-                title="Attach receipt image or photo (or paste from clipboard)"
+                title={isProcessingImage ? "Compressing image..." : "Attach receipt image or camera photo (or paste from clipboard)"}
               >
-                <Camera className="w-5 h-5" />
+                {isProcessingImage ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                ) : (
+                  <Camera className="w-5 h-5" />
+                )}
               </button>
 
               {/* Live Speech-to-Text Microphone Button (Sarvam AI Saaras v3) */}

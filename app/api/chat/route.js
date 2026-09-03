@@ -3,6 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { geminiTools, executeTool } from '@/lib/gemini';
 import { requireUser } from '@/lib/requireUser';
 import { db } from '@/lib/db';
+import { optimizeImageForGemini } from '@/lib/imageProcessor';
 
 // Initialize the Google Generative AI SDK
 // Uses GEMINI_API_KEY environment variable
@@ -202,12 +203,17 @@ If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka 
 
     // Prepare last message parts (multimodal if image provided)
     const lastParts = [];
-    if (image && image.data && image.mimeType) {
-      const cleanBase64 = image.data.replace(/^data:[^;]+;base64,/, '');
+    if (image && image.data) {
+      // Use Sharp to auto-orient, resize (max 1536px for optimal Gemini tiling), strip EXIF bloat, and MozJPEG compress
+      const optimized = await optimizeImageForGemini(image.data, {
+        preset: 'balanced', // 1536px max dimension, MozJPEG Q85 with 4:4:4 chroma subsampling
+        mimeType: image.mimeType || 'image/jpeg',
+      });
+
       lastParts.push({
         inlineData: {
-          data: cleanBase64,
-          mimeType: image.mimeType,
+          data: optimized.data,
+          mimeType: optimized.mimeType,
         },
       });
     }
