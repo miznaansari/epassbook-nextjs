@@ -82,8 +82,17 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         if (res.ok) {
           count++;
         } else {
-          const errData = await res.json();
-          throw new Error(errData.error || errData.message || 'Failed to create transaction.');
+          let errText = 'Failed to create transaction.';
+          try {
+            const errData = await res.json();
+            errText = errData.error || errData.message || errText;
+          } catch (e) {
+            try {
+              const raw = await res.text();
+              if (raw) errText = raw.slice(0, 100);
+            } catch (e2) {}
+          }
+          throw new Error(errText);
         }
       }
 
@@ -654,21 +663,35 @@ export default function Assistant() {
 
   // Compress & prepare large mobile camera images on client before state assignment
   const compressClientImage = (file) => {
-    return new Promise((resolve, reject) => {
-      const originalSize = file.size;
+    return new Promise((resolve) => {
+      const originalSize = file?.size || 0;
+      const fileName = file?.name || 'Receipt Image';
+      const fileMime = file?.type || 'image/jpeg';
+
       const reader = new FileReader();
 
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
+      reader.onerror = () => {
+        resolve({
+          data: '',
+          previewUrl: '',
+          name: fileName,
+          mimeType: fileMime,
+          originalSizeStr: formatFileSize(originalSize),
+          compressedSizeStr: formatFileSize(originalSize),
+          isCompressed: false,
+        });
+      };
 
-        // If file is already small (< 1MB), no need for client canvas downscaling
-        if (originalSize < 1024 * 1024) {
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result || '';
+
+        // If file is already small (< 1MB) or reading failed, no client canvas downscaling needed
+        if (!dataUrl || originalSize < 1024 * 1024) {
           resolve({
             data: dataUrl,
             previewUrl: dataUrl,
-            name: file.name || 'Receipt Image',
-            mimeType: file.type || 'image/jpeg',
+            name: fileName,
+            mimeType: fileMime,
             originalSizeStr: formatFileSize(originalSize),
             compressedSizeStr: formatFileSize(originalSize),
             isCompressed: false,
@@ -677,69 +700,110 @@ export default function Assistant() {
         }
 
         // Downscale large mobile camera photo using offscreen canvas to prevent mobile memory spikes
-        const img = new Image();
-        img.onerror = () => {
-          // Fallback if image fails to decode on canvas
-          resolve({
-            data: dataUrl,
-            previewUrl: dataUrl,
-            name: file.name || 'Receipt Image',
-            mimeType: file.type || 'image/jpeg',
-            originalSizeStr: formatFileSize(originalSize),
-            compressedSizeStr: formatFileSize(originalSize),
-            isCompressed: false,
-          });
-        };
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
 
-        img.onload = () => {
-          try {
-            const MAX_DIM = 2048; // Crisp client-side max dimension
-            let width = img.width;
-            let height = img.height;
-
-            if (width > MAX_DIM || height > MAX_DIM) {
-              if (width > height) {
-                height = Math.round((height * MAX_DIM) / width);
-                width = MAX_DIM;
-              } else {
-                width = Math.round((width * MAX_DIM) / height);
-                height = MAX_DIM;
-              }
-            }
-
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-
-            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-            const approxCompressedBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
-
-            resolve({
-              data: compressedDataUrl,
-              previewUrl: compressedDataUrl,
-              name: file.name || 'Camera Photo',
-              mimeType: 'image/jpeg',
-              originalSizeStr: formatFileSize(originalSize),
-              compressedSizeStr: formatFileSize(approxCompressedBytes),
-              isCompressed: true,
-            });
-          } catch (err) {
-            console.warn('Canvas compression error, falling back:', err);
+          img.onerror = () => {
+            // Fallback if image fails to decode on canvas (e.g. raw HEIC in some browsers)
             resolve({
               data: dataUrl,
               previewUrl: dataUrl,
-              name: file.name || 'Receipt Image',
-              mimeType: file.type || 'image/jpeg',
+              name: fileName,
+              mimeType: fileMime,
               originalSizeStr: formatFileSize(originalSize),
               compressedSizeStr: formatFileSize(originalSize),
               isCompressed: false,
             });
-          }
-        };
+          };
 
-        img.src = dataUrl;
+          img.onload = () => {
+            try {
+              const MAX_DIM = 2048; // Crisp client-side max dimension
+              let width = img.naturalWidth || img.width || 0;
+              let height = img.naturalHeight || img.height || 0;
+
+              if (width <= 0 || height <= 0) {
+                resolve({
+                  data: dataUrl,
+                  previewUrl: dataUrl,
+                  name: fileName,
+                  mimeType: fileMime,
+                  originalSizeStr: formatFileSize(originalSize),
+                  compressedSizeStr: formatFileSize(originalSize),
+                  isCompressed: false,
+                });
+                return;
+              }
+
+              if (width > MAX_DIM || height > MAX_DIM) {
+                if (width > height) {
+                  height = Math.round((height * MAX_DIM) / width);
+                  width = MAX_DIM;
+                } else {
+                  width = Math.round((width * MAX_DIM) / height);
+                  height = MAX_DIM;
+                }
+              }
+
+              const canvas = document.createElement('canvas');
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              if (!ctx) {
+                resolve({
+                  data: dataUrl,
+                  previewUrl: dataUrl,
+                  name: fileName,
+                  mimeType: fileMime,
+                  originalSizeStr: formatFileSize(originalSize),
+                  compressedSizeStr: formatFileSize(originalSize),
+                  isCompressed: false,
+                });
+                return;
+              }
+
+              ctx.drawImage(img, 0, 0, width, height);
+
+              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+              const approxCompressedBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
+
+              resolve({
+                data: compressedDataUrl,
+                previewUrl: compressedDataUrl,
+                name: fileName,
+                mimeType: 'image/jpeg',
+                originalSizeStr: formatFileSize(originalSize),
+                compressedSizeStr: formatFileSize(approxCompressedBytes),
+                isCompressed: true,
+              });
+            } catch (err) {
+              console.warn('Canvas compression error, falling back:', err);
+              resolve({
+                data: dataUrl,
+                previewUrl: dataUrl,
+                name: fileName,
+                mimeType: fileMime,
+                originalSizeStr: formatFileSize(originalSize),
+                compressedSizeStr: formatFileSize(originalSize),
+                isCompressed: false,
+              });
+            }
+          };
+
+          img.src = dataUrl;
+        } catch (err) {
+          console.warn('Image loading error, falling back:', err);
+          resolve({
+            data: dataUrl,
+            previewUrl: dataUrl,
+            name: fileName,
+            mimeType: fileMime,
+            originalSizeStr: formatFileSize(originalSize),
+            compressedSizeStr: formatFileSize(originalSize),
+            isCompressed: false,
+          });
+        }
       };
 
       reader.readAsDataURL(file);
@@ -751,8 +815,9 @@ export default function Assistant() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please select a valid image file (PNG, JPG, WEBP).');
+    const isImage = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(file.name || '');
+    if (!isImage) {
+      setError('Please select a valid image file (PNG, JPG, WEBP, HEIC).');
       return;
     }
 
@@ -761,7 +826,9 @@ export default function Assistant() {
 
     try {
       const processed = await compressClientImage(file);
-      setAttachedImage(processed);
+      if (processed && processed.data) {
+        setAttachedImage(processed);
+      }
     } catch (err) {
       console.error('Error processing image:', err);
       setError('Failed to process image file.');
@@ -785,10 +852,12 @@ export default function Assistant() {
           setError('');
           try {
             const processed = await compressClientImage(file);
-            setAttachedImage({
-              ...processed,
-              name: 'Pasted Image',
-            });
+            if (processed && processed.data) {
+              setAttachedImage({
+                ...processed,
+                name: 'Pasted Image',
+              });
+            }
           } catch (err) {
             console.error('Error processing pasted image:', err);
             setError('Failed to process pasted image.');
@@ -941,8 +1010,17 @@ export default function Assistant() {
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Failed to generate response.');
+        let errorMsg = 'Failed to generate response.';
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || errorData.message || errorMsg;
+        } catch (e) {
+          try {
+            const rawText = await res.text();
+            if (rawText) errorMsg = rawText.slice(0, 120);
+          } catch (e2) {}
+        }
+        throw new Error(errorMsg);
       }
 
       // Read streamed chunk values!
@@ -986,10 +1064,10 @@ export default function Assistant() {
     if (isListening) {
       // User is stopping recording
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
+        try { mediaRecorderRef.current.stop(); } catch (e) {}
       }
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try { recognitionRef.current.stop(); } catch (e) {}
       }
       setIsListening(false);
       return;
@@ -1001,16 +1079,24 @@ export default function Assistant() {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioChunksRef.current = [];
 
-        // Pick supported mime type
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-          ? 'audio/webm;codecs=opus'
-          : MediaRecorder.isTypeSupported('audio/webm')
-            ? 'audio/webm'
-            : MediaRecorder.isTypeSupported('audio/mp4')
-              ? 'audio/mp4'
-              : '';
+        // Pick supported mime type with safe fallbacks
+        let mediaRecorder;
+        try {
+          let mimeType = '';
+          if (typeof MediaRecorder.isTypeSupported === 'function') {
+            if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+              mimeType = 'audio/webm;codecs=opus';
+            } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+              mimeType = 'audio/webm';
+            } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+              mimeType = 'audio/mp4';
+            }
+          }
+          mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        } catch (recErr) {
+          mediaRecorder = new MediaRecorder(stream);
+        }
 
-        const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
 
         mediaRecorder.ondataavailable = (e) => {
@@ -1021,11 +1107,13 @@ export default function Assistant() {
 
         mediaRecorder.onstop = async () => {
           // Stop all mic tracks
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach(track => {
+            try { track.stop(); } catch (e) {}
+          });
 
           if (audioChunksRef.current.length === 0) return;
 
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
           setIsTranscribingAudio(true);
           setError('');
 
@@ -1039,13 +1127,13 @@ export default function Assistant() {
             });
 
             if (res.ok) {
-              const data = await res.json();
+              const data = await res.json().catch(() => ({}));
               if (data.transcript) {
                 setInput(prev => prev ? `${prev} ${data.transcript}` : data.transcript);
               }
             } else {
-              const errData = await res.json();
-              console.warn('Sarvam transcription fallback:', errData.error);
+              const errData = await res.json().catch(() => ({}));
+              console.warn('Sarvam transcription fallback:', errData?.error);
             }
           } catch (sttErr) {
             console.error('Sarvam STT Error:', sttErr);
@@ -1072,7 +1160,11 @@ export default function Assistant() {
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = 'hi-IN'; // Multi-lingual (Hindi & Indian English)
+      try {
+        recognition.lang = 'hi-IN'; // Multi-lingual (Hindi & Indian English)
+      } catch (e) {
+        try { recognition.lang = 'en-US'; } catch (e2) {}
+      }
       recognition.continuous = false;
       recognition.interimResults = true;
 
