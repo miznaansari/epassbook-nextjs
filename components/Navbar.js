@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { setPendingCameraPhoto } from '@/lib/cameraBridge';
 import { 
   Wallet, 
   LayoutDashboard, 
@@ -23,15 +24,38 @@ import {
   Coins,
   Cpu,
   Sparkles,
-  Layers
+  Layers,
+  Camera
 } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [moreDropdownOpen, setMoreDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const cameraInputRef = useRef(null);
+
+  const handleCameraOpen = () => {
+    if (cameraInputRef.current) {
+      cameraInputRef.current.click();
+    }
+  };
+
+  const handleCameraCaptured = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input so subsequent captures trigger change event
+    e.target.value = '';
+
+    await setPendingCameraPhoto(file);
+
+    if (pathname !== '/assistant') {
+      router.push('/assistant?attachCamera=true');
+    }
+  };
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -223,7 +247,28 @@ export default function Navbar() {
           </nav>
 
           {/* User Actions & Mobile Hamburger */}
-          <div className="flex items-center gap-3 shrink-0" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
+            {/* Mobile Camera Quick-Capture Button */}
+            <button
+              type="button"
+              onClick={handleCameraOpen}
+              className="md:hidden p-2 text-violet-300 hover:text-white bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/30 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.2)]"
+              aria-label="Open Camera to scan receipt"
+              title="Open camera to scan receipt"
+            >
+              <Camera className="w-5 h-5 text-violet-400" />
+            </button>
+
+            {/* Hidden native camera capture input */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handleCameraCaptured}
+            />
+
             <div className="flex items-center gap-2 max-w-[150px]">
               <div className="relative group">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-75 transition duration-500"></div>

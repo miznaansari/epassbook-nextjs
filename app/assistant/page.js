@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getPendingCameraPhoto } from '@/lib/cameraBridge';
 import {
   Sparkles,
   Send,
@@ -583,18 +584,25 @@ export default function Assistant() {
         if (selectLatest && data.length > 0 && !activeSessionId) {
           setActiveSessionId(data[0].id);
         }
+        return data;
       }
     } catch (err) {
       console.error('Failed to load chat sessions:', err);
     } finally {
       setIsLoadingSessions(false);
     }
+    return [];
   };
 
   // Initial load
   useEffect(() => {
     if (user) {
-      loadSessions(true);
+      loadSessions(true).then(async (loadedSessions) => {
+        const pendingFile = await getPendingCameraPhoto();
+        if (pendingFile) {
+          attachCapturedPhoto(pendingFile, loadedSessions);
+        }
+      });
     }
   }, [user]);
 
@@ -747,6 +755,55 @@ export default function Assistant() {
     await handleFileProcess(file);
     e.target.value = '';
   };
+
+  // Attach captured photo from mobile top navbar to the first session
+  const attachCapturedPhoto = async (file, targetSessions = null) => {
+    if (!file) return;
+
+    // Switch to first session if available
+    const currentSessions = targetSessions || sessions;
+    if (currentSessions && currentSessions.length > 0) {
+      if (activeSessionId !== currentSessions[0].id) {
+        setActiveSessionId(currentSessions[0].id);
+      }
+    }
+
+    // Process and attach image (uploads to Cloudflare R2 and sets attachedImage preview)
+    await handleFileProcess(file, 'Camera Receipt Photo');
+
+    // Scroll smoothly to bottom so preview pill & Send button are prominently displayed
+    setTimeout(() => {
+      scrollToBottom();
+    }, 150);
+  };
+
+  // Listen for camera photos captured from top navbar while on assistant page
+  useEffect(() => {
+    const handleCameraCapturedEvent = (e) => {
+      const capturedFile = e.detail?.file;
+      if (capturedFile) {
+        attachCapturedPhoto(capturedFile, sessions);
+      }
+    };
+
+    window.addEventListener('assistant-attach-camera-photo', handleCameraCapturedEvent);
+    return () => window.removeEventListener('assistant-attach-camera-photo', handleCameraCapturedEvent);
+  }, [sessions, activeSessionId]);
+
+  // Check if a camera photo was captured before navigating to assistant
+  useEffect(() => {
+    let isMounted = true;
+    const checkPendingPhoto = async () => {
+      const pendingFile = await getPendingCameraPhoto();
+      if (pendingFile && isMounted) {
+        attachCapturedPhoto(pendingFile, sessions);
+      }
+    };
+    checkPendingPhoto();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Handle Paste Event from Clipboard (Ctrl+V / Cmd+V)
   const handlePaste = async (e) => {
