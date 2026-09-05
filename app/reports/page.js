@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import ReportsMobile from '@/components/ReportsMobile';
+import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion } from 'framer-motion';
 import {
   AreaChart,
@@ -530,10 +531,10 @@ export default function Reports() {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-slate-950/70 border border-white/10 p-3 rounded-xl shadow-2xl backdrop-blur-2xl text-left">
-          <p className="text-xs font-bold text-slate-500 mb-1.5">{label}</p>
+        <div className="bg-[#0a0a0c] border border-white/[0.08] p-3 rounded-xl shadow-2xl backdrop-blur-xl text-left font-mono">
+          <p className="text-[11px] font-semibold text-slate-400 mb-1.5">{label}</p>
           {payload.map((item, index) => (
-            <p key={index} className="text-xs font-black tracking-tight flex items-center gap-2" style={{ color: item.color || item.fill }}>
+            <p key={index} className="text-xs font-semibold tracking-tight flex items-center gap-2" style={{ color: item.color || item.fill }}>
               <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.fill }}></span>
               {item.name}: {formatCurrency(item.value)}
             </p>
@@ -549,13 +550,12 @@ export default function Reports() {
       <>
         <Navbar />
         {loadingData ? (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-[#030712] px-6 text-center select-none relative overflow-hidden">
-            <div className="absolute inset-0 bg-radial-gradient from-violet-600/5 via-transparent to-transparent opacity-50 blur-3xl pointer-events-none"></div>
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="w-14 h-14 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-6"></div>
-              <h3 className="text-white font-extrabold text-lg tracking-tight mb-1">Reports & Analytics</h3>
-              <p className="text-slate-400 text-xs font-semibold animate-pulse">Assembling financial intelligence charts...</p>
+          <div className="min-h-screen flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
+            <div className="w-12 h-12 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 flex items-center justify-center shadow-lg shadow-[#5E6AD2]/10 mb-4 animate-pulse">
+              <AreaIcon className="w-6 h-6 text-[#5E6AD2]" />
             </div>
+            <h3 className="text-white font-semibold text-base tracking-tight mb-1">Reports & Analytics</h3>
+            <p className="text-slate-400 text-xs font-mono">Synthesizing ledger intelligence...</p>
           </div>
         ) : (
           <ReportsMobile
@@ -597,78 +597,83 @@ export default function Reports() {
       <Navbar />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
-
         {/* Row 1: Header Titles */}
         <div className="text-left mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
-            <AreaIcon className="w-8 h-8 text-violet-400" /> Analytics & Reports
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] text-[10px] font-mono uppercase tracking-wider rounded-md">
+              Intelligence
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">FINANCIAL AUDIT</span>
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2.5">
+            <AreaIcon className="w-7 h-7 text-[#5E6AD2]" /> Analytics & Reports
           </h1>
-          <p className="text-slate-400 text-sm mt-1 font-medium">Explore Gen-Z style charts and deep monthly spending insights.</p>
+          <p className="text-slate-400 text-xs mt-1">Multi-cycle financial metrics, liquidity trends, and asset allocation</p>
         </div>
 
         {loadingData ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[1, 2, 3, 4].map(n => (
-              <div key={n} className="h-80 bg-white/5 rounded-2xl animate-pulse"></div>
+              <div key={n} className="h-72 bg-white/[0.02] border border-white/[0.04] rounded-2xl animate-pulse"></div>
             ))}
           </div>
         ) : (
-          <div className="space-y-8">
-
-            {/* Premium Stats Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              
+          <div className="space-y-6">
+            {/* Linear Stats Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
               {/* Card 1: Cycle Cashflow */}
-              <div className="glass-card p-5">
+              <SpotlightCard className="p-5 flex items-start justify-between" spotlightColor="rgba(94, 106, 210, 0.12)">
                 <div className="text-left">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
                     Cycle Net Cashflow
                   </span>
-                  <h3 className="text-xl font-black text-white mt-1">
+                  <h3 className="text-2xl font-bold font-mono text-white tracking-tight mt-1">
                     {formatCurrency(currentPeriodStats.totalInflow - currentPeriodStats.totalOutflow)}
                   </h3>
-                  <div className="text-[10px] text-slate-500 font-bold mt-1.5 uppercase">
-                    In: <span className="text-emerald-400">{formatCurrency(currentPeriodStats.totalInflow)}</span> | Out: <span className="text-rose-400">{formatCurrency(currentPeriodStats.totalOutflow)}</span>
+                  <div className="text-[11px] font-mono text-slate-400 mt-2 flex items-center gap-2">
+                    <span>In: <strong className="text-emerald-400 font-semibold">{formatCurrency(currentPeriodStats.totalInflow)}</strong></span>
+                    <span className="text-slate-600">|</span>
+                    <span>Out: <strong className="text-rose-400 font-semibold">{formatCurrency(currentPeriodStats.totalOutflow)}</strong></span>
                   </div>
                 </div>
-                <div className="p-3 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-xl">
-                  <Coins className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
+                  <Coins className="w-5 h-5 text-[#5E6AD2]" />
                 </div>
-              </div>
+              </SpotlightCard>
 
               {/* Card 2: Ledger Savings */}
-              <div className="glass-card p-5">
+              <SpotlightCard className="p-5 flex items-start justify-between" spotlightColor="rgba(245, 158, 11, 0.1)">
                 <div className="text-left">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
                     Ledger Invested Savings
                   </span>
-                  <h3 className="text-xl font-black text-white mt-1">
+                  <h3 className="text-2xl font-bold font-mono text-amber-400 tracking-tight mt-1">
                     {formatCurrency(currentPeriodStats.totalSavings)}
                   </h3>
-                  <p className="text-[10px] text-slate-500 font-bold mt-1.5 uppercase">
-                    Total tracked in epassbook
+                  <p className="text-[11px] font-mono text-slate-500 mt-2">
+                    Accumulated savings logged
                   </p>
                 </div>
-                <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl">
-                  <PiggyBank className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
+                  <PiggyBank className="w-5 h-5 text-amber-400" />
                 </div>
-              </div>
+              </SpotlightCard>
 
               {/* Card 3: Share Market Portfolio */}
-              <div className="glass-card p-5">
+              <SpotlightCard className="p-5 flex items-start justify-between" spotlightColor="rgba(6, 182, 212, 0.1)">
                 <div className="text-left">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Share Market Portfolio
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                    Equity Market Portfolio
                   </span>
-                  <h3 className="text-xl font-black text-white mt-1">
+                  <h3 className="text-2xl font-bold font-mono text-white tracking-tight mt-1">
                     {formatCurrency(stockSummary.totalCurrentValue)}
                   </h3>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase">
+                  <div className="flex flex-wrap items-center gap-2 mt-2 font-mono text-[11px]">
+                    <span className="text-slate-400">
                       Invested: {formatCurrency(stockSummary.totalInvested)}
                     </span>
                     {stockSummary.totalInvested > 0 && (
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded flex items-center gap-0.5 ${
+                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                         stockSummary.totalReturns >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
                       }`}>
                         {stockSummary.totalReturns >= 0 ? '+' : ''}{stockSummary.totalReturnsPercentage.toFixed(1)}%
@@ -676,57 +681,56 @@ export default function Reports() {
                     )}
                   </div>
                 </div>
-                <div className="p-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl">
-                  <Briefcase className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
+                  <Briefcase className="w-5 h-5 text-[#06B6D4]" />
                 </div>
-              </div>
-
+              </SpotlightCard>
             </div>
  
-            {/* Premium GitHub-Style Contribution Calendar and Shadcn-Style Date Selector */}
-            <div className="glass-card p-6 space-y-6 text-left">
+            {/* Linear Contribution Calendar and Date Selector */}
+            <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 space-y-6 text-left">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <CalendarIcon className="w-5 h-5 text-violet-400" /> Transaction Contribution Calendar
+                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-[#5E6AD2]" /> Transaction Contribution Calendar
                   </h3>
-                  <p className="text-xs text-slate-400 font-medium">
-                    Track cashflows visually across the year. Hover over cells to see details or select any date to explore.
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Yearly cashflow velocity. Click any day to inspect ledger events.
                   </p>
                 </div>
                 
                 {/* Legend explaining the colors */}
-                <div className="flex flex-wrap gap-2 text-[10px] font-bold text-slate-400 bg-slate-950/40 p-2 rounded-xl border border-white/5">
+                <div className="flex flex-wrap gap-2 text-[10px] font-mono text-slate-400 bg-[#050506] p-2 rounded-xl border border-white/[0.06]">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-slate-900/40 border border-white/5"></span> No Activity
+                    <span className="w-2.5 h-2.5 rounded-sm bg-white/[0.03] border border-white/[0.08]"></span> Inactive
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-violet-900/40 border border-violet-500/20"></span> Spend Less
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#5E6AD2]/30 border border-[#5E6AD2]/50"></span> Low
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-violet-400"></span> Spend More
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#5E6AD2]"></span> High
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span> Salary
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#10B981]"></span> Salary
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-orange-500"></span> Loan
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#F97316]"></span> Loan
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-blue-500"></span> Lending
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#3B82F6]"></span> Lending
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded bg-cyan-500"></span> Advance
+                    <span className="w-2.5 h-2.5 rounded-sm bg-[#06B6D4]"></span> Advance
                   </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+              <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
                 {/* Left 3 cols: GitHub 12-Month Calendar Grid */}
-                <div className="xl:col-span-3 bg-white/[0.02] border border-white/[0.05] p-4 rounded-2xl flex flex-col justify-between overflow-hidden">
+                <div className="xl:col-span-3 bg-[#050506]/80 border border-white/[0.06] p-4 rounded-xl flex flex-col justify-between overflow-hidden">
                   <div className="relative">
                     {/* Month labels header */}
-                    <div className="h-6 relative text-[10px] font-bold text-slate-500 select-none">
+                    <div className="h-6 relative text-[10px] font-mono text-slate-400 select-none">
                       {(() => {
                         const daysList = getCalendarGridDays();
                         const labels = getMonthLabels(daysList);
@@ -977,18 +981,17 @@ export default function Reports() {
             </div>
 
             {/* Row 2: Triple Chart Columns (Income vs Outflow, Spending Trends, AND Balance & Savings) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
-
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
               {/* Chart A: Income vs Outflow Area Graph */}
-              <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
-                    <Coins className="w-5 h-5 text-emerald-400" /> Income vs Outflow
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+                    <Coins className="w-4 h-4 text-emerald-400" /> Income vs Outflow
                   </h3>
-                  <p className="text-xs text-slate-500 font-semibold mb-6">Compare cash inflows (salaries + advances) against cash outflows.</p>
+                  <p className="text-xs text-slate-400 font-mono mb-5">Cash inflows vs outflows per cycle</p>
                 </div>
 
-                <div className="h-64 w-full">
+                <div className="h-60 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
@@ -1001,9 +1004,9 @@ export default function Reports() {
                           <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#475569" fontSize={10} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
                       <Area type="monotone" dataKey="Inflow" stroke="#10B981" fillOpacity={1} fill="url(#colorInflow)" strokeWidth={2} />
                       <Area type="monotone" dataKey="Outflow" stroke="#F43F5E" fillOpacity={1} fill="url(#colorOutflow)" strokeWidth={2} />
@@ -1013,45 +1016,45 @@ export default function Reports() {
               </div>
 
               {/* Chart B: Monthly Spending Trends Bar Chart */}
-              <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
-                    <TrendingDown className="w-5 h-5 text-rose-400" /> Historical Spending Trends
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+                    <TrendingDown className="w-4 h-4 text-rose-400" /> Historical Spending
                   </h3>
-                  <p className="text-xs text-slate-500 font-semibold mb-6">Explore total spending amounts across the past six salary cycles.</p>
+                  <p className="text-xs text-slate-400 font-mono mb-5">Monthly expense trajectory across cycles</p>
                 </div>
 
-                <div className="h-64 w-full">
+                <div className="h-60 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#475569" fontSize={10} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Spending" fill="#F43F5E" radius={[8, 8, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="Spending" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
               {/* Chart C: Balance & Savings Trend Stacked Bar Chart */}
-              <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
-                    <PiggyBank className="w-5 h-5 text-amber-400" /> Balance & Savings
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+                    <PiggyBank className="w-4 h-4 text-amber-400" /> Balance & Savings
                   </h3>
-                  <p className="text-xs text-slate-500 font-semibold mb-6">Explore pocket balance left after all expenses, stacked with savings.</p>
+                  <p className="text-xs text-slate-400 font-mono mb-5">Pocket reserve + logged savings stacked</p>
                 </div>
 
-                <div className="h-64 w-full">
+                <div className="h-60 w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                      <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#475569" fontSize={10} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                      <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
+                      <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={30} />
-                      <Bar dataKey="Invested Savings" stackId="a" fill="#F59E0B" radius={[8, 8, 0, 0]} maxBarSize={30} />
+                      <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="Invested Savings" stackId="a" fill="#5E6AD2" radius={[4, 4, 0, 0]} maxBarSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -1059,35 +1062,35 @@ export default function Reports() {
             </div>
 
             {/* Row 3: Category Breakdown Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
-
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
               {/* Category Pie Chart */}
-              <div className="glass-card p-6 lg:col-span-2 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 lg:col-span-2 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
-                    <PieIcon className="w-5 h-5 text-violet-400" /> Current Cycle Spending breakdown
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+                    <PieIcon className="w-4 h-4 text-[#5E6AD2]" /> Cycle Spending Breakdown
                   </h3>
-                  <p className="text-xs text-slate-500 font-semibold mb-6">Visual breakdown of where your cash went in the current salary cycle.</p>
+                  <p className="text-xs text-slate-400 font-mono mb-5">Categorical distribution of expenditures in active cycle</p>
                 </div>
 
                 {pieChartData.length === 0 ? (
-                  <div className="py-20 text-center text-slate-500 font-medium">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                  <div className="py-16 text-center text-slate-500 font-mono text-xs">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     No spending logged in the current active billing cycle.
                   </div>
                 ) : (
-                  <div className="flex flex-col sm:flex-row items-center justify-around gap-6 h-64">
-                    {/* Left: Pie visual container */}
-                    <div className="w-48 h-48 shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-around gap-6 h-60">
+                    <div className="w-44 h-44 shrink-0">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
                             data={pieChartData}
                             cx="50%"
                             cy="50%"
-                            innerRadius={50}
-                            outerRadius={85}
-                            paddingAngle={2}
+                            innerRadius={48}
+                            outerRadius={80}
+                            paddingAngle={3}
+                            stroke="rgba(10,10,12,0.8)"
+                            strokeWidth={2}
                             dataKey="value"
                           >
                             {pieChartData.map((entry, index) => (
@@ -1099,15 +1102,14 @@ export default function Reports() {
                       </ResponsiveContainer>
                     </div>
 
-                    {/* Right: Legend list detailing exact amounts */}
-                    <div className="w-full space-y-2.5 max-w-xs">
+                    <div className="w-full space-y-2 max-w-xs font-mono text-xs">
                       {pieChartData.map((slice, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-xs border-b border-white/5 pb-1.5">
-                          <div className="flex items-center gap-2 font-bold text-white">
-                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[slice.name] }}></span>
+                        <div key={idx} className="flex items-center justify-between border-b border-white/[0.04] pb-1.5">
+                          <div className="flex items-center gap-2 text-slate-200">
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[slice.name] }}></span>
                             <span>{slice.name}</span>
                           </div>
-                          <span className="font-extrabold text-slate-400">{formatCurrency(slice.value)}</span>
+                          <span className="font-semibold text-white">{formatCurrency(slice.value)}</span>
                         </div>
                       ))}
                     </div>
@@ -1116,25 +1118,25 @@ export default function Reports() {
               </div>
 
               {/* Sidebar Category Stats summary card */}
-              <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-4">
-                    <PiggyBank className="w-5 h-5 text-cyan-400" /> Cycle Performance
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+                    <PiggyBank className="w-4 h-4 text-[#06B6D4]" /> Cycle Discipline
                   </h3>
-                  <div className="space-y-4">
-                    <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-left">
-                      <span className="text-[10px] uppercase font-bold text-slate-500">Savings Target</span>
-                      <h4 className="text-md font-bold text-white mt-1">Spend less than Inflow</h4>
-                      <p className="text-xs text-slate-400 mt-2 font-semibold leading-relaxed">
-                        Keeping your outflows (Spendings + Lendings) below your inflows is the golden rule. Talk to your assistant to evaluate customized savings templates.
+                  <div className="space-y-3">
+                    <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl text-left">
+                      <span className="text-[10px] uppercase font-mono text-slate-400">Target Rule</span>
+                      <h4 className="text-xs font-semibold text-white mt-1">Inflow &gt; Outflow Velocity</h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        Maintaining net cashflow surplus preserves safety buffer for upcoming cycles.
                       </p>
                     </div>
 
-                    <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl text-left">
-                      <span className="text-[10px] uppercase font-bold text-slate-500">Auto Deductions</span>
-                      <h4 className="text-md font-bold text-white mt-1">Salary Balance Tracking</h4>
-                      <p className="text-xs text-slate-400 mt-2 font-semibold leading-relaxed">
-                        Your Salary Balance dynamically adapts when checking "Use Salary Balance" during transaction logs. Ensure logs are mapped to the correct cycle!
+                    <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl text-left">
+                      <span className="text-[10px] uppercase font-mono text-slate-400">Auto Deduction</span>
+                      <h4 className="text-xs font-semibold text-white mt-1">Salary Balance Synchronization</h4>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        Balances adjust when checking "Use Salary Balance" during transaction entries.
                       </p>
                     </div>
                   </div>
@@ -1142,7 +1144,7 @@ export default function Reports() {
 
                 <Link
                   href="/transactions"
-                  className="mt-6 w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-xs font-black tracking-wider text-center uppercase transition-all"
+                  className="mt-5 btn-linear-secondary text-xs text-center py-2.5 flex items-center justify-center gap-1.5"
                 >
                   View Passbook Ledger
                 </Link>
@@ -1150,31 +1152,31 @@ export default function Reports() {
             </div>
 
             {/* Row 4: Stocks Portfolio Performance & Allocation */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 text-left">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
               {/* Stock Growth Comparison Bar Chart */}
-              <div className="glass-card p-6 lg:col-span-2 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 lg:col-span-2 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-2">
-                    <Briefcase className="w-5 h-5 text-violet-400" /> Stock Portfolio Performance
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
+                    <Briefcase className="w-4 h-4 text-[#5E6AD2]" /> Stock Portfolio Performance
                   </h3>
-                  <p className="text-xs text-slate-500 font-semibold mb-6">Compare money added (Invested Value) vs the current market value of your holdings.</p>
+                  <p className="text-xs text-slate-400 font-mono mb-5">Invested capital vs live market valuation</p>
                 </div>
 
                 {stockHoldings.length === 0 ? (
-                  <div className="py-20 text-center text-slate-500 font-medium">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-3 opacity-30" />
+                  <div className="py-16 text-center text-slate-500 font-mono text-xs">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     No stocks logged in your Groww portfolio ledger.
-                    <div className="mt-4">
+                    <div className="mt-3">
                       <Link
                         href="/stocks"
-                        className="px-4 py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 text-violet-400 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                        className="btn-linear-secondary text-xs inline-flex items-center gap-1 px-3 py-1.5"
                       >
                         Add Stocks
                       </Link>
                     </div>
                   </div>
                 ) : (
-                  <div className="h-64 w-full">
+                  <div className="h-60 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={stockHoldings.map(h => ({
@@ -1184,21 +1186,22 @@ export default function Reports() {
                         }))}
                         margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                        <XAxis dataKey="name" stroke="#475569" fontSize={10} tickLine={false} />
-                        <YAxis stroke="#475569" fontSize={10} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
+                        <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: '#0f172a',
+                            backgroundColor: '#0a0a0c',
                             border: '1px solid rgba(255,255,255,0.08)',
                             borderRadius: '12px',
                             fontSize: '11px',
-                            fontFamily: 'inherit',
+                            fontFamily: 'monospace',
+                            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
                           }}
                           formatter={(value) => [formatCurrency(value), '']}
                         />
-                        <Bar dataKey="Invested" fill="#8b5cf6" radius={[6, 6, 0, 0]} maxBarSize={30} />
-                        <Bar dataKey="Current" fill="#06b6d4" radius={[6, 6, 0, 0]} maxBarSize={30} />
+                        <Bar dataKey="Invested" fill="#5E6AD2" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                        <Bar dataKey="Current" fill="#06B6D4" radius={[4, 4, 0, 0]} maxBarSize={28} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -1206,33 +1209,32 @@ export default function Reports() {
               </div>
 
               {/* Stock Allocation & Summary */}
-              <div className="glass-card p-6 flex flex-col justify-between">
+              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
                 <div>
-                  <h3 className="text-md font-bold text-white flex items-center gap-2 mb-4">
-                    <PieIcon className="w-5 h-5 text-cyan-400" /> Portfolio Holdings Weight
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+                    <PieIcon className="w-4 h-4 text-[#06B6D4]" /> Portfolio Holdings Weight
                   </h3>
 
                   {stockHoldings.length === 0 ? (
-                    <div className="py-12 text-center text-slate-500 font-medium">
+                    <div className="py-12 text-center text-slate-500 font-mono text-xs">
                       Log shares to view asset allocation.
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      {/* Interactive breakdown of top holdings */}
-                      <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                    <div className="space-y-3">
+                      <div className="space-y-2 max-h-52 overflow-y-auto pr-1 font-mono text-xs">
                         {stockHoldings.map((h, idx) => {
                           const weight = stockSummary.totalCurrentValue > 0 
                             ? ((h.currentValue / stockSummary.totalCurrentValue) * 100).toFixed(1) 
                             : '0.0';
                           return (
-                            <div key={idx} className="flex items-center justify-between text-xs border-b border-white/5 pb-2">
+                            <div key={idx} className="flex items-center justify-between border-b border-white/[0.04] pb-2">
                               <div className="flex flex-col text-left">
-                                <span className="font-extrabold text-white">{h.symbol.split('.')[0]}</span>
-                                <span className="text-[9px] text-slate-500 font-bold">{h.name}</span>
+                                <span className="font-semibold text-white">{h.symbol.split('.')[0]}</span>
+                                <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{h.name}</span>
                               </div>
                               <div className="text-right">
-                                <span className="font-extrabold text-slate-350">{formatCurrency(h.currentValue)}</span>
-                                <span className="block text-[9px] text-violet-400 font-black">{weight}%</span>
+                                <span className="text-slate-300 font-semibold">{formatCurrency(h.currentValue)}</span>
+                                <span className="block text-[10px] text-[#818cf8] font-semibold">{weight}%</span>
                               </div>
                             </div>
                           );
@@ -1243,9 +1245,9 @@ export default function Reports() {
                 </div>
 
                 {stockHoldings.length > 0 && (
-                  <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-slate-400">
-                    <span>Total Stocks Listed</span>
-                    <span className="text-white font-extrabold">{stockHoldings.length} Companies</span>
+                  <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs font-mono text-slate-400">
+                    <span>Holdings Count</span>
+                    <span className="text-white font-semibold">{stockHoldings.length} Positions</span>
                   </div>
                 )}
               </div>
@@ -1255,9 +1257,9 @@ export default function Reports() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-6">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium">
-          © {new Date().getFullYear()} Manage Monthly Money. Responsive Recharts Core.
+      <footer className="border-t border-white/[0.06] bg-[#050506]/60 backdrop-blur-xl py-6 mt-12">
+        <div className="max-w-7xl mx-auto px-6 text-slate-500 text-xs font-mono text-center">
+          © {new Date().getFullYear()} ePassbook Analytics & Reporting Engine.
         </div>
       </footer>
     </div>

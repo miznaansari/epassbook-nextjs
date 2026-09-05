@@ -39,7 +39,7 @@ export default function TransactionModal({
   // Split Deduction popup/view state
   const [splitViewOpen, setSplitViewOpen] = useState(false);
   const [insufficientInfo, setInsufficientInfo] = useState(null);
-  const [checkedMonths, setCheckedMonths] = useState([]); // Array of keys "year-month"
+  const [checkedMonths, setCheckedMonths] = useState([]);
 
   // Fetch historical entries for autofill suggestions
   useEffect(() => {
@@ -146,7 +146,6 @@ export default function TransactionModal({
     const primaryMonthVal = parseInt(salaryMonth);
     const primaryYearVal = parseInt(salaryYear);
 
-    // Primary month balance info
     const primaryMonthBalInfo = insufficientInfo.availableBalances.find(
       b => b.month === primaryMonthVal && b.year === primaryYearVal
     );
@@ -155,7 +154,6 @@ export default function TransactionModal({
     const primaryBonusRem = primaryMonthBalInfo ? primaryMonthBalInfo.bonus.remaining : 0;
     const primaryTotalAvailable = primarySalaryRem + primaryBonusRem;
 
-    // Deduct from primary month first
     const primaryAllocated = Math.min(targetAmount, primaryTotalAvailable);
     let remainingToAllocate = targetAmount - primaryAllocated;
 
@@ -168,12 +166,11 @@ export default function TransactionModal({
       }
     ];
 
-    // Distribute among checked other months
     for (const key of checkedMonths) {
       if (remainingToAllocate <= 0) break;
 
       const [y, m] = key.split('-').map(Number);
-      if (m === primaryMonthVal && y === primaryYearVal) continue; // Skip primary
+      if (m === primaryMonthVal && y === primaryYearVal) continue;
 
       const mBal = insufficientInfo.availableBalances.find(b => b.month === m && b.year === y);
       if (!mBal) continue;
@@ -254,22 +251,16 @@ export default function TransactionModal({
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-
       if (res.ok) {
-        onClose();
-        if (onSuccess) onSuccess();
+        onSuccess?.();
+        onClose?.();
       } else {
-        if (data.error === 'INSUFFICIENT_BALANCE') {
-          // Trigger split view
-          setInsufficientInfo({
-            selectedMonth: salaryMonth,
-            requiredAmount: parseFloat(amount),
-            availableBalances: data.availableBalances
-          });
+        const errData = await res.json();
+        if (res.status === 409 && errData.insufficientInfo) {
+          setInsufficientInfo(errData.insufficientInfo);
           setSplitViewOpen(true);
         } else {
-          setError(data.error || 'Failed to save transaction.');
+          setError(errData.error || 'Failed to process transaction.');
         }
       }
     } catch (err) {
@@ -282,53 +273,50 @@ export default function TransactionModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
-          {/* Fading backdrop overlay */}
+        <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
+            className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer z-0"
           />
 
           <motion.div
-            initial={{ y: '100%', opacity: 0.5 }}
+            initial={{ y: "100%", opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: '100%', opacity: 0.5 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="relative w-full md:max-w-md bg-[#0b0f19] border border-white/10 rounded-t-3xl md:rounded-3xl shadow-2xl p-6 overflow-y-auto max-h-[92vh] md:max-h-[85vh] z-10 flex flex-col justify-between text-left"
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full md:max-w-md bg-[#0a0a0c] border border-white/10 rounded-t-3xl md:rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[92vh] md:max-h-[85vh] z-10 flex flex-col justify-between text-left"
           >
+            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+
             {/* Split view: Insufficient Balance Selector */}
             {splitViewOpen ? (
-              <div className="space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-orange-400" /> Insufficient Balance
+              <div className="space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-orange-400" /> Insufficient Single Month Balance
                   </h3>
                   <button
                     onClick={() => setSplitViewOpen(false)}
-                    className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/5 text-slate-400 hover:text-white rounded-lg transition-all"
+                    className="p-1 text-[#8A8F98] hover:text-white rounded-lg text-xs"
                   >
                     Back
                   </button>
                 </div>
 
-                <div className="bg-orange-500/10 border border-orange-500/20 p-4 rounded-xl text-xs space-y-1.5">
-                  <p className="font-extrabold text-orange-400">
-                    You don't have enough only in {monthNames[parseInt(salaryMonth)]}.
+                <div className="bg-orange-500/10 border border-orange-500/20 p-3.5 rounded-xl text-xs space-y-1">
+                  <p className="font-semibold text-orange-400">
+                    Remaining balance needed: <strong className="text-white">{formatCurrency(remainingToAllocate)}</strong>
                   </p>
-                  <p className="text-slate-400">
-                    Transaction amount: <strong className="text-white">{formatCurrency(parseFloat(amount))}</strong>.
-                  </p>
-                  <p className="text-slate-400">
-                    Please select one or more other months to deduct the remaining{' '}
-                    <strong className="text-white">{formatCurrency(remainingToAllocate)}</strong> from:
+                  <p className="text-[#8A8F98]">
+                    Select other salary months to distribute this deduction across:
                   </p>
                 </div>
 
                 {/* List of other months with balance */}
-                <div className="space-y-2.5 max-h-48 overflow-y-auto pr-1">
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                   {insufficientInfo?.availableBalances
                     .filter(b => !(b.month === parseInt(salaryMonth) && b.year === parseInt(salaryYear)))
                     .map(b => {
@@ -340,26 +328,26 @@ export default function TransactionModal({
                         <div
                           key={key}
                           onClick={() => toggleCheckedMonth(key)}
-                          className={`p-3 bg-slate-900/60 border rounded-xl flex items-center justify-between cursor-pointer transition-all ${
-                            isChecked ? 'border-violet-500/50 bg-violet-600/5' : 'border-white/5 hover:border-white/10'
+                          className={`p-2.5 bg-[#050506] border rounded-lg flex items-center justify-between cursor-pointer transition-colors ${
+                            isChecked ? 'border-[#5E6AD2] bg-[#5E6AD2]/10' : 'border-white/[0.06] hover:border-white/15'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${
-                              isChecked ? 'bg-violet-600 border-violet-500 text-white' : 'border-white/20 bg-transparent'
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center transition-colors ${
+                              isChecked ? 'bg-[#5E6AD2] border-[#5E6AD2] text-white' : 'border-white/20 bg-transparent'
                             }`}>
-                              {isChecked && <Check className="w-3 h-3" />}
+                              {isChecked && <Check className="w-2.5 h-2.5" />}
                             </div>
                             <div>
-                              <span className="text-xs font-bold text-white block">
+                              <span className="text-xs font-medium text-white block">
                                 {monthNames[b.month]} {b.year}
                               </span>
-                              <span className="text-[10px] text-slate-500">
-                                Salary: {formatCurrency(b.salary.remaining)} | Bonus: {formatCurrency(b.bonus.remaining)}
+                              <span className="text-[10px] text-[#8A8F98]">
+                                Available: {formatCurrency(totalAvail)}
                               </span>
                             </div>
                           </div>
-                          <span className="text-xs font-black text-emerald-400">
+                          <span className="text-xs font-mono text-emerald-400">
                             {formatCurrency(totalAvail)}
                           </span>
                         </div>
@@ -368,50 +356,50 @@ export default function TransactionModal({
                 </div>
 
                 {/* Allocation breakdown */}
-                <div className="bg-slate-950/40 p-4 border border-white/5 rounded-xl space-y-2 text-xs">
-                  <h4 className="font-extrabold text-slate-400 uppercase text-[10px] tracking-wider mb-2">
-                    Deduction Allocation
+                <div className="bg-[#050506] p-3.5 border border-white/[0.06] rounded-xl space-y-1.5 text-xs">
+                  <h4 className="font-mono text-[#8A8F98] uppercase text-[9px] tracking-wider mb-1.5">
+                    Deduction Allocation Plan
                   </h4>
                   {computedAllocations.map((a, index) => (
-                    <div key={index} className="flex justify-between items-center text-slate-300">
+                    <div key={index} className="flex justify-between items-center text-[#EDEDEF]">
                       <span>
-                        {monthNames[a.month]} {a.year} {a.isPrimary ? '(Selected)' : ''}
+                        {monthNames[a.month]} {a.year} {a.isPrimary ? '(Primary)' : ''}
                       </span>
-                      <span className="font-bold text-white">
+                      <span className="font-mono font-medium">
                         {formatCurrency(a.amount)}
                       </span>
                     </div>
                   ))}
 
-                  <div className="border-t border-white/5 pt-2 mt-2 flex justify-between items-center font-extrabold">
-                    <span className="text-slate-400">Remaining to Allocate</span>
-                    <span className={remainingToAllocate > 0.01 ? 'text-red-400' : 'text-emerald-400'}>
+                  <div className="border-t border-white/[0.06] pt-2 mt-1.5 flex justify-between items-center font-medium">
+                    <span className="text-[#8A8F98]">Remaining to Allocate</span>
+                    <span className={remainingToAllocate > 0.01 ? 'text-rose-400 font-mono' : 'text-emerald-400 font-mono'}>
                       {formatCurrency(remainingToAllocate)}
                     </span>
                   </div>
                 </div>
 
                 {error && (
-                  <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
+                  <div className="flex items-center gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                     <span>{error}</span>
                   </div>
                 )}
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex gap-2.5 pt-2">
                   <button
                     onClick={() => setSplitViewOpen(false)}
-                    className="flex-1 py-3 bg-slate-900 border border-white/10 hover:bg-slate-850 text-white rounded-xl font-bold text-sm transition-all"
+                    className="btn-linear-secondary flex-1 py-2 text-xs"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => handleSubmit(null, computedAllocations)}
                     disabled={loading || remainingToAllocate > 0.01}
-                    className="flex-1 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 disabled:opacity-40 disabled:pointer-events-none text-white rounded-xl font-bold text-sm transition-all btn-glow shadow-lg shadow-violet-600/20 flex items-center justify-center cursor-pointer"
+                    className="btn-linear-primary flex-1 py-2 text-xs flex items-center justify-center cursor-pointer"
                   >
                     {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : (
                       'Confirm & Log'
                     )}
@@ -422,46 +410,43 @@ export default function TransactionModal({
               // Main View: Form Inputs
               <div>
                 {/* Header */}
-                <div className="flex justify-between items-center pb-3 border-b border-white/10 mb-5">
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
-                    <Coins className="w-5 h-5 text-violet-400" />
-                    {parentLending ? 'Receive Repayment' : entryToEdit ? 'Edit Transaction' : 'Log Financial Entry'}
+                <div className="flex justify-between items-center pb-3 border-b border-white/[0.06] mb-4">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Coins className="w-4 h-4 text-[#818cf8]" />
+                    {parentLending ? 'Receive Repayment' : entryToEdit ? 'Edit Transaction' : 'Log Transaction'}
                   </h3>
                   <button
                     onClick={onClose}
-                    className="p-1 hover:bg-white/5 border border-transparent hover:border-white/10 text-slate-400 hover:text-white rounded-lg transition-all"
+                    className="p-1 text-[#8A8F98] hover:text-white rounded-lg transition-colors cursor-pointer"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
                 {/* Form */}
-                <form onSubmit={(e) => handleSubmit(e)} className="space-y-4">
+                <form onSubmit={(e) => handleSubmit(e)} className="space-y-3.5">
                   {error && (
-                    <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    <div className="flex items-center gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       <span>{error}</span>
                     </div>
                   )}
 
                   {parentLending && (
-                    <div className="bg-blue-600/10 border border-blue-500/20 p-4 rounded-xl text-xs space-y-1">
-                      <p className="font-extrabold text-blue-400">Lending Repayment</p>
-                      <p className="text-slate-350">
-                        Lent Amount: <strong className="text-white">{formatCurrency(parseFloat(parentLending.amount))}</strong>
-                      </p>
-                      <p className="text-slate-350">
-                        Unpaid Balance: <strong className="text-emerald-400">{formatCurrency(parentLending.unpaidAmount)}</strong>
+                    <div className="bg-blue-600/10 border border-blue-500/20 p-3 rounded-xl text-xs space-y-1">
+                      <p className="font-semibold text-blue-400">Lending Repayment</p>
+                      <p className="text-[#8A8F98]">
+                        Lent: <strong className="text-white">{formatCurrency(parseFloat(parentLending.amount))}</strong> | Unpaid: <strong className="text-emerald-400">{formatCurrency(parentLending.unpaidAmount)}</strong>
                       </p>
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     {/* Amount */}
                     <div>
-                      <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Amount</label>
+                      <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Amount</label>
                       <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8A8F98] font-mono text-xs">
                           {user?.currency || '$'}
                         </span>
                         <input
@@ -470,7 +455,7 @@ export default function TransactionModal({
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
                           placeholder="0.00"
-                          className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all font-semibold"
+                          className="w-full pl-8 pr-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                           required
                         />
                       </div>
@@ -478,12 +463,12 @@ export default function TransactionModal({
 
                     {/* Date */}
                     <div>
-                      <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Date</label>
+                      <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Date</label>
                       <input
                         type="date"
                         value={date}
                         onChange={(e) => setDate(e.target.value)}
-                        className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-violet-500 transition-all font-medium"
+                        className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                       />
                     </div>
                   </div>
@@ -491,17 +476,17 @@ export default function TransactionModal({
                   {/* Entry Type */}
                   {!parentLending && (
                     <div>
-                      <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Entry Type</label>
-                      <div className="grid grid-cols-5 gap-1.5 p-1 bg-slate-950/50 border border-white/5 rounded-xl">
+                      <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Type</label>
+                      <div className="grid grid-cols-5 gap-1 p-0.5 bg-[#050506] border border-white/[0.06] rounded-lg">
                         {['SPENDING', 'LENDING', 'LOAN', 'ADVANCE', 'SAVINGS'].map((t) => (
                           <button
                             key={t}
                             type="button"
                             onClick={() => setType(t)}
-                            className={`py-2 text-[9px] font-black uppercase rounded-lg transition-all cursor-pointer ${
+                            className={`py-1.5 text-[8px] font-mono uppercase rounded-md transition-all cursor-pointer ${
                               type === t
-                                ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-md'
-                                : 'text-slate-500 hover:text-slate-300'
+                                ? 'bg-white/[0.1] text-white border border-white/15 shadow-sm'
+                                : 'text-[#8A8F98] hover:text-white'
                             }`}
                           >
                             {t}
@@ -513,7 +498,7 @@ export default function TransactionModal({
 
                   {/* Title / Description */}
                   <div className="relative">
-                    <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Title</label>
+                    <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Title</label>
                     <input
                       type="text"
                       value={title}
@@ -522,8 +507,8 @@ export default function TransactionModal({
                         setShowSuggestions(true);
                       }}
                       onFocus={() => setShowSuggestions(true)}
-                      placeholder="e.g. Groceries, Bike Loan, John Dinner"
-                      className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all"
+                      placeholder="e.g. Groceries, Coffee, Bike Loan"
+                      className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                       autoComplete="off"
                       required
                     />
@@ -532,29 +517,27 @@ export default function TransactionModal({
                     <AnimatePresence>
                       {showSuggestions && filteredSuggestions.length > 0 && (
                         <motion.div
-                          initial={{ opacity: 0, y: -5 }}
+                          initial={{ opacity: 0, y: -4 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          className="absolute left-0 right-0 mt-1 bg-[#111827] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-[120] divide-y divide-white/[0.04]"
+                          exit={{ opacity: 0, y: -4 }}
+                          className="absolute left-0 right-0 mt-1 bg-[#0e0e12] border border-white/10 rounded-xl shadow-2xl max-h-48 overflow-y-auto z-[130] divide-y divide-white/[0.04]"
                         >
                           {filteredSuggestions.map((suggestion) => (
                             <button
                               key={suggestion.id}
                               type="button"
                               onClick={() => handleSelectSuggestion(suggestion)}
-                              className="w-full px-4 py-3 text-left hover:bg-violet-600/10 text-xs flex items-center justify-between transition-colors cursor-pointer"
+                              className="w-full px-3 py-2.5 text-left hover:bg-white/[0.04] text-xs flex items-center justify-between transition-colors cursor-pointer"
                             >
                               <div className="min-w-0 pr-2">
-                                <span className="font-bold text-white block truncate">{suggestion.title}</span>
-                                <span className="text-[10px] text-slate-500 uppercase font-black tracking-wider block mt-0.5">
+                                <span className="font-medium text-white block truncate">{suggestion.title}</span>
+                                <span className="text-[9px] font-mono text-[#8A8F98] uppercase">
                                   {suggestion.type}
                                 </span>
                               </div>
-                              <div className="shrink-0 flex items-center gap-1.5 bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg text-xs font-bold text-slate-300">
+                              <div className="shrink-0 flex items-center gap-1.5 px-2 py-0.5 rounded bg-white/[0.05] text-[10px] font-mono text-[#818cf8]">
                                 <span>Autofill</span>
-                                <span className="text-[11px] font-black text-violet-400">
-                                  {formatCurrency(parseFloat(suggestion.amount))}
-                                </span>
+                                <span>{formatCurrency(parseFloat(suggestion.amount))}</span>
                               </div>
                             </button>
                           ))}
@@ -564,39 +547,39 @@ export default function TransactionModal({
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 text-xs font-semibold uppercase mb-2">Description</label>
+                    <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Notes / Description</label>
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Add description..."
+                      placeholder="Add details (optional)..."
                       rows="2"
-                      className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 transition-all resize-none"
+                      className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] resize-none"
                     />
                   </div>
 
                   {!parentLending ? (
-                    <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-3">
+                    <div className="p-3 bg-[#050506] border border-white/[0.06] rounded-xl space-y-2">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id="modalUseSalaryCheckbox"
                           checked={useSalaryBalance}
                           onChange={(e) => setUseSalaryBalance(e.target.checked)}
-                          className="w-4 h-4 accent-violet-600 cursor-pointer"
+                          className="w-3.5 h-3.5 accent-[#5E6AD2] cursor-pointer"
                         />
-                        <label htmlFor="modalUseSalaryCheckbox" className="text-xs font-bold text-white cursor-pointer select-none">
-                          Use Salary Balance (Deduct from Salary)
+                        <label htmlFor="modalUseSalaryCheckbox" className="text-xs font-medium text-white cursor-pointer select-none">
+                          Deduct from Salary Balance
                         </label>
                       </div>
 
                       {useSalaryBalance && (
-                        <div className="grid grid-cols-2 gap-4 pt-2 border-t border-white/5">
+                        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-white/[0.04]">
                           <div>
-                            <label className="block text-slate-500 text-[10px] font-bold uppercase mb-1">Deduct Month</label>
+                            <label className="block text-[#8A8F98] text-[9px] font-mono uppercase mb-1">Month</label>
                             <select
                               value={salaryMonth}
                               onChange={(e) => setSalaryMonth(e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0b0f19] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-violet-500"
+                              className="w-full px-2.5 py-1.5 bg-[#0a0a0c] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                             >
                               {monthsList.map((m) => (
                                 <option key={m.value} value={m.value}>
@@ -606,12 +589,12 @@ export default function TransactionModal({
                             </select>
                           </div>
                           <div>
-                            <label className="block text-slate-500 text-[10px] font-bold uppercase mb-1">Deduct Year</label>
+                            <label className="block text-[#8A8F98] text-[9px] font-mono uppercase mb-1">Year</label>
                             <input
                               type="number"
                               value={salaryYear}
                               onChange={(e) => setSalaryYear(e.target.value)}
-                              className="w-full px-3 py-2 bg-[#0b0f19] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-violet-500"
+                              className="w-full px-2.5 py-1.5 bg-[#0a0a0c] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                             />
                           </div>
                         </div>
@@ -619,9 +602,8 @@ export default function TransactionModal({
                     </div>
                   ) : (
                     parentLending.useSalaryBalance && (
-                      <div className="p-4 bg-slate-950/30 border border-white/5 rounded-xl space-y-1 text-xs text-slate-400">
-                        <span className="font-bold text-white block mb-1">Salary Refund Details</span>
-                        This repayment will credit back to the salary month of the original lending transaction: <strong className="text-white">{parentLending.salaryMonth}/{parentLending.salaryYear}</strong>.
+                      <div className="p-3 bg-[#050506] border border-white/[0.06] rounded-xl text-xs text-[#8A8F98]">
+                        Refund will credit back to salary month: <strong className="text-white">{parentLending.salaryMonth}/{parentLending.salaryYear}</strong>.
                       </div>
                     )
                   )}
@@ -629,10 +611,10 @@ export default function TransactionModal({
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-bold text-sm transition-all btn-glow shadow-lg shadow-violet-600/20 cursor-pointer flex items-center justify-center"
+                    className="btn-linear-primary w-full py-2.5 text-xs flex items-center justify-center cursor-pointer"
                   >
                     {loading ? (
-                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     ) : parentLending ? (
                       'Log Repayment'
                     ) : entryToEdit ? (

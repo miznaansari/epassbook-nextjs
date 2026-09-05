@@ -47,7 +47,7 @@ export default function Transactions() {
   const [entries, setEntries] = useState([]);
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('ALL'); // ALL, SPENDING, LENDING, LOAN, ADVANCE
+  const [typeFilter, setTypeFilter] = useState('ALL');
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
@@ -111,8 +111,8 @@ export default function Transactions() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#050506]">
+        <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
       </div>
     );
   }
@@ -125,7 +125,6 @@ export default function Transactions() {
   });
 
   // Group entries month-wise for collapsible history
-  // Groups by date month/year
   const groupedEntries = {};
   filteredEntries.forEach(entry => {
     const d = new Date(entry.date);
@@ -146,41 +145,41 @@ export default function Transactions() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
       <Navbar />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
 
-        {/* Row 1: Header Titles */}
+        {/* Header Titles & Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
-              <ReceiptText className="w-8 h-8 text-violet-400" /> E-Passbook
+            <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
+              <ReceiptText className="w-7 h-7 text-[#818cf8]" /> E-Passbook
             </h1>
-            <p className="text-slate-400 text-sm mt-1 font-medium">Browse, search, and manage your complete historical ledger.</p>
+            <p className="text-[#8A8F98] text-xs mt-1">Audit, search, and manage your complete historical ledger entries.</p>
           </div>
 
           {/* Search and Type Filter Controls */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
             {/* Search Input */}
             <div className="relative w-full sm:w-64">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search description..."
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-950/60 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 font-medium"
+                placeholder="Search ledger..."
+                className="w-full pl-8 pr-3 py-2 bg-[#0a0a0c] border border-white/10 rounded-lg text-xs text-white placeholder-[#8A8F98]/50 focus:outline-none focus:border-[#5E6AD2]"
               />
-              <Search className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-600" />
+              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#8A8F98]" />
             </div>
 
             {/* Selector Dropdown */}
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-slate-950/60 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-violet-500 font-semibold w-full sm:w-auto"
+              className="bg-[#0a0a0c] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#5E6AD2] font-medium w-full sm:w-auto cursor-pointer"
             >
-              <option value="ALL">All Transactions</option>
+              <option value="ALL">All Categories</option>
               <option value="SPENDING">Spendings</option>
               <option value="LENDING">Lendings</option>
               <option value="LOAN">Loans</option>
@@ -190,60 +189,62 @@ export default function Transactions() {
           </div>
         </div>
 
-        {/* Row 2: Grouped Month-wise Passbook History list */}
+        {/* Grouped Month-wise Passbook History list */}
         {loadingEntries ? (
           <div className="space-y-6">
             {[1, 2].map(n => (
               <div key={n} className="space-y-3">
-                <div className="w-32 h-6 bg-white/5 rounded animate-pulse"></div>
-                <div className="glass-card p-6 border border-white/5 space-y-3">
+                <div className="w-32 h-5 bg-white/5 rounded animate-pulse" />
+                <div className="glass-card p-6 border border-white/[0.06] space-y-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="h-12 bg-white/5 rounded-xl animate-pulse"></div>
+                    <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />
                   ))}
                 </div>
               </div>
             ))}
           </div>
         ) : Object.keys(groupedEntries).length === 0 ? (
-          <div className="glass-card py-20 text-center border border-white/5">
-            <Wallet className="w-12 h-12 text-slate-600 mx-auto mb-4 opacity-30 animate-pulse" />
-            <h3 className="text-white text-lg font-bold">No Transactions Found</h3>
-            <p className="text-slate-500 text-sm mt-1 max-w-sm mx-auto">
-              We couldn't find any financial entries matching your criteria. Try adding some records on the dashboard first!
+          <div className="glass-card py-16 text-center border border-white/[0.06] rounded-2xl">
+            <Wallet className="w-8 h-8 text-[#8A8F98] mx-auto mb-3 opacity-30" />
+            <h3 className="text-white text-sm font-semibold">No Transactions Found</h3>
+            <p className="text-[#8A8F98] text-xs mt-1 max-w-sm mx-auto">
+              No entries match your search query or filter.
             </p>
           </div>
         ) : (
-          <div className="space-y-8 text-left">
+          <div className="space-y-6 text-left">
             {Object.entries(groupedEntries).map(([monthKey, list], groupIdx) => (
               <motion.div
                 key={monthKey}
-                initial={{ opacity: 0, y: 15 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: groupIdx * 0.05 }}
-                className="space-y-3"
+                transition={{ duration: 0.35, delay: groupIdx * 0.04 }}
+                className="space-y-2.5"
               >
                 {/* Month/Year Section Header */}
-                <h3 className="text-md font-extrabold text-violet-400 flex items-center gap-2 px-1">
-                  <Calendar className="w-4 h-4" /> {monthKey}
-                  <span className="text-[10px] bg-white/[0.04] border border-white/[0.08] px-2.5 py-0.5 rounded-full text-slate-400 font-bold uppercase tracking-wider">
-                    {list.length} {list.length === 1 ? 'record' : 'records'}
+                <div className="flex items-center gap-2 px-1">
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> {monthKey}
+                  </h3>
+                  <span className="text-[10px] bg-white/[0.04] border border-white/[0.06] px-2 py-0.2 rounded-full text-[#8A8F98] font-mono">
+                    {list.length} {list.length === 1 ? 'entry' : 'entries'}
                   </span>
-                </h3>
+                </div>
 
-                {/* Collapsible glassmorphic ledger table */}
-                <div className="glass-card p-4 sm:p-6 overflow-hidden">
+                {/* Ledger table */}
+                <div className="glass-card p-4 sm:p-5 border border-white/[0.06] rounded-2xl overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-300">
+                    <table className="w-full text-left text-xs text-[#8A8F98]">
                       <thead>
-                        <tr className="border-b border-white/5 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                        <tr className="border-b border-white/[0.06] text-[#8A8F98] text-[10px] font-mono uppercase tracking-widest">
                           <th className="pb-3">Title</th>
-                          <th className="pb-3">Type</th>
+                          <th className="pb-3">Category</th>
                           <th className="pb-3">Date</th>
                           <th className="pb-3 text-right">Amount</th>
                           <th className="pb-3 text-center">Action</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5">
+                      <tbody className="divide-y divide-white/[0.04]">
                         {list.map((entry) => {
                           const typeConfigs = {
                             SPENDING: { text: 'text-rose-400 bg-rose-500/10 border-rose-500/20', sign: '-' },
@@ -252,45 +253,45 @@ export default function Transactions() {
                             ADVANCE: { text: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', sign: '+' },
                             SAVINGS: { text: 'text-amber-400 bg-amber-500/10 border-amber-500/20', sign: '-' },
                           };
-                          const conf = typeConfigs[entry.type];
+                          const conf = typeConfigs[entry.type] || { text: 'text-[#8A8F98] bg-white/5 border-white/10', sign: '' };
 
                           return (
-                            <tr key={entry.id} className="hover:bg-white/5 transition-colors">
-                              <td className="py-3.5 pr-2">
-                                <div className="font-bold text-white text-sm">{entry.title}</div>
+                            <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors group">
+                              <td className="py-3 pr-2">
+                                <div className="font-medium text-white group-hover:text-[#EDEDEF]">{entry.title}</div>
                                 {entry.description && (
-                                  <div className="text-[10px] text-slate-500 font-semibold mt-0.5 max-w-sm truncate">
+                                  <div className="text-[10px] text-[#8A8F98] mt-0.5 max-w-sm truncate">
                                     {entry.description}
                                   </div>
                                 )}
                                 {entry.type === 'LENDING' && (
-                                  <div className="text-[10px] font-semibold mt-0.5">
+                                  <div className="text-[10px] mt-0.5">
                                     {entry.unpaidAmount === 0 ? (
-                                      <span className="text-emerald-400">✓ Fully Repaid</span>
+                                      <span className="text-emerald-400 font-medium">✓ Fully Repaid</span>
                                     ) : (
-                                      <span className="text-slate-400">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
+                                      <span className="text-[#8A8F98]">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
                                     )}
                                   </div>
                                 )}
                               </td>
-                              <td className="py-3.5 pr-2">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${conf.text}`}>
+                              <td className="py-3 pr-2">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono border uppercase tracking-wider ${conf.text}`}>
                                   {entry.type}
                                 </span>
                                 {entry.useSalaryBalance && (
-                                  <span className="block text-[8px] text-slate-500 mt-1 font-semibold">
-                                    Deducted from Salary ({entry.salaryMonth}/{entry.salaryYear})
+                                  <span className="block text-[8px] text-[#8A8F98] mt-0.5 font-mono">
+                                    Deducted ({entry.salaryMonth}/{entry.salaryYear})
                                   </span>
                                 )}
                               </td>
-                              <td className="py-3.5 pr-2 text-xs text-slate-400 font-semibold">
+                              <td className="py-3 pr-2 text-[11px] text-[#8A8F98] font-mono">
                                 {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
                               </td>
-                              <td className={`py-3.5 pr-2 text-right font-black tracking-tight text-md ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              <td className={`py-3 pr-2 text-right font-mono font-medium text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
                                 {conf.sign}{formatCurrency(entry.amount)}
                               </td>
-                              <td className="py-3.5 text-center">
-                                <div className="flex items-center justify-center gap-1.5">
+                              <td className="py-3 text-center">
+                                <div className="flex items-center justify-center gap-1">
                                   {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
                                     <button
                                       onClick={() => {
@@ -298,9 +299,9 @@ export default function Transactions() {
                                         setEntryModalOpen(true);
                                       }}
                                       title="Receive Repayment"
-                                      className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer active:scale-90 flex items-center justify-center"
+                                      className="p-1.5 text-[#8A8F98] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
                                     >
-                                      <Plus className="w-4 h-4" />
+                                      <Plus className="w-3.5 h-3.5" />
                                     </button>
                                   )}
                                   <button
@@ -308,15 +309,15 @@ export default function Transactions() {
                                       setEntryToEdit(entry);
                                       setEntryModalOpen(true);
                                     }}
-                                    className="p-2 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 border border-transparent hover:border-violet-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                    className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors cursor-pointer"
                                   >
-                                    <Pencil className="w-4 h-4" />
+                                    <Pencil className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteEntry(entry.id)}
-                                    className="p-2 text-slate-500 hover:text-rose-400 hover:bg-rose-500/5 border border-transparent hover:border-rose-500/10 rounded-xl transition-all cursor-pointer"
+                                    className="p-1.5 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                                   >
-                                    <Trash2 className="w-4 h-4" />
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
                               </td>
@@ -334,9 +335,9 @@ export default function Transactions() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-6">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium">
-          © {new Date().getFullYear()} Manage Monthly Money. Collapsible Passbook System.
+      <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
+        <div className="max-w-7xl mx-auto px-6 text-[#8A8F98] text-xs text-center font-mono">
+          © {new Date().getFullYear()} MonthlyMoney. Historical Audit Ledger.
         </div>
       </footer>
 

@@ -14,7 +14,6 @@ import {
   Calendar,
   CheckCircle,
   AlertCircle,
-  HelpCircle,
   Coins,
   Bell,
   Clock,
@@ -76,9 +75,9 @@ export default function Settings() {
 
     const checkStatus = () => {
       try {
-        const isOptedIn = OneSignal.User.PushSubscription.optedIn;
-        const subId = OneSignal.User.PushSubscription.id;
-        setOneSignalEnabled(isOptedIn);
+        const isOptedIn = OneSignal.User?.PushSubscription?.optedIn;
+        const subId = OneSignal.User?.PushSubscription?.id;
+        setOneSignalEnabled(!!isOptedIn);
         setOneSignalSubId(subId);
         setCheckingPush(false);
       } catch (err) {
@@ -86,19 +85,17 @@ export default function Settings() {
       }
     };
 
-    // Initial check
     checkStatus();
 
-    // Listen for changes dynamically
     try {
-      OneSignal.User.PushSubscription.addEventListener("change", checkStatus);
+      OneSignal.User?.PushSubscription?.addEventListener("change", checkStatus);
     } catch (err) {
       console.warn("[Settings] Error adding change listener:", err);
     }
 
     return () => {
       try {
-        OneSignal.User.PushSubscription.removeEventListener("change", checkStatus);
+        OneSignal.User?.PushSubscription?.removeEventListener("change", checkStatus);
       } catch (err) { }
     };
   }, []);
@@ -107,26 +104,18 @@ export default function Settings() {
     setError('');
     setSuccess('');
     try {
-      console.log("[Settings] Force Opt-in triggered by user.");
-
-      // Request browser/OS permissions manually
-      await OneSignal.Notifications.requestPermission();
-
-      // Force opt-in via PushSubscription namespace
-      const pushSubscription = OneSignal.User.PushSubscription;
+      await OneSignal.Notifications?.requestPermission();
+      const pushSubscription = OneSignal.User?.PushSubscription;
       if (pushSubscription) {
         await pushSubscription.optIn();
       }
-
-      // Trigger login using unique Firebase user ID
       if (user?.uid) {
         await OneSignal.login(user.uid);
       }
-
-      setSuccess("Web Push Notification permissions and subscription successfully registered!");
+      setSuccess("Push notification permissions registered successfully.");
     } catch (err) {
       console.error("Error during force opt-in:", err);
-      setError("Failed to register push subscription. Check browser notification settings.");
+      setError("Failed to register push subscription. Check browser notification permissions.");
     }
   };
 
@@ -167,8 +156,8 @@ export default function Settings() {
       });
 
       if (res.ok) {
-        setSuccess('Profile configurations successfully synchronized!');
-        await refreshUser(); // Refresh the AuthContext
+        setSuccess('Settings updated successfully.');
+        await refreshUser();
       } else {
         const payload = await res.json();
         setError(payload.error || 'Failed to update configurations.');
@@ -182,46 +171,45 @@ export default function Settings() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-[#050506]">
+        <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
       <Navbar />
 
-      <main className="flex-grow max-w-3xl w-full mx-auto px-6 py-8 pb-24 md:pb-12">
+      <main className="flex-grow max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-12">
 
-        {/* Row 1: Title Header */}
-        <div className="text-left mb-8">
-          <h1 className="text-3xl font-black text-white tracking-tight flex items-center gap-2">
-            <SettingsIcon className="w-8 h-8 text-violet-400" /> Account Configurations
+        {/* Title Header */}
+        <div className="text-left mb-6">
+          <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
+            <SettingsIcon className="w-7 h-7 text-[#818cf8]" /> Settings
           </h1>
-          <p className="text-slate-400 text-sm mt-1 font-medium">Configure profile settings, financial calendars, currency, and notification timings.</p>
+          <p className="text-[#8A8F98] text-xs mt-1">Configure profile preferences, salary calendar cycle, and notifications.</p>
         </div>
 
-        {/* Row 2: Settings Form Container */}
+        {/* Settings Form Container */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          className="glass-card p-6 sm:p-8 border border-white/5 shadow-2xl relative overflow-hidden text-left"
+          transition={{ duration: 0.25 }}
+          className="bg-[#0a0a0c] p-6 sm:p-8 border border-white/10 rounded-2xl shadow-2xl relative overflow-hidden text-left"
         >
-          {/* Top highlight bar */}
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400"></div>
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
           {/* Feedback messages */}
           {success && (
-            <div className="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-2">
+            <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg text-xs flex items-center gap-2">
               <CheckCircle className="w-4 h-4 shrink-0" />
               <span>{success}</span>
             </div>
           )}
 
           {error && (
-            <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
+            <div className="mb-5 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
@@ -229,32 +217,30 @@ export default function Settings() {
 
           <form onSubmit={handleSaveSettings} className="space-y-6">
 
-            {/* 1. Profile section */}
+            {/* Profile section */}
             <div className="space-y-4">
-              <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2">Profile & Calendar</h3>
+              <h3 className="text-xs font-mono uppercase tracking-widest text-[#8A8F98] border-b border-white/[0.06] pb-2">Profile & Schedule</h3>
 
-              {/* Field A: Profile Name */}
               <div>
-                <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                  <User className="w-4 h-4 text-violet-400" /> Display Name
+                <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1.5 flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-[#818cf8]" /> Display Name
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Enter your name"
-                  className="w-full px-4 py-3 bg-slate-950/30 border border-white/5 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
+                  className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white placeholder-[#8A8F98]/50 text-xs focus:outline-none focus:border-[#5E6AD2]"
                 />
               </div>
 
-              {/* Field B: Salary Cycle Date */}
               <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                    <Calendar className="w-4 h-4 text-violet-400" /> Salary Cycle Date
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[#8A8F98] text-[10px] font-mono uppercase flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> Salary Cycle Day
                   </label>
-                  <span className="text-[10px] bg-violet-600/15 border border-violet-500/20 px-2 py-0.5 rounded-full text-violet-400 font-extrabold">
-                    Active Date: {cycleDate}th
+                  <span className="text-[10px] bg-white/[0.05] border border-white/[0.08] px-2 py-0.5 rounded font-mono text-[#818cf8]">
+                    Day: {cycleDate}th
                   </span>
                 </div>
 
@@ -264,237 +250,152 @@ export default function Settings() {
                   onChange={(e) => setCycleDate(e.target.value)}
                   min="1"
                   max="31"
-                  placeholder="e.g. 7"
-                  className="w-full px-4 py-3 bg-slate-950/30 border border-white/5 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
+                  placeholder="e.g. 1"
+                  className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                 />
               </div>
             </div>
 
-            {/* 2. Preferred Currency */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2">Preferences</h3>
+            {/* Preferred Currency */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-mono uppercase tracking-widest text-[#8A8F98] border-b border-white/[0.06] pb-2">Currency</h3>
 
-              <div>
-                <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <Coins className="w-4 h-4 text-violet-400" /> Preferred Currency
-                </label>
-
-                <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { code: 'USD', name: 'US Dollar', symbol: '$' },
-                    { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
-                  ].map((curr) => {
-                    const isSelected = currency === curr.code;
-                    return (
-                      <button
-                        key={curr.code}
-                        type="button"
-                        onClick={() => setCurrency(curr.code)}
-                        className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer relative group ${isSelected
-                          ? 'bg-violet-600/10 border-violet-500/50 shadow-md shadow-violet-600/10 text-white'
-                          : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:bg-white/5'
-                          }`}
-                      >
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-violet-400 animate-pulse"></div>
-                        )}
-                        <span className="text-2xl font-black">{curr.symbol}</span>
-                        <span className="text-xs font-bold">{curr.name} ({curr.code})</span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { code: 'USD', name: 'US Dollar', symbol: '$' },
+                  { code: 'INR', name: 'Indian Rupee', symbol: '₹' },
+                ].map((curr) => {
+                  const isSelected = currency === curr.code;
+                  return (
+                    <button
+                      key={curr.code}
+                      type="button"
+                      onClick={() => setCurrency(curr.code)}
+                      className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#5E6AD2]/15 border-[#5E6AD2] text-white shadow-md'
+                          : 'bg-[#050506] border-white/[0.06] text-[#8A8F98] hover:text-white hover:border-white/15'
+                      }`}
+                    >
+                      <span className="text-xl font-semibold">{curr.symbol}</span>
+                      <span className="text-xs">{curr.name} ({curr.code})</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* 3. Notification Center & Timings */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2">Notifications & Triggers</h3>
+            {/* Notifications & Triggers */}
+            <div className="space-y-3.5">
+              <h3 className="text-xs font-mono uppercase tracking-widest text-[#8A8F98] border-b border-white/[0.06] pb-2">Alerts & Triggers</h3>
 
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 {/* Salary celebration */}
-                <label className="flex items-start gap-3 p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors">
+                <label className="flex items-start gap-3 p-3 bg-[#050506] border border-white/[0.06] rounded-xl cursor-pointer hover:border-white/10 transition-colors">
                   <input
                     type="checkbox"
                     checked={notifSalary}
                     onChange={(e) => setNotifSalary(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 accent-violet-500 rounded cursor-pointer"
+                    className="w-4 h-4 mt-0.5 accent-[#5E6AD2] rounded cursor-pointer"
                   />
                   <div className="text-left">
-                    <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
-                      <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> Salary Added Celebration
+                    <span className="block text-xs font-medium text-white flex items-center gap-1.5">
+                      <Volume2 className="w-3.5 h-3.5 text-emerald-400" /> Salary Celebration Overlay
                     </span>
-                    <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
-                      Show celebratory animated popups and congratulatory greetings when salary credit entries are added.
+                    <span className="block text-[10px] text-[#8A8F98] mt-0.5">
+                      Show celebratory visual cards when monthly salary inflows are credited.
                     </span>
                   </div>
                 </label>
 
-                {/* Daily Spend Reminder & Custom Timing Input */}
-                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
+                {/* Daily Reminder */}
+                <div className="p-3 bg-[#050506] border border-white/[0.06] rounded-xl space-y-2.5">
                   <label className="flex items-start gap-3 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={notifDaily}
                       onChange={(e) => setNotifDaily(e.target.checked)}
-                      className="w-4 h-4 mt-0.5 accent-violet-500 rounded cursor-pointer"
+                      className="w-4 h-4 mt-0.5 accent-[#5E6AD2] rounded cursor-pointer"
                     />
                     <div className="text-left">
-                      <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
-                        <Bell className="w-3.5 h-3.5 text-violet-400" /> Daily Spend Reminder
+                      <span className="block text-xs font-medium text-white flex items-center gap-1.5">
+                        <Bell className="w-3.5 h-3.5 text-[#818cf8]" /> Daily Spend Audit Reminder
                       </span>
-                      <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
-                        Schedule an alert asking how you spent money today. Custom timing below.
+                      <span className="block text-[10px] text-[#8A8F98] mt-0.5">
+                        Schedule a daily notification prompt to review expenditures.
                       </span>
                     </div>
                   </label>
 
                   {notifDaily && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="pl-7 pt-2 border-t border-white/5 flex items-center gap-3"
-                    >
-                      <label className="text-[10px] uppercase font-extrabold text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-cyan-400" /> Alert Time:
+                    <div className="pl-7 pt-2 border-t border-white/[0.04] flex items-center gap-2.5">
+                      <label className="text-[10px] font-mono uppercase text-[#8A8F98] flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-[#818cf8]" /> Alert Time:
                       </label>
                       <input
                         type="time"
                         value={dailyReminderTime}
                         onChange={(e) => setDailyReminderTime(e.target.value)}
-                        className="bg-slate-950/40 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
+                        className="bg-[#0a0a0c] border border-white/10 rounded px-2 py-1 text-xs text-white focus:outline-none focus:border-[#5E6AD2]"
                       />
-                    </motion.div>
+                    </div>
                   )}
                 </div>
 
-                {/* Daily Spending Summary Reminder & Custom Timing Input */}
-                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={notifDailySpend}
-                      onChange={(e) => setNotifDailySpend(e.target.checked)}
-                      className="w-4 h-4 mt-0.5 accent-violet-500 rounded cursor-pointer"
-                    />
+                {/* Push Notification OneSignal */}
+                <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="text-left">
-                      <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
-                        <Coins className="w-3.5 h-3.5 text-cyan-400" /> Daily Spend Summary Reminder
+                      <span className="block text-xs font-medium text-white flex items-center gap-1.5">
+                        <Bell className="w-3.5 h-3.5 text-[#818cf8]" /> Web Push Permissions
                       </span>
-                      <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
-                        Receive a daily message showing exactly how much you spent on that day (e.g. "On 23 May 2026, you spent 100 rs").
-                      </span>
-                    </div>
-                  </label>
-
-                  {notifDailySpend && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      className="pl-7 pt-2 border-t border-white/5 flex items-center gap-3"
-                    >
-                      <label className="text-[10px] uppercase font-extrabold text-slate-400 flex items-center gap-1">
-                        <Clock className="w-3 h-3 text-cyan-400" /> Alert Time:
-                      </label>
-                      <input
-                        type="time"
-                        value={dailySpendReminderTime}
-                        onChange={(e) => setDailySpendReminderTime(e.target.value)}
-                        className="bg-slate-950/40 border border-white/5 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-500 font-bold"
-                      />
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Cycle budget check */}
-                <label className="flex items-start gap-3 p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl cursor-pointer hover:bg-white/[0.04] transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={notifCycle}
-                    onChange={(e) => setNotifCycle(e.target.checked)}
-                    className="w-4 h-4 mt-0.5 accent-violet-500 rounded cursor-pointer"
-                  />
-                  <div className="text-left">
-                    <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1">
-                      <SettingsIcon className="w-3.5 h-3.5 text-cyan-400" /> End-Of-Cycle Budget Review
-                    </span>
-                    <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
-                      Triggers AI-driven prompt alerts summarizing your total savings versus expenditures at the end of every cycle.
-                    </span>
-                  </div>
-                </label>
-
-                {/* OneSignal Web Push Force Subscription Setting */}
-                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="text-left">
-                      <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                        <Bell className="w-4 h-4 text-violet-400 animate-bounce" /> Push Subscription (OneSignal)
-                      </span>
-                      <span className="block text-[10px] text-slate-500 font-semibold mt-0.5">
-                        Force-subscribe or check device-level registration status with OneSignal server.
+                      <span className="block text-[10px] text-[#8A8F98] mt-0.5">
+                        Registration status with OneSignal push service.
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 self-start sm:self-center">
+                    <div className="flex items-center gap-2">
                       {checkingPush ? (
-                        <span className="text-[10px] bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full text-slate-400 font-black tracking-wider uppercase">
+                        <span className="text-[9px] bg-white/5 border border-white/10 px-2 py-0.5 rounded text-[#8A8F98] font-mono">
                           Checking...
                         </span>
                       ) : oneSignalEnabled ? (
-                        <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full text-emerald-400 font-black tracking-wider uppercase flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" /> Subscribed
+                        <span className="text-[9px] bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded text-emerald-400 font-mono flex items-center gap-1">
+                          <CheckCircle className="w-2.5 h-2.5" /> Subscribed
                         </span>
                       ) : (
-                        <span className="text-[10px] bg-rose-500/10 border border-rose-500/20 px-2.5 py-1 rounded-full text-rose-400 font-black tracking-wider uppercase flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Unsubscribed
+                        <span className="text-[9px] bg-rose-500/10 border border-rose-500/20 px-2 py-0.5 rounded text-rose-400 font-mono flex items-center gap-1">
+                          <AlertCircle className="w-2.5 h-2.5" /> Inactive
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {oneSignalSubId && (
-                    <div className="pt-2.5 border-t border-white/5 flex flex-col gap-1 text-left">
-                      <span className="text-[9px] uppercase font-extrabold text-slate-500">
-                        Device Subscription ID:
-                      </span>
-                      <code className="text-[10px] font-mono bg-slate-950/40 border border-white/5 px-2.5 py-1.5 rounded-lg text-cyan-400 select-all break-all leading-normal">
-                        {oneSignalSubId}
-                      </code>
-                    </div>
-                  )}
-
-                  <div className="pt-2 border-t border-white/5 flex flex-col gap-2">
-                    <button
-                      type="button"
-                      onClick={handleForceOptIn}
-                      className="w-full py-2.5 bg-gradient-to-r from-violet-600/20 to-cyan-500/20 hover:from-violet-600/30 hover:to-cyan-500/30 border border-violet-500/30 hover:border-violet-500/50 text-white rounded-lg font-black tracking-wider text-[10px] uppercase transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                    >
-                      <Bell className="w-3.5 h-3.5 text-cyan-400" />
-                      Force Enable Push Notifications
-                    </button>
-                    <span className="block text-[9px] text-slate-500 font-semibold text-center leading-normal">
-                      ⚠️ Triggering this prompts browser native notification permission and registers a fresh active Push Subscription.
-                    </span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleForceOptIn}
+                    className="btn-linear-secondary w-full py-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Bell className="w-3 h-3 text-[#818cf8]" /> Request Browser Permission
+                  </button>
                 </div>
 
-                {/* Developer & MCP Integration Section */}
-                <div className="p-4 bg-gradient-to-r from-violet-950/20 to-cyan-950/20 border border-violet-500/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* MCP Integration banner */}
+                <div className="p-3.5 bg-gradient-to-r from-[#5E6AD2]/10 to-transparent border border-[#5E6AD2]/20 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="text-left">
-                    <span className="block text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                      <Cpu className="w-4 h-4 text-cyan-400" /> Remote Model Context Protocol (MCP)
+                    <span className="block text-xs font-medium text-white flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5 text-[#818cf8]" /> Model Context Protocol (MCP) API
                     </span>
-                    <span className="block text-[10px] text-slate-400 font-semibold mt-0.5">
-                      Generate API keys and connect Cursor, Claude Desktop, or custom AI agents to your Passbook.
+                    <span className="block text-[10px] text-[#8A8F98] mt-0.5">
+                      Generate keys to connect Cursor, Claude Desktop, or custom external agents.
                     </span>
                   </div>
                   <Link
                     href="/mcp"
-                    className="px-3.5 py-2 bg-violet-600/30 hover:bg-violet-600/50 border border-violet-500/40 text-white rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 shrink-0"
+                    className="btn-linear-secondary px-3 py-1.5 text-xs text-white flex items-center justify-center gap-1 shrink-0"
                   >
-                    <span>Manage MCP Keys</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>MCP Keys</span>
+                    <ArrowRight className="w-3 h-3" />
                   </Link>
                 </div>
               </div>
@@ -504,23 +405,20 @@ export default function Settings() {
             <button
               type="submit"
               disabled={updating}
-              className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-black tracking-wider text-xs uppercase transition-all btn-glow shadow-lg shadow-violet-600/20 flex items-center justify-center cursor-pointer"
+              className="btn-linear-primary w-full py-2.5 text-xs flex items-center justify-center cursor-pointer"
             >
               {updating ? (
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-              ) : "Synchronize Configurations"}
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : "Save Preferences"}
             </button>
           </form>
         </motion.div>
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-6">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium flex flex-col items-center gap-1.5 justify-center">
-          <span>© {new Date().getFullYear()} Manage Monthly Money. Configurator Settings.</span>
-          <span className="text-[10px] text-slate-500 font-bold bg-white/5 border border-white/10 px-2 py-0.5 rounded-full mt-1.5 transition-colors hover:border-violet-500/30 hover:text-violet-400 select-none">
-            System UI Version: v{packageInfo.version}
-          </span>
+      <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
+        <div className="max-w-7xl mx-auto px-6 text-[#8A8F98] text-xs text-center font-mono">
+          © {new Date().getFullYear()} MonthlyMoney • v{packageInfo.version}
         </div>
       </footer>
     </div>

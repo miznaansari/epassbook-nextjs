@@ -318,19 +318,19 @@ export default function NotificationCampaigns() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between">
+    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground">
       <Navbar />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8 pb-24 md:pb-12 text-left">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-12 text-left">
         {/* Page Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white">
-              <Bell className="w-6 h-6 animate-pulse" />
+        <div className="mb-8 border-b border-white/[0.06] pb-6">
+          <div className="flex items-center gap-3">
+            <span className="p-2 bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 rounded-xl text-[#6872D9] shadow-sm shadow-[#5E6AD2]/10">
+              <Bell className="w-6 h-6" />
             </span>
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tight">Notification Campaigns</h1>
-              <p className="text-slate-400 text-sm mt-1 font-medium">
+              <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Notification Campaigns</h1>
+              <p className="text-slate-400 text-xs sm:text-sm mt-1">
                 Create and manage custom automated OneSignal push notifications powered by real-time ledger & stock portfolio data.
               </p>
             </div>
@@ -361,13 +361,13 @@ export default function NotificationCampaigns() {
         )}
 
         {/* Mobile Tabs Toggle (Only visible on mobile) */}
-        <div className="lg:hidden flex p-1 glass-card mb-6">
+        <div className="lg:hidden flex p-1 bg-[#0a0a0c] border border-white/[0.06] rounded-xl mb-6">
           <button
             onClick={() => setMobileTab('list')}
-            className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
               mobileTab === 'list'
-                ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-[#5E6AD2] text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Bell className="w-4 h-4" />
@@ -375,10 +375,10 @@ export default function NotificationCampaigns() {
           </button>
           <button
             onClick={() => setMobileTab('configure')}
-            className={`flex-1 py-3 text-xs font-black uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            className={`flex-1 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${
               mobileTab === 'configure'
-                ? 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white shadow-lg'
-                : 'text-slate-500 hover:text-slate-300'
+                ? 'bg-[#5E6AD2] text-white shadow-sm'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
             <Plus className="w-4 h-4" />
@@ -390,11 +390,11 @@ export default function NotificationCampaigns() {
           {/* LEFT: Campaigns List (7 Columns) */}
           <div className={`lg:col-span-7 space-y-6 ${mobileTab === 'list' ? 'block' : 'hidden lg:block'}`}>
             <div className="flex justify-between items-center">
-              <h2 className="text-lg font-black text-white uppercase tracking-wider">Active Campaigns</h2>
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wider font-mono">Active Campaigns</h2>
               {isEditing && (
                 <button
                   onClick={resetForm}
-                  className="px-3 py-1 bg-white/5 border border-white/10 rounded-lg text-slate-400 text-xs font-bold hover:text-white transition-all cursor-pointer"
+                  className="px-3 py-1 bg-white/[0.04] border border-white/[0.08] rounded-lg text-slate-400 text-xs font-mono hover:text-white transition-all cursor-pointer"
                 >
                   Reset Form to Add New
                 </button>
@@ -402,14 +402,14 @@ export default function NotificationCampaigns() {
             </div>
 
             {fetching ? (
-              <div className="glass-card p-12 flex flex-col items-center justify-center border border-white/5">
-                <Loader2 className="w-8 h-8 text-violet-400 animate-spin mb-3" />
-                <span className="text-slate-400 text-sm font-semibold">Loading campaigns...</span>
+              <div className="bg-[#0a0a0c] rounded-2xl p-12 flex flex-col items-center justify-center border border-white/[0.06]">
+                <Loader2 className="w-8 h-8 text-[#6872D9] animate-spin mb-3" />
+                <span className="text-slate-400 text-sm font-medium">Loading campaigns...</span>
               </div>
             ) : campaigns.length === 0 ? (
-              <div className="glass-card p-12 text-center border border-white/5 flex flex-col items-center justify-center">
+              <div className="bg-[#0a0a0c] rounded-2xl p-12 text-center border border-white/[0.06] flex flex-col items-center justify-center">
                 <Bell className="w-12 h-12 text-slate-600 mb-4" />
-                <h3 className="text-white font-bold text-base">No Campaign Triggers Configured</h3>
+                <h3 className="text-white font-semibold text-base">No Campaign Triggers Configured</h3>
                 <p className="text-slate-500 text-xs max-w-sm mt-1 leading-relaxed">
                   Start sending scheduled push alerts by filling out the campaign form to your right. Add variables to customize messages.
                 </p>
@@ -420,46 +420,46 @@ export default function NotificationCampaigns() {
                   <motion.div
                     key={campaign.id}
                     layout
-                    className={`glass-card p-6 border transition-all relative overflow-hidden ${
+                    className={`p-6 rounded-2xl bg-[#0a0a0c] border transition-all relative overflow-hidden shadow-linear-card ${
                       campaign.isActive 
-                        ? 'border-white/10 hover:border-violet-500/35'
-                        : 'border-white/5 opacity-60'
+                        ? 'border-white/[0.06] hover:border-[#5E6AD2]/40'
+                        : 'border-white/[0.04] opacity-60'
                     }`}
                   >
-                    {/* Top highlight bar */}
+                    {/* Left hairline highlight bar */}
                     {campaign.isActive && (
-                      <div className="absolute top-0 left-0 w-2 h-full bg-gradient-to-b from-violet-500 to-cyan-400" />
+                      <div className="absolute top-0 left-0 w-1 h-full bg-[#5E6AD2]" />
                     )}
 
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pl-2">
                       <div className="flex-grow min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="text-base font-black text-white">{campaign.title}</h3>
-                          <span className="px-2 py-0.5 bg-violet-600/15 border border-violet-500/20 text-violet-400 rounded-full text-[9px] font-extrabold uppercase tracking-wide">
+                          <h3 className="text-base font-semibold text-white">{campaign.title}</h3>
+                          <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#8B95F6] rounded-full text-[9px] font-mono uppercase tracking-wide">
                             {campaign.frequency}
                           </span>
-                          <span className="px-2 py-0.5 bg-cyan-600/15 border border-cyan-500/20 text-cyan-400 rounded-full text-[9px] font-extrabold uppercase tracking-wide">
+                          <span className="px-2 py-0.5 bg-white/[0.04] border border-white/[0.08] text-slate-300 rounded-full text-[9px] font-mono uppercase tracking-wide">
                             🕒 {campaign.time || '12:00'}
                           </span>
                         </div>
-                        <p className="text-slate-400 text-xs mt-2 font-medium bg-white/[0.02] p-3 rounded-lg border border-white/[0.05] leading-relaxed font-mono break-words">
+                        <p className="text-slate-300 text-xs mt-2 bg-[#050506] p-3 rounded-xl border border-white/[0.06] leading-relaxed font-mono break-words">
                           {campaign.message}
                         </p>
-                        <div className="mt-3 flex items-center gap-4 text-[10px] text-slate-500 font-semibold">
+                        <div className="mt-3 flex items-center gap-4 text-[10px] text-slate-500 font-mono">
                           <span>Created: {new Date(campaign.createdAt).toLocaleDateString()}</span>
                           {campaign.lastSentAt && (
-                            <span className="text-violet-400">
+                            <span className="text-[#8B95F6]">
                               Last Sent: {new Date(campaign.lastSentAt).toLocaleString()}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2.5 shrink-0 mt-4 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-white/[0.04] w-full md:w-auto justify-end">
+                      <div className="flex items-center gap-2 shrink-0 mt-4 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-white/[0.04] w-full md:w-auto justify-end">
                         {/* Toggle active switch */}
                         <button
                           onClick={() => handleToggleActive(campaign)}
-                          className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all cursor-pointer flex items-center gap-1.5"
+                          className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-all cursor-pointer flex items-center gap-1.5"
                           title={campaign.isActive ? 'Deactivate campaign' : 'Activate campaign'}
                         >
                           {campaign.isActive ? (
@@ -472,7 +472,7 @@ export default function NotificationCampaigns() {
                         {/* Edit */}
                         <button
                           onClick={() => handleEditClick(campaign)}
-                          className="p-2 bg-white/5 border border-white/10 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95"
+                          className="p-2 bg-white/[0.04] border border-white/[0.08] rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer flex items-center justify-center hover:bg-white/[0.08]"
                           title="Edit campaign template"
                         >
                           <Edit className="w-4 h-4" />
@@ -482,11 +482,11 @@ export default function NotificationCampaigns() {
                         <button
                           disabled={testingId === campaign.id}
                           onClick={() => handleSendTestPush(campaign.id)}
-                          className="p-2 bg-gradient-to-tr from-cyan-600/10 to-violet-600/10 hover:from-cyan-600/20 hover:to-violet-600/20 border border-violet-500/25 rounded-xl text-cyan-400 hover:text-white transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95"
+                          className="p-2 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 rounded-xl text-[#8B95F6] hover:text-white hover:bg-[#5E6AD2]/20 transition-all cursor-pointer flex items-center justify-center"
                           title="Trigger a test push now"
                         >
                           {testingId === campaign.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                            <Loader2 className="w-4 h-4 animate-spin text-[#8B95F6]" />
                           ) : (
                             <Play className="w-4 h-4" />
                           )}
@@ -495,7 +495,7 @@ export default function NotificationCampaigns() {
                         {/* Delete */}
                         <button
                           onClick={() => handleDelete(campaign.id)}
-                          className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 hover:text-rose-300 transition-all cursor-pointer flex items-center justify-center hover:scale-105 active:scale-95"
+                          className="p-2 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 hover:text-rose-300 transition-all cursor-pointer flex items-center justify-center hover:bg-rose-500/20"
                           title="Delete Campaign"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -508,26 +508,26 @@ export default function NotificationCampaigns() {
             )}
 
             {/* Streak Configurations Card */}
-            <div className="glass-card p-6 border border-white/5 space-y-6">
+            <div className="bg-[#0a0a0c] rounded-2xl p-6 border border-white/[0.06] shadow-linear-card space-y-6">
               <div>
-                <h2 className="text-lg font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <Flame className="w-5 h-5 text-amber-500 animate-pulse" /> Spending Streak Configurations
+                <h2 className="text-sm font-semibold text-white uppercase tracking-wider font-mono flex items-center gap-2">
+                  <Flame className="w-4 h-4 text-amber-500" /> Spending Streak Configurations
                 </h2>
-                <p className="text-slate-400 text-xs mt-1 font-medium">
+                <p className="text-slate-400 text-xs mt-1">
                   Configure alerts and daily spending thresholds to track your financial discipline.
                 </p>
               </div>
 
               <div className="space-y-4">
                 {/* Level 1 Settings */}
-                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl flex items-center justify-between gap-4">
+                <div className="p-4 bg-[#050506] border border-white/[0.06] rounded-xl flex items-center justify-between gap-4">
                   <div className="flex items-start gap-3">
                     <div className="p-2 bg-amber-500/10 rounded-lg text-amber-500 mt-0.5">
                       <Flame className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white">Level 1: Zero Spend Notifications</h4>
-                      <p className="text-slate-500 text-[11px] font-medium leading-normal mt-0.5">
+                      <h4 className="text-sm font-semibold text-white">Level 1: Zero Spend Notifications</h4>
+                      <p className="text-slate-500 text-[11px] leading-normal mt-0.5 font-mono">
                         Get daily alerts for consecutive days with zero spending logged. (0 {user?.currency === 'INR' ? 'rs' : 'USD'} default)
                       </p>
                     </div>
@@ -545,15 +545,15 @@ export default function NotificationCampaigns() {
                 </div>
 
                 {/* Level 2 Settings */}
-                <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-4">
+                <div className="p-4 bg-[#050506] border border-white/[0.06] rounded-xl space-y-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-yellow-500/10 rounded-lg text-yellow-500 mt-0.5">
                         <Zap className="w-4 h-4" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">Level 2: Limit Spend Notifications</h4>
-                        <p className="text-slate-500 text-[11px] font-medium leading-normal mt-0.5">
+                        <h4 className="text-sm font-semibold text-white">Level 2: Limit Spend Notifications</h4>
+                        <p className="text-slate-500 text-[11px] leading-normal mt-0.5 font-mono">
                           Get daily alerts when you stay under your custom daily spending limit.
                         </p>
                       </div>
@@ -571,8 +571,8 @@ export default function NotificationCampaigns() {
                   </div>
 
                   {/* Level 2 Limit Input */}
-                  <div className="pt-2 border-t border-white/[0.03] flex items-center justify-between gap-4 flex-wrap">
-                    <label className="text-slate-400 text-xs font-bold uppercase tracking-wider">
+                  <div className="pt-2 border-t border-white/[0.04] flex items-center justify-between gap-4 flex-wrap">
+                    <label className="text-slate-400 text-xs font-mono uppercase tracking-wider">
                       Daily Spend Threshold ({user?.currency === 'INR' ? '₹' : '$'})
                     </label>
                     <input
@@ -580,7 +580,7 @@ export default function NotificationCampaigns() {
                       value={streakLevel2Limit}
                       onChange={(e) => setStreakLevel2Limit(e.target.value)}
                       placeholder="e.g. 100"
-                      className="w-32 px-3 py-1.5 bg-slate-950 border border-white/10 rounded-lg text-white text-xs font-bold focus:outline-none focus:border-violet-500 transition-all"
+                      className="w-32 px-3 py-1.5 bg-[#0a0a0c] border border-white/[0.08] rounded-xl text-white text-xs font-mono focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30 transition-all"
                     />
                   </div>
                 </div>
@@ -589,7 +589,7 @@ export default function NotificationCampaigns() {
               <button
                 onClick={handleSaveStreakPreferences}
                 disabled={savingStreak}
-                className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-black tracking-wider text-xs uppercase transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-violet-600/10"
+                className="btn-linear-primary w-full py-2.5 text-xs font-semibold rounded-xl flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {savingStreak ? (
                   <Loader2 className="w-4 h-4 animate-spin text-white" />
@@ -603,17 +603,17 @@ export default function NotificationCampaigns() {
           {/* RIGHT: Create/Edit Form & Ref variables (5 Columns) */}
           <div className={`lg:col-span-5 space-y-6 ${mobileTab === 'configure' ? 'block' : 'hidden lg:block'}`}>
             {/* Form */}
-            <div className="glass-card p-6 border border-white/5 relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400" />
+            <div className="bg-[#0a0a0c] rounded-2xl p-6 border border-white/[0.06] shadow-linear-card relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-[#5E6AD2] to-transparent" />
               
-              <h2 className="text-lg font-black text-white uppercase tracking-wider mb-4">
+              <h2 className="text-sm font-semibold text-white uppercase tracking-wider font-mono mb-4">
                 {isEditing ? 'Modify Campaign' : 'Configure New Campaign'}
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Title field */}
                 <div>
-                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <label className="block text-slate-300 text-xs font-medium mb-1.5">
                     Notification Title Template
                   </label>
                   <input
@@ -623,13 +623,13 @@ export default function NotificationCampaigns() {
                     onChange={(e) => setTitle(e.target.value)}
                     onFocus={() => setActiveField('title')}
                     placeholder="e.g. Budget Alert! 🚨"
-                    className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-[#050506] border border-white/[0.08] rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30 transition-all"
                   />
                 </div>
 
                 {/* Message field */}
                 <div>
-                  <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                  <label className="block text-slate-300 text-xs font-medium mb-1.5">
                     Message Template (With Variables)
                   </label>
                   <textarea
@@ -639,32 +639,32 @@ export default function NotificationCampaigns() {
                     onFocus={() => setActiveField('message')}
                     placeholder="e.g. Hey {{user_name}}, you have {{left_salary}} remaining of your salary."
                     rows={4}
-                    className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-semibold resize-none"
+                    className="w-full px-3.5 py-2.5 bg-[#050506] border border-white/[0.08] rounded-xl text-white placeholder-slate-500 text-xs focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30 transition-all font-mono resize-none"
                   />
                 </div>
 
                 {/* Inline Live Preview */}
-                <div className="p-3.5 bg-slate-950/60 border border-white/5 rounded-2xl space-y-2">
+                <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl space-y-2">
                   <div className="flex justify-between items-center px-1">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Live Notification Preview</span>
-                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Device Mock</span>
+                    <span className="text-[9px] font-mono text-slate-400 uppercase tracking-widest">Live Notification Preview</span>
+                    <span className="text-[8px] text-slate-500 font-mono uppercase tracking-wider">Device Mock</span>
                   </div>
                   
-                  <div className="bg-slate-905 bg-slate-900/90 border border-white/5 rounded-xl p-3 flex gap-2.5 items-start text-left shadow-lg">
-                    <div className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white shrink-0 mt-0.5">
+                  <div className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-3 flex gap-2.5 items-start text-left shadow-sm">
+                    <div className="p-1.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 rounded-lg text-[#6872D9] shrink-0 mt-0.5">
                       <Bell className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-extrabold text-white uppercase tracking-wider">
-                          MonthlyMoney
+                        <span className="text-[10px] font-mono text-white uppercase tracking-wider font-bold">
+                          ePassbook
                         </span>
-                        <span className="text-[8px] text-slate-500 font-bold">now</span>
+                        <span className="text-[8px] text-slate-500 font-mono">now</span>
                       </div>
-                      <span className="block text-xs font-black text-white mt-1 truncate">
+                      <span className="block text-xs font-semibold text-white mt-1 truncate">
                         {title ? getLivePreview(title) : 'Notification Title Preview'}
                       </span>
-                      <span className="block text-[10px] text-slate-400 font-semibold mt-0.5 break-words whitespace-pre-wrap leading-relaxed">
+                      <span className="block text-[10px] text-slate-400 mt-0.5 break-words whitespace-pre-wrap leading-relaxed font-mono">
                         {getLivePreview(message)}
                       </span>
                     </div>
@@ -674,30 +674,30 @@ export default function NotificationCampaigns() {
                 {/* Dropdown Options for frequency & time */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <label className="block text-slate-300 text-xs font-medium mb-1.5">
                       Send Frequency
                     </label>
                     <select
                       value={frequency}
                       onChange={(e) => setFrequency(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-950 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-violet-500 transition-all font-semibold"
+                      className="w-full px-3 py-2 bg-[#050506] border border-white/[0.08] rounded-xl text-white text-xs focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30 transition-all font-mono"
                     >
-                      <option value="DAILY">Daily</option>
-                      <option value="WEEKLY">Every 7 Days</option>
-                      <option value="MONTHLY">Every Month</option>
-                      <option value="SIX_MONTHS">Every 6 Months</option>
+                      <option value="DAILY" className="bg-[#050506]">Daily</option>
+                      <option value="WEEKLY" className="bg-[#050506]">Every 7 Days</option>
+                      <option value="MONTHLY" className="bg-[#050506]">Every Month</option>
+                      <option value="SIX_MONTHS" className="bg-[#050506]">Every 6 Months</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">
+                    <label className="block text-slate-300 text-xs font-medium mb-1.5">
                       Target Send Time (HH:MM)
                     </label>
                     <input
                       type="time"
                       value={time}
                       onChange={(e) => setTime(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-950 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-violet-500 transition-all font-semibold"
+                      className="w-full px-3 py-2 bg-[#050506] border border-white/[0.08] rounded-xl text-white text-xs focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30 transition-all font-mono"
                     />
                   </div>
                 </div>
@@ -708,9 +708,9 @@ export default function NotificationCampaigns() {
                       type="checkbox"
                       checked={isActive}
                       onChange={(e) => setIsActive(e.target.checked)}
-                      className="w-4 h-4 accent-violet-500 rounded cursor-pointer"
+                      className="w-4 h-4 accent-[#5E6AD2] rounded cursor-pointer"
                     />
-                    <span className="text-white text-xs font-bold uppercase tracking-wide">
+                    <span className="text-white text-xs font-medium">
                       Active Trigger
                     </span>
                   </label>
@@ -719,10 +719,10 @@ export default function NotificationCampaigns() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full py-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-black tracking-wider text-xs uppercase transition-all btn-glow shadow-lg shadow-violet-600/20 flex items-center justify-center cursor-pointer"
+                  className="btn-linear-primary w-full py-2.5 text-xs font-semibold rounded-xl flex items-center justify-center cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? (
-                    <Loader2 className="w-5 h-5 animate-spin text-white" />
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
                   ) : isEditing ? (
                     'Save Campaign Updates'
                   ) : (
@@ -733,11 +733,11 @@ export default function NotificationCampaigns() {
             </div>
 
             {/* Variable insertion widget */}
-            <div className="glass-card p-6 border border-white/5">
-              <h3 className="text-sm font-black text-white tracking-wider uppercase border-b border-white/5 pb-2 mb-3">
+            <div className="bg-[#0a0a0c] rounded-2xl p-6 border border-white/[0.06] shadow-linear-card">
+              <h3 className="text-xs font-mono font-semibold text-white tracking-wider uppercase border-b border-white/[0.06] pb-2 mb-3">
                 Template Variables (Insert into {activeField})
               </h3>
-              <p className="text-[10px] text-slate-500 font-semibold mb-4 leading-relaxed">
+              <p className="text-[10px] text-slate-500 mb-4 leading-relaxed font-mono">
                 Click any variable card below to insert it at the end of your currently active field input (Title or Message).
               </p>
 
@@ -749,15 +749,15 @@ export default function NotificationCampaigns() {
                       key={variable.code}
                       type="button"
                       onClick={() => insertVariable(variable.code)}
-                      className="p-3 bg-slate-950/40 border border-white/5 hover:border-violet-500/20 rounded-xl text-left transition-all hover:bg-slate-950/60 flex flex-col justify-between cursor-pointer group"
+                      className="p-3 bg-[#050506] border border-white/[0.06] hover:border-[#5E6AD2]/30 rounded-xl text-left transition-all hover:bg-white/[0.02] flex flex-col justify-between cursor-pointer group"
                     >
                       <div className="flex items-center gap-1.5">
                         <Icon className={`w-3.5 h-3.5 ${variable.color}`} />
-                        <span className="text-[10px] font-extrabold text-white truncate group-hover:text-violet-400 transition-colors">
+                        <span className="text-[10px] font-semibold text-white truncate group-hover:text-[#8B95F6] transition-colors">
                           {variable.name}
                         </span>
                       </div>
-                      <code className="text-[9px] font-mono text-cyan-400 mt-2 block select-all">
+                      <code className="text-[9px] font-mono text-[#8B95F6] mt-2 block select-all">
                         {variable.code}
                       </code>
                     </button>
@@ -771,9 +771,9 @@ export default function NotificationCampaigns() {
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-xs text-center font-medium flex flex-col items-center gap-1.5 justify-center">
-          <span>© {new Date().getFullYear()} Manage Monthly Money. OneSignal Trigger Hub.</span>
+      <footer className="border-t border-white/[0.06] py-6 mt-12 bg-[#050506]/50 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-6 text-slate-500 text-xs text-center font-mono flex flex-col items-center gap-1.5 justify-center">
+          <span>© {new Date().getFullYear()} ePassbook. OneSignal Trigger Hub.</span>
         </div>
       </footer>
     </div>

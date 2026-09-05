@@ -75,69 +75,67 @@ export default function ReportsMobile({
   ];
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#030712] text-slate-100 selection:bg-violet-500/30 select-none pb-20">
-      {/* Ambient backgrounds */}
-      <div className="absolute top-[-10%] left-[-10%] w-[80%] h-[30%] bg-gradient-to-br from-violet-600/10 to-cyan-500/0 rounded-full blur-[100px] pointer-events-none z-0"></div>
-      <div className="absolute bottom-[10%] right-[-10%] w-[80%] h-[30%] bg-gradient-to-tr from-emerald-500/5 to-amber-500/0 rounded-full blur-[100px] pointer-events-none z-0"></div>
-
-      <main className="flex-grow w-full px-4 py-4 relative z-10 space-y-5">
+    <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30 select-none pb-20">
+      <main className="flex-grow w-full px-4 py-4 relative z-10 space-y-4">
         {/* Title Header */}
         <div className="text-left">
-          <span className="px-2 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[8px] font-black uppercase tracking-widest rounded-md">
-            Mobile Ledger Reports
-          </span>
-          <h1 className="text-xl font-black text-white tracking-tight mt-1 flex items-center gap-1.5">
-            Reports & Analytics
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] text-[9px] font-mono uppercase tracking-wider rounded-md">
+              Mobile Analytics
+            </span>
+          </div>
+          <h1 className="text-lg font-bold text-white tracking-tight">
+            Financial Intelligence
           </h1>
         </div>
 
         {/* Quick KPI Overview Cards */}
         <div className="grid grid-cols-3 gap-2">
           {/* Net Cashflow */}
-          <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left">
-            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-              Net Cashflow
+          <div className="bg-[#0a0a0c] border border-white/[0.06] p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left font-mono">
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 block truncate">
+              Cashflow
             </span>
-            <span className="text-[11px] font-black text-white mt-1 block truncate">
+            <span className="text-xs font-bold text-white mt-1 block truncate">
               {formatCurrency(currentPeriodStats.totalInflow - currentPeriodStats.totalOutflow)}
             </span>
           </div>
 
           {/* Ledger Savings */}
-          <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left">
-            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-              Invested Savings
+          <div className="bg-[#0a0a0c] border border-white/[0.06] p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left font-mono">
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 block truncate">
+              Savings
             </span>
-            <span className="text-[11px] font-black text-amber-400 mt-1 block truncate">
+            <span className="text-xs font-bold text-amber-400 mt-1 block truncate">
               {formatCurrency(currentPeriodStats.totalSavings)}
             </span>
           </div>
 
           {/* Stocks Value */}
-          <div className="bg-white/[0.02] border border-white/5 p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left">
-            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block truncate">
-              Stocks Value
+          <div className="bg-[#0a0a0c] border border-white/[0.06] p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left font-mono">
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 block truncate">
+              Stocks
             </span>
-            <span className="text-[11px] font-black text-cyan-400 mt-1 block truncate">
+            <span className="text-xs font-bold text-[#06B6D4] mt-1 block truncate">
               {formatCurrency(stockSummary.totalCurrentValue)}
             </span>
           </div>
         </div>
 
-        {/* Interactive GitHub contribution and date picker */}
-        <div className="bg-slate-900/40 border border-white/5 p-4 rounded-2xl space-y-4">
+        {/* Interactive Contribution and date picker */}
+        <div className="bg-[#0a0a0c] border border-white/[0.06] p-4 rounded-xl space-y-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-black text-white flex items-center gap-1.5">
-              <CalendarIcon className="w-3.5 h-3.5 text-violet-400" /> Transaction Calendar
+            <h3 className="text-xs font-semibold text-white flex items-center gap-1.5">
+              <CalendarIcon className="w-3.5 h-3.5 text-[#5E6AD2]" /> Activity Calendar
             </h3>
-            <span className="text-[9px] text-slate-500 font-bold">12m activity</span>
+            <span className="text-[9px] font-mono text-slate-400">12m activity</span>
           </div>
 
-          {/* GitHub calendar horizontal scrolling wrapper */}
+          {/* Calendar horizontal scrolling wrapper */}
           <div className="overflow-x-auto pb-1.5 scrollbar-thin">
             <div className="min-w-[480px]">
               {/* Month labels header */}
-              <div className="h-5 relative text-[8px] font-bold text-slate-500 select-none">
+              <div className="h-5 relative text-[9px] font-mono text-slate-400 select-none">
                 {(() => {
                   const daysList = getCalendarGridDays();
                   const labels = getMonthLabels(daysList);
@@ -155,7 +153,7 @@ export default function ReportsMobile({
 
               <div className="flex gap-1">
                 {/* Day of Week labels */}
-                <div className="flex flex-col gap-1 text-[8px] font-bold text-slate-500 select-none pr-1 justify-around h-[76px] pt-0.5">
+                <div className="flex flex-col gap-1 text-[8px] font-mono text-slate-500 select-none pr-1 justify-around h-[76px] pt-0.5">
                   <span>M</span>
                   <span>W</span>
                   <span>F</span>
@@ -186,7 +184,7 @@ export default function ReportsMobile({
                               title={metadata.tooltip}
                               onClick={() => handleDateSelect(day)}
                               className={`w-[9px] h-[9px] rounded-[2px] cursor-pointer transition-all ${metadata.colorClass} ${
-                                isSelected ? 'ring-1 ring-violet-400 scale-110 z-10' : ''
+                                isSelected ? 'ring-1 ring-[#5E6AD2] scale-110 z-10' : ''
                               }`}
                             />
                           );
@@ -200,20 +198,20 @@ export default function ReportsMobile({
           </div>
 
           {/* Month calendar selection */}
-          <div className="border-t border-white/5 pt-3">
+          <div className="border-t border-white/[0.06] pt-3">
             <div className="flex items-center justify-between mb-3">
               <button
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1))}
-                className="p-1 hover:bg-white/5 rounded-lg border border-white/5 text-slate-400 hover:text-white"
+                className="p-1 hover:bg-white/[0.04] rounded-lg border border-white/[0.06] text-slate-400 hover:text-white"
               >
                 <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-              <span className="text-[10px] font-black tracking-wider text-white uppercase">
+              <span className="text-[10px] font-mono font-semibold text-white uppercase">
                 {currentMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
               </span>
               <button
                 onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1))}
-                className="p-1 hover:bg-white/5 rounded-lg border border-white/5 text-slate-400 hover:text-white"
+                className="p-1 hover:bg-white/[0.04] rounded-lg border border-white/[0.06] text-slate-400 hover:text-white"
               >
                 <ChevronRight className="w-3.5 h-3.5" />
               </button>
@@ -221,7 +219,7 @@ export default function ReportsMobile({
 
             <div className="grid grid-cols-7 gap-1 text-center mb-1">
               {["S", "M", "T", "W", "T", "F", "S"].map(d => (
-                <span key={d} className="text-[8px] font-extrabold text-slate-500 uppercase">
+                <span key={d} className="text-[8px] font-mono text-slate-400 uppercase">
                   {d}
                 </span>
               ))}
@@ -236,20 +234,20 @@ export default function ReportsMobile({
 
                 const indicators = [];
                 if (metadata.salaries.length > 0) indicators.push('bg-emerald-500');
-                if (metadata.entries.some(e => e.type === 'LOAN')) indicators.push('bg-orange-500');
-                if (metadata.entries.some(e => e.type === 'ADVANCE')) indicators.push('bg-cyan-500');
-                if (metadata.entries.some(e => e.type === 'LENDING')) indicators.push('bg-blue-500');
+                if (metadata.entries.some(e => e.type === 'LOAN')) indicators.push('bg-[#F97316]');
+                if (metadata.entries.some(e => e.type === 'ADVANCE')) indicators.push('bg-[#06B6D4]');
+                if (metadata.entries.some(e => e.type === 'LENDING')) indicators.push('bg-[#3B82F6]');
                 if (metadata.entries.some(e => e.type === 'SAVINGS')) indicators.push('bg-amber-500');
-                if (metadata.entries.some(e => e.type === 'SPENDING')) indicators.push('bg-violet-500');
+                if (metadata.entries.some(e => e.type === 'SPENDING')) indicators.push('bg-[#5E6AD2]');
 
                 return (
                   <button
                     key={day.getTime()}
                     onClick={() => handleDateSelect(day)}
-                    className={`h-7 w-7 flex flex-col items-center justify-center rounded-lg text-[10px] font-semibold relative transition-all ${
+                    className={`h-7 w-7 flex flex-col items-center justify-center rounded-lg text-[10px] font-mono relative transition-all ${
                       isSelected
-                        ? 'bg-violet-600 text-white font-extrabold ring-1 ring-violet-400'
-                        : 'text-slate-300 hover:bg-white/5'
+                        ? 'bg-[#5E6AD2] text-white font-bold shadow-sm'
+                        : 'text-slate-300 hover:bg-white/[0.04]'
                     }`}
                   >
                     <span className={isSelected ? '' : 'text-slate-200'}>{day.getDate()}</span>
@@ -267,12 +265,12 @@ export default function ReportsMobile({
           </div>
         </div>
 
-        {/* Selected Date Transaction Drawer list (WITH ACTION REACTION LOADER) */}
-        <div className="bg-slate-900/40 border border-white/5 p-4 rounded-2xl text-left space-y-3">
+        {/* Selected Date Transaction list */}
+        <div className="bg-[#0a0a0c] border border-white/[0.06] p-4 rounded-xl text-left space-y-3">
           <div className="flex items-center gap-1.5">
-            <CalendarDays className="w-4 h-4 text-violet-400" />
-            <h4 className="text-xs font-black tracking-tight text-white">
-              Logs on {selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            <CalendarDays className="w-3.5 h-3.5 text-[#5E6AD2]" />
+            <h4 className="text-xs font-semibold text-white">
+              Logs: {selectedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
             </h4>
           </div>
 
@@ -283,10 +281,10 @@ export default function ReportsMobile({
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -5 }}
-                className="py-8 bg-white/[0.01] border border-white/5 rounded-xl flex flex-col items-center justify-center gap-2.5"
+                className="py-6 bg-[#050506] border border-white/[0.04] rounded-lg flex flex-col items-center justify-center gap-2"
               >
-                <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
-                <span className="text-[10px] text-slate-500 font-bold animate-pulse">Filtering ledger...</span>
+                <Loader2 className="w-4 h-4 animate-spin text-[#5E6AD2]" />
+                <span className="text-[10px] font-mono text-slate-400">Filtering entries...</span>
               </motion.div>
             ) : (() => {
               const metadata = getCellMetadata(selectedDate);
@@ -298,10 +296,10 @@ export default function ReportsMobile({
                     key="date-empty"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="py-8 bg-white/[0.01] border border-white/5 rounded-xl text-center text-slate-500 text-[11px] font-bold flex items-center justify-center gap-1.5"
+                    className="py-6 bg-[#050506] border border-white/[0.04] rounded-lg text-center text-slate-500 text-xs font-mono flex items-center justify-center gap-1.5"
                   >
-                    <AlertCircle className="w-3.5 h-3.5 opacity-50 text-slate-500" />
-                    No transaction activity on this date.
+                    <AlertCircle className="w-3.5 h-3.5 opacity-40 text-slate-500" />
+                    No transactions on this date.
                   </motion.div>
                 );
               }
@@ -316,16 +314,16 @@ export default function ReportsMobile({
                   {metadata.salaries.map((salary) => (
                     <div
                       key={salary.id}
-                      className="bg-white/[0.01] border border-white/5 rounded-xl p-3 flex justify-between items-center"
+                      className="bg-[#050506] border border-white/[0.04] rounded-lg p-2.5 flex justify-between items-center font-mono"
                     >
-                      <div className="text-left min-w-0 pr-4">
-                        <span className="text-[8px] font-bold text-slate-500 uppercase block">Income Inflow</span>
-                        <h5 className="text-xs font-extrabold text-white mt-0.5 truncate">Month Salary</h5>
-                        <span className="inline-block mt-1 text-[8px] px-1.5 py-0.5 rounded-full font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                      <div className="text-left min-w-0 pr-3">
+                        <span className="text-[8px] text-slate-500 uppercase block">Inflow</span>
+                        <h5 className="text-xs font-medium text-white truncate font-sans">Month Salary</h5>
+                        <span className="inline-block mt-0.5 text-[8px] px-1.5 py-0.2 rounded font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                           SALARY
                         </span>
                       </div>
-                      <span className="text-xs font-black text-emerald-400 shrink-0">
+                      <span className="text-xs font-semibold text-emerald-400 shrink-0">
                         + {formatCurrency(salary.amount)}
                       </span>
                     </div>
@@ -344,8 +342,8 @@ export default function ReportsMobile({
                     let prefix = '';
 
                     if (isSpending) {
-                      typeBadgeClass = 'bg-violet-500/10 text-violet-400 border border-violet-500/20';
-                      amountClass = 'text-violet-400';
+                      typeBadgeClass = 'bg-rose-500/10 text-rose-400 border border-rose-500/20';
+                      amountClass = 'text-rose-400';
                       prefix = '-';
                     } else if (isLoan) {
                       typeBadgeClass = 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
@@ -368,18 +366,18 @@ export default function ReportsMobile({
                     return (
                       <div
                         key={entry.id}
-                        className="bg-white/[0.01] border border-white/5 rounded-xl p-3 flex justify-between items-center"
+                        className="bg-[#050506] border border-white/[0.04] rounded-lg p-2.5 flex justify-between items-center font-mono"
                       >
-                        <div className="text-left min-w-0 pr-4">
-                          <span className="text-[8px] font-bold text-slate-500 uppercase block">
+                        <div className="text-left min-w-0 pr-3">
+                          <span className="text-[8px] text-slate-500 uppercase block">
                             {isSpending || isLending || isSavings ? 'Outflow' : 'Inflow'}
                           </span>
-                          <h5 className="text-xs font-extrabold text-white mt-0.5 truncate">{entry.title}</h5>
-                          <span className={`inline-block mt-1 text-[8px] px-1.5 py-0.5 rounded-full font-black tracking-wider uppercase ${typeBadgeClass}`}>
+                          <h5 className="text-xs font-medium text-white truncate font-sans">{entry.title}</h5>
+                          <span className={`inline-block mt-0.5 text-[8px] px-1.5 py-0.2 rounded font-mono ${typeBadgeClass}`}>
                             {entry.type}
                           </span>
                         </div>
-                        <span className={`text-xs font-black shrink-0 ${amountClass}`}>
+                        <span className={`text-xs font-semibold shrink-0 ${amountClass}`}>
                           {prefix} {formatCurrency(amt)}
                         </span>
                       </div>
@@ -391,15 +389,15 @@ export default function ReportsMobile({
           </AnimatePresence>
         </div>
 
-        {/* SWIPEABLE TABBED CHARTS PANEL FOR PREMIUM MOBILE UX */}
-        <div className="bg-slate-900/40 border border-white/5 rounded-2xl p-4 text-left space-y-4">
+        {/* TABBED CHARTS PANEL */}
+        <div className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-4 text-left space-y-3">
           <div>
-            <h3 className="text-xs font-black text-white">Visual Analytics</h3>
-            <p className="text-[10px] text-slate-500 font-semibold mt-0.5">Select a category to view reports and trends.</p>
+            <h3 className="text-xs font-semibold text-white">Visual Analytics</h3>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5">Select metric category to view chart</p>
           </div>
 
           {/* Swipeable Tabs selectors */}
-          <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-thin">
+          <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-thin">
             {tabs.map((tab) => {
               const TabIcon = tab.icon;
               const isSelected = activeTab === tab.id;
@@ -407,13 +405,13 @@ export default function ReportsMobile({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-1 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider whitespace-nowrap transition-all border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-mono uppercase tracking-wider whitespace-nowrap transition-all border ${
                     isSelected
-                      ? 'bg-violet-600 border-violet-500 text-white shadow-md'
-                      : 'bg-slate-950/40 border-white/5 text-slate-400 hover:text-white'
+                      ? 'bg-[#5E6AD2] border-[#5E6AD2] text-white shadow-sm'
+                      : 'bg-[#050506] border-white/[0.06] text-slate-400 hover:text-white'
                   }`}
                 >
-                  <TabIcon className="w-3.5 h-3.5" />
+                  <TabIcon className="w-3 h-3" />
                   {tab.name}
                 </button>
               );
@@ -421,7 +419,7 @@ export default function ReportsMobile({
           </div>
 
           {/* Active Tab Chart Container */}
-          <div className="h-60 w-full relative">
+          <div className="h-56 w-full relative">
             <AnimatePresence mode="wait">
               {activeTab === 'cashflow' && (
                 <motion.div
@@ -431,10 +429,10 @@ export default function ReportsMobile({
                   exit={{ opacity: 0, x: -10 }}
                   className="w-full h-full flex flex-col justify-between"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">
-                    Cycle Inflow vs Outflow
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+                    Inflow vs Outflow
                   </span>
-                  <div className="h-48 w-full">
+                  <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
                         <defs>
@@ -447,9 +445,9 @@ export default function ReportsMobile({
                             <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                        <XAxis dataKey="name" stroke="#475569" fontSize={8} tickLine={false} />
-                        <YAxis stroke="#475569" fontSize={8} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
+                        <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                         <Tooltip content={<CustomTooltip />} />
                         <Area type="monotone" dataKey="Inflow" stroke="#10B981" fillOpacity={1} fill="url(#mColorInflow)" strokeWidth={1.5} />
                         <Area type="monotone" dataKey="Outflow" stroke="#F43F5E" fillOpacity={1} fill="url(#mColorOutflow)" strokeWidth={1.5} />
@@ -467,17 +465,17 @@ export default function ReportsMobile({
                   exit={{ opacity: 0, x: -10 }}
                   className="w-full h-full flex flex-col justify-between"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">
-                    Historical Spending Trends
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+                    Historical Spending
                   </span>
-                  <div className="h-48 w-full">
+                  <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                        <XAxis dataKey="name" stroke="#475569" fontSize={8} tickLine={false} />
-                        <YAxis stroke="#475569" fontSize={8} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
+                        <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="Spending" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                        <Bar dataKey="Spending" fill="#F43F5E" radius={[3, 3, 0, 0]} maxBarSize={16} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -492,18 +490,18 @@ export default function ReportsMobile({
                   exit={{ opacity: 0, x: -10 }}
                   className="w-full h-full flex flex-col justify-between"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">
-                    Remaining balance & savings
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+                    Remaining Balance & Savings
                   </span>
-                  <div className="h-48 w-full">
+                  <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                        <XAxis dataKey="name" stroke="#475569" fontSize={8} tickLine={false} />
-                        <YAxis stroke="#475569" fontSize={8} tickLine={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
+                        <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={18} />
-                        <Bar dataKey="Invested Savings" stackId="a" fill="#F59E0B" radius={[4, 4, 0, 0]} maxBarSize={18} />
+                        <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={16} />
+                        <Bar dataKey="Invested Savings" stackId="a" fill="#5E6AD2" radius={[3, 3, 0, 0]} maxBarSize={16} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -518,23 +516,23 @@ export default function ReportsMobile({
                   exit={{ opacity: 0, x: -10 }}
                   className="w-full h-full flex flex-col justify-between"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">
-                    Stock performance (Invested vs Market Value)
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+                    Invested vs Market Value
                   </span>
 
                   {stockHoldings.length === 0 ? (
-                    <div className="h-44 w-full flex flex-col items-center justify-center text-slate-500 text-[11px] gap-2">
-                      <AlertCircle className="w-6 h-6 opacity-30" />
+                    <div className="h-40 w-full flex flex-col items-center justify-center text-slate-500 text-xs font-mono gap-2">
+                      <AlertCircle className="w-5 h-5 opacity-40" />
                       <span>No stock holdings logged.</span>
                       <Link
                         href="/stocks"
-                        className="text-[10px] font-black uppercase px-2.5 py-1 bg-violet-600/10 border border-violet-500/20 text-violet-400 rounded-lg mt-1"
+                        className="btn-linear-secondary text-xs px-2.5 py-1"
                       >
                         Add Stocks
                       </Link>
                     </div>
                   ) : (
-                    <div className="h-44 w-full">
+                    <div className="h-40 w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={stockHoldings.map(h => ({
@@ -544,21 +542,21 @@ export default function ReportsMobile({
                           }))}
                           margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" />
-                          <XAxis dataKey="name" stroke="#475569" fontSize={8} tickLine={false} />
-                          <YAxis stroke="#475569" fontSize={8} tickLine={false} />
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                          <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
+                          <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: '#0f172a',
+                              backgroundColor: '#0a0a0c',
                               border: '1px solid rgba(255,255,255,0.08)',
                               borderRadius: '12px',
                               fontSize: '10px',
-                              fontFamily: 'inherit',
+                              fontFamily: 'monospace',
                             }}
                             formatter={(value) => [formatCurrency(value), '']}
                           />
-                          <Bar dataKey="Invested" fill="#8b5cf6" radius={[3, 3, 0, 0]} maxBarSize={18} />
-                          <Bar dataKey="Current" fill="#06b6d4" radius={[3, 3, 0, 0]} maxBarSize={18} />
+                          <Bar dataKey="Invested" fill="#5E6AD2" radius={[3, 3, 0, 0]} maxBarSize={16} />
+                          <Bar dataKey="Current" fill="#06B6D4" radius={[3, 3, 0, 0]} maxBarSize={16} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -574,17 +572,17 @@ export default function ReportsMobile({
                   exit={{ opacity: 0, x: -10 }}
                   className="w-full h-full flex flex-col justify-between"
                 >
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 block mb-2">
-                    Current cycle category distribution
+                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
+                    Cycle Spending Distribution
                   </span>
 
                   {pieChartData.length === 0 ? (
-                    <div className="h-44 w-full flex flex-col items-center justify-center text-slate-500 text-[11px]">
-                      <AlertCircle className="w-6 h-6 opacity-30 mb-2" />
+                    <div className="h-40 w-full flex flex-col items-center justify-center text-slate-500 text-xs font-mono">
+                      <AlertCircle className="w-5 h-5 opacity-40 mb-1.5" />
                       <span>No spending recorded in this cycle.</span>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-4 h-44">
+                    <div className="flex items-center gap-3 h-40">
                       <div className="w-28 h-28 shrink-0">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
@@ -595,6 +593,8 @@ export default function ReportsMobile({
                               innerRadius={28}
                               outerRadius={48}
                               paddingAngle={2}
+                              stroke="rgba(10,10,12,0.8)"
+                              strokeWidth={2}
                               dataKey="value"
                             >
                               {pieChartData.map((entry, index) => (
@@ -606,14 +606,14 @@ export default function ReportsMobile({
                         </ResponsiveContainer>
                       </div>
 
-                      <div className="flex-grow space-y-1 max-h-40 overflow-y-auto pr-1">
+                      <div className="flex-grow space-y-1 max-h-36 overflow-y-auto pr-1 font-mono text-xs">
                         {pieChartData.map((slice, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-[9px] border-b border-white/5 pb-1">
-                            <div className="flex items-center gap-1 font-bold text-white min-w-0">
+                          <div key={idx} className="flex items-center justify-between border-b border-white/[0.04] pb-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[slice.name] || '#a78bfa' }}></span>
-                              <span className="truncate">{slice.name}</span>
+                              <span className="truncate text-slate-300 text-[10px]">{slice.name}</span>
                             </div>
-                            <span className="font-extrabold text-slate-400 shrink-0 ml-1">{formatCurrency(slice.value)}</span>
+                            <span className="font-semibold text-white shrink-0 ml-1 text-[10px]">{formatCurrency(slice.value)}</span>
                           </div>
                         ))}
                       </div>
@@ -628,16 +628,16 @@ export default function ReportsMobile({
         {/* Action Link */}
         <Link
           href="/transactions"
-          className="block w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-xl text-[10px] font-black tracking-wider text-center uppercase transition-all"
+          className="btn-linear-secondary block w-full py-2.5 text-xs text-center uppercase tracking-wider font-mono"
         >
           View Full Ledger Passbook
         </Link>
       </main>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-4">
-        <div className="max-w-7xl mx-auto px-4 text-slate-600 text-[10px] text-center font-bold uppercase tracking-wider">
-          © {new Date().getFullYear()} e-Passbook Reports. Optimized for iOS & Android views.
+      <footer className="border-t border-white/[0.06] bg-[#050506]/60 backdrop-blur-xl py-4">
+        <div className="max-w-7xl mx-auto px-4 text-slate-500 text-[10px] text-center font-mono">
+          © {new Date().getFullYear()} ePassbook Mobile Reports
         </div>
       </footer>
     </div>

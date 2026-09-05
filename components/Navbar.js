@@ -11,7 +11,6 @@ import {
   LayoutDashboard, 
   ReceiptText, 
   AreaChart, 
-  MessageSquare, 
   Settings, 
   LogOut, 
   User,
@@ -120,15 +119,15 @@ export default function Navbar() {
       <header className="sticky top-0 z-50 w-full glass-nav">
         <div className="max-w-7xl mx-auto px-4 md:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-lg text-white hover:opacity-95 shrink-0">
-            <span className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white shadow-md shadow-violet-600/20">
-              <Wallet className="w-4.5 h-4.5" />
+          <Link href="/dashboard" className="flex items-center gap-2.5 font-semibold text-base text-[#EDEDEF] hover:text-white transition-colors shrink-0 group">
+            <span className="p-1.5 bg-gradient-to-b from-[#5E6AD2] to-[#4B55B0] rounded-lg text-white shadow-[0_0_12px_rgba(94,106,210,0.35),inset_0_1px_0_0_rgba(255,255,255,0.2)]">
+              <Wallet className="w-4 h-4" />
             </span>
-            <span className="tracking-tight">Monthly<span className="text-violet-400">Money</span></span>
+            <span className="tracking-tight font-medium">Monthly<span className="text-[#818cf8]">Money</span></span>
           </Link>
 
           {/* Navigation Links (Desktop & Tablet: md & md+) */}
-          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
+          <nav className="hidden md:flex items-center gap-1 lg:gap-1.5">
             {primaryLinks.map((link) => {
               const Icon = link.icon;
               const isActive = pathname === link.path;
@@ -137,18 +136,18 @@ export default function Navbar() {
                 <Link
                   key={link.path}
                   href={link.path}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-xl text-xs font-semibold transition-all duration-200 border ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg text-xs font-medium transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                     link.hideOnMd ? 'hidden lg:flex' : 'flex'
                   } ${
                     isActive
-                      ? 'bg-gradient-to-r from-violet-600/20 to-cyan-500/20 text-violet-300 border-violet-500/35 shadow-[0_0_15px_-3px_rgba(139,92,246,0.25)]'
-                      : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'
+                      ? 'bg-white/[0.08] text-white border border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)]'
+                      : 'text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.04] border border-transparent'
                   }`}
                 >
-                  <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-110 text-violet-400' : 'text-slate-400'}`} />
+                  <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-[#818cf8]' : 'text-[#8A8F98]'}`} />
                   <span>{link.name}</span>
                   {link.isAi && (
-                    <span className="px-1.5 py-0.2 bg-gradient-to-r from-violet-500 to-cyan-400 text-[9px] font-black text-white rounded-full uppercase tracking-tighter shadow-sm">
+                    <span className="px-1.5 py-0.2 bg-[#5E6AD2]/20 border border-[#5E6AD2]/30 text-[9px] font-mono font-semibold text-[#818cf8] rounded-full uppercase tracking-wider">
                       AI
                     </span>
                   )}
@@ -161,34 +160,34 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={() => setMoreDropdownOpen(!moreDropdownOpen)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-xl text-xs font-semibold transition-all duration-200 border cursor-pointer ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg text-xs font-medium transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] border cursor-pointer ${
                   isSecondaryActive || moreDropdownOpen
-                    ? 'bg-violet-600/15 text-violet-300 border-violet-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-white/[0.04] border-transparent'
+                    ? 'bg-white/[0.08] text-white border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)]'
+                    : 'text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.04] border-transparent'
                 }`}
                 title="More features and settings"
               >
-                <Layers className={`w-4 h-4 ${isSecondaryActive ? 'text-violet-400' : 'text-slate-400'}`} />
+                <Layers className={`w-3.5 h-3.5 ${isSecondaryActive ? 'text-[#818cf8]' : 'text-[#8A8F98]'}`} />
                 <span>More</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${moreDropdownOpen ? 'rotate-180 text-violet-400' : 'text-slate-500'}`} />
+                <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${moreDropdownOpen ? 'rotate-180 text-white' : 'text-[#8A8F98]'}`} />
               </button>
 
               <AnimatePresence>
                 {moreDropdownOpen && (
                   <motion.div
-                    initial={{ opacity: 0, y: 8, scale: 0.96 }}
+                    initial={{ opacity: 0, y: 6, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-64 bg-slate-950/95 border border-white/10 rounded-2xl p-2 shadow-2xl backdrop-blur-2xl z-50 text-left"
+                    exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+                    className="absolute right-0 mt-2 w-64 bg-[#0a0a0c]/95 border border-white/10 rounded-xl p-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.8),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-2xl z-50 text-left"
                   >
-                    <div className="px-3 py-2 border-b border-white/5 mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <div className="px-3 py-2 border-b border-white/[0.06] mb-1">
+                      <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98]">
                         Tools & Integrations
                       </span>
                     </div>
 
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {secondaryLinks.map((link) => {
                         const Icon = link.icon;
                         const isActive = pathname === link.path;
@@ -200,18 +199,18 @@ export default function Navbar() {
                               <Link
                                 href={link.path}
                                 onClick={() => setMoreDropdownOpen(false)}
-                                className={`flex items-start gap-3 p-2.5 rounded-xl text-xs transition-all ${
+                                className={`flex items-start gap-2.5 p-2 rounded-lg text-xs transition-all ${
                                   isActive
-                                    ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
-                                    : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                                    ? 'bg-[#5E6AD2]/15 text-white border border-[#5E6AD2]/30'
+                                    : 'text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.04] border border-transparent'
                                 }`}
                               >
-                                <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${isActive ? 'bg-violet-500/20 text-violet-400' : 'bg-slate-900 text-slate-400'}`}>
-                                  <Icon className="w-4 h-4" />
+                                <div className={`p-1.5 rounded-md shrink-0 mt-0.5 ${isActive ? 'bg-[#5E6AD2]/20 text-[#818cf8]' : 'bg-white/[0.03] text-[#8A8F98]'}`}>
+                                  <Icon className="w-3.5 h-3.5" />
                                 </div>
                                 <div className="min-w-0 flex-1">
-                                  <span className="font-bold text-white block truncate">{link.name}</span>
-                                  <span className="text-[10px] text-slate-400 block truncate">{link.desc}</span>
+                                  <span className="font-medium text-[#EDEDEF] block truncate">{link.name}</span>
+                                  <span className="text-[10px] text-[#8A8F98] block truncate">{link.desc}</span>
                                 </div>
                               </Link>
                             </div>
@@ -223,18 +222,18 @@ export default function Navbar() {
                             key={link.path}
                             href={link.path}
                             onClick={() => setMoreDropdownOpen(false)}
-                            className={`flex items-start gap-3 p-2.5 rounded-xl text-xs transition-all ${
+                            className={`flex items-start gap-2.5 p-2 rounded-lg text-xs transition-all ${
                               isActive
-                                ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30'
-                                : 'text-slate-300 hover:text-white hover:bg-white/5 border border-transparent'
+                                ? 'bg-[#5E6AD2]/15 text-white border border-[#5E6AD2]/30'
+                                : 'text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.04] border border-transparent'
                             }`}
                           >
-                            <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${isActive ? 'bg-violet-500/20 text-violet-400' : 'bg-slate-900 text-slate-400'}`}>
-                              <Icon className="w-4 h-4" />
+                            <div className={`p-1.5 rounded-md shrink-0 mt-0.5 ${isActive ? 'bg-[#5E6AD2]/20 text-[#818cf8]' : 'bg-white/[0.03] text-[#8A8F98]'}`}>
+                              <Icon className="w-3.5 h-3.5" />
                             </div>
                             <div className="min-w-0 flex-1">
-                              <span className="font-bold text-white block truncate">{link.name}</span>
-                              <span className="text-[10px] text-slate-400 block truncate">{link.desc}</span>
+                              <span className="font-medium text-[#EDEDEF] block truncate">{link.name}</span>
+                              <span className="text-[10px] text-[#8A8F98] block truncate">{link.desc}</span>
                             </div>
                           </Link>
                         );
@@ -247,16 +246,16 @@ export default function Navbar() {
           </nav>
 
           {/* User Actions & Mobile Hamburger */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0" style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Mobile Camera Quick-Capture Button */}
             <button
               type="button"
               onClick={handleCameraOpen}
-              className="md:hidden p-2 text-violet-300 hover:text-white bg-violet-600/15 hover:bg-violet-600/25 border border-violet-500/30 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center shadow-[0_0_12px_rgba(139,92,246,0.2)]"
+              className="md:hidden p-2 text-[#818cf8] hover:text-white bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/20 border border-[#5E6AD2]/25 rounded-lg transition-all cursor-pointer active:scale-95 flex items-center justify-center"
               aria-label="Open Camera to scan receipt"
               title="Open camera to scan receipt"
             >
-              <Camera className="w-5 h-5 text-violet-400" />
+              <Camera className="w-4 h-4 text-[#818cf8]" />
             </button>
 
             {/* Hidden native camera capture input */}
@@ -269,29 +268,27 @@ export default function Navbar() {
               onChange={handleCameraCaptured}
             />
 
-            <div className="flex items-center gap-2 max-w-[150px]">
+            <div className="flex items-center gap-2.5 max-w-[160px]">
               <div className="relative group">
-                <div className="absolute -inset-0.5 bg-gradient-to-r from-violet-600 to-cyan-500 rounded-full blur opacity-30 group-hover:opacity-75 transition duration-500"></div>
-                <div className="relative w-8 h-8 rounded-full bg-slate-950 border border-white/10 text-violet-400 flex items-center justify-center shrink-0 overflow-hidden">
+                <div className="w-8 h-8 rounded-full bg-[#0a0a0c] border border-white/10 text-[#818cf8] flex items-center justify-center shrink-0 overflow-hidden shadow-inner">
                   {user?.photoURL ? (
                     <img src={user.photoURL} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-4 h-4" />
+                    <User className="w-3.5 h-3.5 text-[#8A8F98]" />
                   )}
                 </div>
               </div>
               <div className="hidden sm:flex flex-col text-left">
-                <span className="text-xs font-bold text-white truncate max-w-[100px]">{user?.displayName || 'User'}</span>
-                <span className="text-[9px] text-slate-500 truncate max-w-[100px]">{user?.email}</span>
+                <span className="text-xs font-semibold text-[#EDEDEF] truncate max-w-[110px]">{user?.displayName || 'User'}</span>
+                <span className="text-[10px] text-[#8A8F98] truncate max-w-[110px] font-mono">{user?.email}</span>
               </div>
             </div>
 
             {/* Desktop Logout Button */}
             <button
               onClick={logout}
-              className="hidden md:flex p-2 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl border border-transparent hover:border-rose-500/20 transition-all cursor-pointer active:scale-90"
+              className="hidden md:flex p-2 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/20 transition-all cursor-pointer active:scale-95"
               title="Log Out"
-              style={{ fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" }}
             >
               <LogOut className="w-4 h-4" />
             </button>
@@ -299,26 +296,23 @@ export default function Navbar() {
             {/* Mobile Hamburger Button */}
             <button
               onClick={() => setDrawerOpen(true)}
-              className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl border border-white/5 transition-all cursor-pointer"
+              className="md:hidden p-2 text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.05] rounded-lg border border-white/[0.06] transition-all cursor-pointer"
               aria-label="Open navigation menu"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Sticky Bottom Navigation Bar (Streamlined to 5 Items) */}
+      {/* Mobile Sticky Bottom Navigation Bar */}
       <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#030712]/95 backdrop-blur-2xl border-t border-white/[0.08] shadow-[0_-10px_30px_rgba(0,0,0,0.7)] pt-2 px-1 flex items-center justify-between"
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#050506]/95 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-8px_30px_rgba(0,0,0,0.8)] pt-2 px-1 flex items-center justify-between"
         style={{ 
-          paddingBottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 8px))',
+          paddingBottom: 'max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px))',
           transform: 'translate3d(0, 0, 0)',
           WebkitTransform: 'translate3d(0, 0, 0)',
           willChange: 'transform',
-          WebkitBackfaceVisibility: 'hidden',
-          backfaceVisibility: 'hidden',
-          fontFamily: "'General Sans Variable', 'General Sans', -apple-system, sans-serif" 
         }}
       >
         {mobileBottomLinks.map((link) => {
@@ -329,14 +323,17 @@ export default function Navbar() {
             <Link
               key={link.path}
               href={link.path}
-              className={`flex flex-col items-center gap-0.5 py-1 px-1 rounded-xl transition-all duration-200 flex-1 min-w-0 ${
+              className={`flex flex-col items-center gap-1 py-1 px-1 rounded-lg transition-all duration-200 flex-1 min-w-0 ${
                 isActive
-                  ? 'text-violet-400 font-bold'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'text-white font-medium'
+                  : 'text-[#8A8F98] hover:text-[#EDEDEF]'
               }`}
             >
-              <Icon className={`w-5 h-5 transition-all duration-300 ${isActive ? 'scale-110 text-violet-450 filter drop-shadow-[0_0_5px_rgba(139,92,246,0.5)]' : 'text-slate-400'}`} />
-              <span className="text-[8px] uppercase tracking-wider font-extrabold truncate w-full text-center">{link.name.split(' ')[0]}</span>
+              <Icon className={`w-4 h-4 transition-transform duration-200 ${isActive ? 'scale-110 text-[#818cf8]' : 'text-[#8A8F98]'}`} />
+              <span className="text-[9px] tracking-tight font-medium truncate w-full text-center">{link.name.split(' ')[0]}</span>
+              {isActive && (
+                <span className="w-1 h-1 rounded-full bg-[#5E6AD2]" />
+              )}
             </Link>
           );
         })}
@@ -344,10 +341,10 @@ export default function Navbar() {
         {/* 5th Menu Item: More */}
         <button
           onClick={() => setDrawerOpen(true)}
-          className="flex flex-col items-center gap-0.5 py-1 px-1 rounded-xl transition-all duration-200 flex-1 min-w-0 text-slate-400 hover:text-slate-200 cursor-pointer"
+          className="flex flex-col items-center gap-1 py-1 px-1 rounded-lg transition-all duration-200 flex-1 min-w-0 text-[#8A8F98] hover:text-[#EDEDEF] cursor-pointer"
         >
-          <Menu className="w-5 h-5 text-slate-400" />
-          <span className="text-[8px] uppercase tracking-wider font-extrabold truncate w-full text-center">Menu</span>
+          <Menu className="w-4 h-4 text-[#8A8F98]" />
+          <span className="text-[9px] tracking-tight font-medium truncate w-full text-center">Menu</span>
         </button>
       </nav>
 
@@ -361,7 +358,7 @@ export default function Navbar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setDrawerOpen(false)}
-              className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm cursor-pointer"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
             />
 
             {/* Sidebar drawer body */}
@@ -369,16 +366,16 @@ export default function Navbar() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="absolute top-0 right-0 h-full w-[80vw] max-w-[320px] bg-slate-950/45 backdrop-blur-3xl border-l border-white/[0.08] shadow-2xl flex flex-col justify-between"
+              transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+              className="absolute top-0 right-0 h-full w-[80vw] max-w-[320px] bg-[#0a0a0c]/98 backdrop-blur-3xl border-l border-white/[0.08] shadow-[0_0_50px_rgba(0,0,0,0.9)] flex flex-col justify-between"
             >
               {/* Header inside Drawer */}
-              <div className="p-5 border-b border-white/[0.05] flex items-center justify-between">
-                <div className="flex items-center gap-2 font-bold text-white">
-                  <span className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white">
+              <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-2 font-semibold text-white">
+                  <span className="p-1.5 bg-[#5E6AD2] rounded-lg text-white">
                     <Wallet className="w-4 h-4" />
                   </span>
-                  <span className="text-sm">MonthlyMoney</span>
+                  <span className="text-sm font-medium">MonthlyMoney</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
@@ -386,35 +383,35 @@ export default function Navbar() {
                       setDrawerOpen(false);
                       logout();
                     }}
-                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer active:scale-95"
+                    className="p-1.5 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg border border-transparent hover:border-rose-500/10 transition-all cursor-pointer active:scale-95"
                     title="Log Out"
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => setDrawerOpen(false)} 
-                    className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg border border-transparent hover:border-white/5 transition-all cursor-pointer"
+                    className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/[0.05] rounded-lg border border-transparent hover:border-white/10 transition-all cursor-pointer"
                     aria-label="Close navigation menu"
                   >
-                    <X className="w-4.5 h-4.5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
               {/* Drawer Content Area */}
-              <div className="flex-1 overflow-y-auto px-4 py-5 space-y-6">
+              <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5">
                 {/* Profile Widget */}
-                <div className="p-4 bg-white/[0.03] border border-white/[0.07] backdrop-blur-md rounded-2xl flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-violet-600/25 border border-violet-500/35 text-violet-400 flex items-center justify-center shrink-0">
+                <div className="p-3.5 bg-white/[0.03] border border-white/[0.06] backdrop-blur-md rounded-xl flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#5E6AD2]/20 border border-[#5E6AD2]/30 text-[#818cf8] flex items-center justify-center shrink-0">
                     {user?.photoURL ? (
                       <img src={user.photoURL} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                     ) : (
-                      <User className="w-5 h-5" />
+                      <User className="w-4 h-4" />
                     )}
                   </div>
                   <div className="flex flex-col text-left min-w-0 flex-1">
-                    <span className="text-xs font-bold text-white truncate">{user?.displayName || 'User'}</span>
-                    <span className="text-[10px] text-slate-500 truncate">{user?.email}</span>
+                    <span className="text-xs font-semibold text-[#EDEDEF] truncate">{user?.displayName || 'User'}</span>
+                    <span className="text-[10px] text-[#8A8F98] truncate font-mono">{user?.email}</span>
                   </div>
                 </div>
 
@@ -429,24 +426,22 @@ export default function Navbar() {
                         key={link.path}
                         href={link.path}
                         onClick={() => setDrawerOpen(false)}
-                        className={`flex items-center justify-between p-3.5 rounded-xl text-xs font-semibold transition-all duration-200 border ${
+                        className={`flex items-center justify-between p-3 rounded-lg text-xs font-medium transition-all duration-200 border ${
                           isActive
-                            ? 'bg-violet-600/10 border-violet-500/20 text-violet-400 shadow-lg shadow-violet-600/5'
-                            : 'bg-transparent border-transparent text-slate-400 hover:text-white hover:bg-white/[0.02]'
+                            ? 'bg-white/[0.08] border-white/10 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]'
+                            : 'bg-transparent border-transparent text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.03]'
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-violet-400' : 'text-slate-400'}`} />
+                          <Icon className={`w-4 h-4 ${isActive ? 'text-[#818cf8]' : 'text-[#8A8F98]'}`} />
                           <span>{link.name}</span>
                         </div>
-                        <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+                        <ChevronRight className="w-3 h-3 text-[#8A8F98]/50" />
                       </Link>
                     );
                   })}
                 </div>
               </div>
-
-
             </motion.div>
           </div>
         )}

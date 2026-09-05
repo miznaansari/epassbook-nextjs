@@ -118,37 +118,37 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
   if (items.length === 0 && status !== 'approved') return null;
 
   return (
-    <div className="my-4 p-4 rounded-2xl bg-slate-900/90 border border-violet-500/35 shadow-2xl backdrop-blur-2xl text-left">
+    <div className="my-4 p-4 rounded-xl bg-[#0a0a0c] border border-white/[0.08] shadow-linear-card backdrop-blur-xl text-left">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/10 gap-2">
+      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-2 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white shrink-0 shadow-md shadow-violet-600/20">
+          <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 flex items-center justify-center text-[#5E6AD2] shrink-0">
             <Receipt className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-black text-white uppercase tracking-wider truncate">
-              {status === 'approved' ? 'Transactions Recorded' : 'Extracted Receipt Items for Approval'}
+            <h4 className="text-xs font-semibold text-white tracking-wide truncate">
+              {status === 'approved' ? 'Transactions Recorded' : 'Receipt OCR Proposal'}
             </h4>
-            <span className="text-[10px] text-slate-400 font-semibold block">
+            <span className="text-[10px] text-slate-400 font-mono block">
               {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
             </span>
           </div>
         </div>
 
         {status === 'approved' ? (
-          <span className="px-3 py-1 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider rounded-full flex items-center gap-1 shrink-0">
-            <CheckCheck className="w-3.5 h-3.5" /> Added to Passbook
+          <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0">
+            <CheckCheck className="w-3 h-3" /> Recorded
           </span>
         ) : (
-          <span className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-extrabold uppercase tracking-wider rounded-full shrink-0 animate-pulse">
+          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md shrink-0">
             Pending Approval
           </span>
         )}
       </div>
 
       {errorMsg && (
-        <div className="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-lg text-xs font-medium flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{errorMsg}</span>
         </div>
       )}
@@ -156,9 +156,9 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
       {/* Items list */}
       <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
         {items.map((item, idx) => (
-          <div key={idx} className="p-2.5 bg-slate-950/70 border border-white/5 hover:border-violet-500/20 rounded-xl flex items-center justify-between gap-3 transition-all">
-            <div className="flex-1 min-w-0 flex items-center gap-2">
-              <span className="w-5 h-5 rounded-lg bg-white/5 text-slate-400 text-[10px] font-bold flex items-center justify-center shrink-0">
+          <div key={idx} className="p-2.5 bg-[#050506] border border-white/[0.04] hover:border-white/[0.08] rounded-lg flex items-center justify-between gap-3 transition-all">
+            <div className="flex-1 min-w-0 flex items-center gap-2 font-mono">
+              <span className="w-4 h-4 rounded bg-white/[0.04] text-slate-400 text-[9px] font-bold flex items-center justify-center shrink-0">
                 {idx + 1}
               </span>
               <input
@@ -167,22 +167,22 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
                 value={item.title}
                 onChange={(e) => handleUpdateItem(idx, 'title', e.target.value)}
                 placeholder="Item name"
-                className="bg-transparent border-b border-transparent focus:border-violet-500 text-xs font-bold text-white focus:outline-none w-full truncate disabled:opacity-80"
+                className="bg-transparent border-b border-transparent focus:border-[#5E6AD2] text-xs font-sans text-white focus:outline-none w-full truncate disabled:opacity-80 font-medium"
               />
-              <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 border border-violet-500/20 shrink-0">
+              <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#5E6AD2]/10 text-[#818cf8] border border-[#5E6AD2]/20 shrink-0">
                 {item.type || 'SPENDING'}
               </span>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 font-mono text-xs font-black text-emerald-400 bg-emerald-500/5 px-2 py-1 rounded-lg border border-emerald-500/15">
+              <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
                 <span>{currencySymbol}</span>
                 <input
                   type="number"
                   disabled={status === 'approved' || status === 'saving'}
                   value={item.amount}
                   onChange={(e) => handleUpdateItem(idx, 'amount', e.target.value)}
-                  className="bg-transparent text-xs font-black text-emerald-400 focus:outline-none w-14 text-right disabled:opacity-80"
+                  className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none w-14 text-right disabled:opacity-80"
                 />
               </div>
 
@@ -190,7 +190,7 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(idx)}
-                  className="p-1 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  className="p-1 text-slate-500 hover:text-rose-400 rounded hover:bg-rose-500/10 transition-colors cursor-pointer"
                   title="Remove item"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -203,34 +203,34 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
 
       {/* Action Footer */}
       {status !== 'approved' ? (
-        <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between gap-3">
-          <span className="text-[10px] text-slate-400 font-semibold">
+        <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-3">
+          <span className="text-[10px] text-slate-400 font-mono">
             Deducts from active salary balance
           </span>
           <button
             type="button"
             disabled={status === 'saving' || items.length === 0}
             onClick={handleCreateAll}
-            className="px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            className="btn-linear-primary text-xs px-3.5 py-1.5 flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
             {status === 'saving' ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Recording in Passbook...</span>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                <span>Recording...</span>
               </>
             ) : (
               <>
-                <Check className="w-4 h-4" />
-                <span>Approve & Create All ({currencySymbol}{totalAmount.toLocaleString()})</span>
+                <Check className="w-3.5 h-3.5" />
+                <span>Approve All ({currencySymbol}{totalAmount.toLocaleString()})</span>
               </>
             )}
           </button>
         </div>
       ) : (
-        <div className="mt-3.5 pt-3 border-t border-white/10 flex items-center justify-between text-xs text-emerald-400 font-bold">
+        <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-emerald-400 font-mono">
           <span className="flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4" />
-            Successfully recorded {createdCount} entries into your ledger.
+            Recorded {createdCount} entries into ledger.
           </span>
         </div>
       )}
@@ -278,7 +278,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
       if (part.startsWith('`') && part.endsWith('`')) {
         const codeText = part.slice(1, -1);
         return (
-          <code key={idx} className="font-mono text-cyan-400 bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20 text-xs">
+          <code key={idx} className="font-mono text-[#8B95F6] bg-[#5E6AD2]/10 px-1.5 py-0.5 rounded border border-[#5E6AD2]/20 text-xs">
             {codeText}
           </code>
         );
@@ -290,10 +290,10 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
   const renderCellContent = (cell) => {
     const trimmed = cell.trim();
     if (trimmed.startsWith('+')) {
-      return <span className="text-emerald-400 font-semibold">{renderTextWithFormatting(cell)}</span>;
+      return <span className="text-emerald-400 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
     }
     if (trimmed.startsWith('-') && !trimmed.startsWith('---')) {
-      return <span className="text-rose-400 font-semibold">{renderTextWithFormatting(cell)}</span>;
+      return <span className="text-rose-400 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
     }
     return renderTextWithFormatting(cell);
   };
@@ -309,7 +309,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
       const text = paragraphText.join('\n').trim();
       if (text) {
         elements.push(
-          <p key={`p-${key}`} className="whitespace-pre-line break-words mb-3 last:mb-0 leading-relaxed">
+          <p key={`p-${key}`} className="whitespace-pre-line break-words mb-3 last:mb-0 leading-relaxed text-slate-300">
             {renderTextWithFormatting(text)}
           </p>
         );
@@ -321,22 +321,22 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
   const flushTable = (key) => {
     if (currentTable) {
       elements.push(
-        <div key={`table-wrapper-${key}`} className="my-4 overflow-x-auto rounded-xl border border-white/10 bg-slate-900/40 shadow-inner">
+        <div key={`table-wrapper-${key}`} className="my-4 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#050506]/90 shadow-sm">
           <table className="w-full border-collapse text-left text-xs md:text-sm">
             <thead>
-              <tr className="border-b border-white/10 bg-white/5">
+              <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                 {currentTable.headers.map((h, hIdx) => (
-                  <th key={hIdx} className="px-4 py-3 font-bold text-white tracking-wider">
+                  <th key={hIdx} className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider text-slate-400 font-bold">
                     {renderTextWithFormatting(h)}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-white/[0.04]">
               {currentTable.rows.map((row, rIdx) => (
-                <tr key={rIdx} className="hover:bg-white/5 transition-colors">
+                <tr key={rIdx} className="hover:bg-white/[0.02] transition-colors">
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-4 py-3 text-slate-300">
+                    <td key={cIdx} className="px-4 py-2.5 text-slate-300">
                       {renderCellContent(cell)}
                     </td>
                   ))}
@@ -1307,32 +1307,32 @@ export default function Assistant() {
       <Navbar />
 
       {/* Decorative Ambient Orbs */}
-      <div className="absolute top-20 left-1/4 w-96 h-96 bg-violet-600/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-600/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-20 left-1/4 w-96 h-96 bg-[#5E6AD2]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-[#06B6D4]/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* AI Assistant Dedicated Page Header Bar - Positioned right below Top Navbar */}
-      <div className="w-full border-b border-white/[0.08] bg-[#030712]/90 backdrop-blur-2xl shrink-0 z-30 shadow-sm">
+      <div className="w-full border-b border-white/[0.06] bg-[#050506]/85 backdrop-blur-2xl shrink-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-2.5 md:py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {/* Sidebar toggle button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-white/5 border border-white/10 hover:border-violet-500/20 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shrink-0"
+              className="p-2 hover:bg-white/[0.04] border border-white/[0.08] hover:border-[#5E6AD2]/30 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shrink-0"
               title={isSidebarOpen ? "Hide Chat Logs" : "Show Chat Logs"}
             >
               {isSidebarOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Menu className="w-4 h-4 md:w-5 md:h-5" />}
             </button>
 
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="p-2 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-xl text-white shadow-md shadow-violet-600/25 shrink-0 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 md:w-5 md:h-5 animate-pulse" />
+              <span className="p-2 bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 rounded-xl text-[#6872D9] shadow-sm shadow-[#5E6AD2]/10 shrink-0 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
               </span>
               <div className="min-w-0 text-left">
-                <h1 className="text-sm md:text-lg font-black text-white tracking-tight truncate flex items-center gap-2">
+                <h1 className="text-sm md:text-lg font-bold text-white tracking-tight truncate flex items-center gap-2">
                   <span>AI Assistant</span>
-                  <span className="hidden sm:inline text-xs font-bold text-slate-400">• Vision & Finance</span>
+                  <span className="hidden sm:inline text-xs font-medium text-slate-500">• Vision & Finance</span>
                 </h1>
-                <p className="text-slate-400 text-[10px] md:text-xs font-semibold truncate hidden xs:block sm:block">
+                <p className="text-slate-500 text-[10px] md:text-xs truncate hidden xs:block sm:block">
                   Receipt OCR extraction & real-time ledger intelligence.
                 </p>
               </div>
@@ -1345,25 +1345,25 @@ export default function Assistant() {
               <select
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
-                className="appearance-none bg-slate-950/80 hover:bg-slate-900 border border-white/10 hover:border-white/20 text-[10px] md:text-xs font-black uppercase tracking-wider text-slate-300 hover:text-white rounded-xl py-1.5 md:py-2 pl-3 pr-8 md:pr-9 focus:outline-none focus:border-violet-500/50 transition-all cursor-pointer shadow-md shadow-slate-950/40"
+                className="appearance-none bg-[#0a0a0c] hover:bg-[#121216] border border-white/[0.08] hover:border-white/20 text-[10px] md:text-xs font-mono uppercase tracking-wider text-slate-300 hover:text-white rounded-xl py-1.5 md:py-2 pl-3 pr-8 md:pr-9 focus:outline-none focus:border-[#5E6AD2]/50 transition-all cursor-pointer shadow-sm"
               >
                 {AVAILABLE_MODELS.map((model) => (
-                  <option key={model.id} value={model.id} className="bg-slate-950 text-slate-300 font-bold uppercase tracking-wider">
+                  <option key={model.id} value={model.id} className="bg-[#0a0a0c] text-slate-300 font-mono text-xs">
                     {model.name}
                   </option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute right-2.5 md:right-3 flex items-center text-violet-400">
+              <div className="pointer-events-none absolute right-2.5 md:right-3 flex items-center text-[#8B95F6]">
                 <ChevronDown className="w-3.5 h-3.5" />
               </div>
             </div>
 
-            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-2 bg-violet-500/10 border border-violet-500/20 text-violet-300 rounded-xl text-[10px] font-black uppercase tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-violet-400" />
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#8B95F6] rounded-xl text-[10px] font-mono tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-[#6872D9]" />
               Sarvam AI Audio
             </span>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-black uppercase tracking-wider">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-mono tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
               Ledger Linked
             </span>
@@ -1382,7 +1382,7 @@ export default function Assistant() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md cursor-pointer"
+              className="absolute inset-0 bg-black/70 backdrop-blur-md cursor-pointer"
             />
 
             {/* Slide-out Drawer Panel */}
@@ -1392,16 +1392,16 @@ export default function Assistant() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[320px] bg-[#030712]/98 backdrop-blur-2xl border-r border-white/10 shadow-[20px_0_50px_rgba(0,0,0,0.9)] flex flex-col justify-between p-4 z-10"
+              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[320px] bg-[#0a0a0c]/98 backdrop-blur-2xl border-r border-white/[0.06] shadow-[20px_0_50px_rgba(0,0,0,0.9)] flex flex-col justify-between p-4 z-10"
               style={{
                 paddingTop: 'max(16px, env(safe-area-inset-top, 0px))',
                 paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))',
               }}
             >
               {/* Header inside Mobile Drawer */}
-              <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/10 shrink-0">
+              <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/[0.06] shrink-0">
                 <div className="flex items-center gap-2 font-bold text-white">
-                  <span className="p-1.5 bg-gradient-to-tr from-violet-600 to-cyan-500 rounded-lg text-white">
+                  <span className="p-1.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 rounded-lg text-[#6872D9]">
                     <Sparkles className="w-4 h-4" />
                   </span>
                   <span className="text-sm">Chat History & Logs</span>
@@ -1409,7 +1409,7 @@ export default function Assistant() {
 
                 <button
                   onClick={() => setIsSidebarOpen(false)}
-                  className="p-1.5 hover:bg-white/10 rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
+                  className="p-1.5 hover:bg-white/[0.06] rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
                   title="Close Drawer"
                 >
                   <X className="w-5 h-5" />
@@ -1422,7 +1422,7 @@ export default function Assistant() {
                   handleCreateSession();
                   setIsSidebarOpen(false);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 my-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wide transition-all shadow-md shadow-violet-600/20 cursor-pointer uppercase shrink-0 active:scale-98"
+                className="btn-linear-primary w-full py-2.5 px-4 my-3 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl shrink-0 active:scale-98"
               >
                 <Plus className="w-4 h-4" /> New Chat Session
               </button>
@@ -1430,12 +1430,12 @@ export default function Assistant() {
               {/* Scrollable list of sessions */}
               <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin my-1">
                 {isLoadingSessions ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-xs">
-                    <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-xs font-mono">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#6872D9]" />
                     <span>Syncing past logs...</span>
                   </div>
                 ) : sessions.length === 0 ? (
-                  <div className="text-center py-10 px-4 text-xs font-semibold text-slate-500">
+                  <div className="text-center py-10 px-4 text-xs text-slate-500">
                     No active sessions. Start a new session or upload a receipt to chat!
                   </div>
                 ) : (
@@ -1448,14 +1448,14 @@ export default function Assistant() {
                           setActiveSessionId(s.id);
                           setIsSidebarOpen(false);
                         }}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${
                           isActive
-                            ? 'bg-violet-600/20 border-violet-500/50 text-violet-100 shadow-md shadow-violet-950/40'
-                            : 'bg-slate-950/60 hover:bg-slate-900/80 border-white/5 text-slate-400 hover:text-white'
+                            ? 'bg-[#5E6AD2]/15 border-[#5E6AD2]/40 text-white shadow-sm shadow-[#5E6AD2]/10'
+                            : 'bg-[#050506]/60 hover:bg-white/[0.03] border-white/[0.04] text-slate-400 hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-8">
-                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-slate-500'}`} />
+                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#8B95F6]' : 'text-slate-500'}`} />
                           <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
                         </div>
 
@@ -1477,9 +1477,9 @@ export default function Assistant() {
               </div>
 
               {/* Mobile Drawer Bottom Info */}
-              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-500 font-semibold shrink-0">
+              <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-slate-500 font-mono shrink-0">
                 <span>{sessions.length} Saved Sessions</span>
-                <span className="text-violet-400 font-bold uppercase">{selectedModel}</span>
+                <span className="text-[#8B95F6] font-bold uppercase">{selectedModel}</span>
               </div>
             </motion.aside>
           </div>
@@ -1499,19 +1499,19 @@ export default function Assistant() {
               animate={{ width: 288, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="glass-card border border-white/5 flex flex-col p-4 shrink-0 overflow-hidden h-full"
+              className="bg-[#0a0a0c]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl flex flex-col p-4 shrink-0 overflow-hidden h-full shadow-linear-card"
             >
               {/* Header with New Chat Button */}
               <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
-                <span className="text-sm font-bold text-white flex items-center gap-2">
-                  <History className="w-4 h-4 text-violet-400" /> Chat Logs
+                <span className="text-sm font-semibold text-white flex items-center gap-2">
+                  <History className="w-4 h-4 text-[#8B95F6]" /> Chat Logs
                 </span>
               </div>
 
               {/* Create new chat session button */}
               <button
                 onClick={handleCreateSession}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 mb-4 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wide transition-all shadow-md shadow-violet-600/15 cursor-pointer uppercase shrink-0 active:scale-98"
+                className="btn-linear-primary w-full py-2.5 px-4 mb-4 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl shrink-0 active:scale-98"
               >
                 <Plus className="w-4 h-4" /> New Session
               </button>
@@ -1519,12 +1519,12 @@ export default function Assistant() {
               {/* Scrollable list of sessions */}
               <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin">
                 {isLoadingSessions ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-500 text-xs">
-                    <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-500 text-xs font-mono">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#6872D9]" />
                     <span>Syncing past logs...</span>
                   </div>
                 ) : sessions.length === 0 ? (
-                  <div className="text-center py-8 px-4 text-xs font-semibold text-slate-600">
+                  <div className="text-center py-8 px-4 text-xs text-slate-500">
                     No active sessions. Send a message or upload a receipt to start!
                   </div>
                 ) : (
@@ -1534,14 +1534,14 @@ export default function Assistant() {
                       <div
                         key={s.id}
                         onClick={() => setActiveSessionId(s.id)}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-bold select-none group cursor-pointer relative overflow-hidden ${
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${
                           isActive
-                            ? 'bg-violet-600/15 border-violet-500/40 text-violet-100 shadow-md shadow-violet-950/20'
-                            : 'bg-slate-950/40 hover:bg-slate-900/60 border-white/5 text-slate-400 hover:text-white'
+                            ? 'bg-[#5E6AD2]/15 border-[#5E6AD2]/40 text-white shadow-sm shadow-[#5E6AD2]/10'
+                            : 'bg-[#050506]/40 hover:bg-white/[0.03] border-white/[0.04] text-slate-400 hover:text-white'
                         }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-6">
-                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-violet-400' : 'text-slate-500'}`} />
+                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#8B95F6]' : 'text-slate-500'}`} />
                           <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
                         </div>
 
@@ -1565,12 +1565,12 @@ export default function Assistant() {
         {/* MAIN CHAT CONSOLE */}
         <motion.main
           layout
-          className="flex-grow md:glass-card md:border md:border-white/5 p-3 md:p-6 flex flex-col justify-between overflow-hidden relative h-full"
+          className="flex-grow md:bg-[#0a0a0c]/60 md:backdrop-blur-xl md:border md:border-white/[0.06] md:rounded-2xl p-3 md:p-6 flex flex-col justify-between overflow-hidden relative h-full shadow-linear-card"
         >
 
           {/* Error Banner with Retry */}
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left mb-2">
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left mb-2">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
@@ -1592,7 +1592,7 @@ export default function Assistant() {
                     sendMessage();
                   }
                 }}
-                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-300 rounded-lg text-[10px] font-black tracking-wider uppercase transition-all shrink-0 cursor-pointer"
+                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-300 rounded-lg text-[10px] font-mono tracking-wider uppercase transition-all shrink-0 cursor-pointer"
               >
                 Retry Dispatch
               </button>
@@ -1603,25 +1603,25 @@ export default function Assistant() {
           <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 pb-36 md:pb-4 scrollbar-thin scroll-smooth min-h-0">
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-violet-400" />
-                <span className="text-slate-500 text-sm font-semibold">Loading conversation...</span>
+                <Loader2 className="w-8 h-8 animate-spin text-[#6872D9]" />
+                <span className="text-slate-500 text-sm font-medium">Loading conversation...</span>
               </div>
             ) : messages.length === 0 ? (
               /* Premium Onboarding / Empty State */
               <div className="flex-grow flex flex-col justify-center items-center py-8 text-center max-w-xl mx-auto gap-6">
-                <div className="w-16 h-16 rounded-3xl bg-gradient-to-r from-violet-600 to-cyan-500 text-white flex items-center justify-center shadow-lg shadow-violet-600/20 animate-bounce">
+                <div className="w-16 h-16 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 text-[#6872D9] flex items-center justify-center shadow-lg shadow-[#5E6AD2]/10">
                   <Sparkles className="w-8 h-8" />
                 </div>
                 <div className="flex flex-col gap-2 px-4">
-                  <h3 className="text-white text-lg font-black tracking-tight">AI Vision & Personal Finance Assistant</h3>
-                  <p className="text-slate-400 text-xs font-semibold leading-relaxed">
+                  <h3 className="text-white text-lg font-bold tracking-tight">AI Vision & Personal Finance Assistant</h3>
+                  <p className="text-slate-400 text-xs leading-relaxed">
                     Upload receipt/bill photos to automatically extract item prices, or ask questions to audit your balances, salary deductions, and active lending logs.
                   </p>
                 </div>
 
                 {/* Suggestions Tags */}
                 <div className="w-full flex flex-col gap-2 mt-4 px-2">
-                  <span className="text-slate-500 text-[10px] font-black uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
+                  <span className="text-slate-500 text-[10px] font-mono uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {suggestions.map((s, idx) => {
                       const Icon = s.icon;
@@ -1635,9 +1635,9 @@ export default function Assistant() {
                               sendMessage(s.text);
                             }
                           }}
-                          className="flex items-center gap-3 px-4 py-3.5 bg-slate-950/50 hover:bg-violet-600/10 border border-white/5 hover:border-violet-500/30 text-slate-300 hover:text-white rounded-2xl text-xs font-bold text-left transition-all cursor-pointer group"
+                          className="flex items-center gap-3 px-4 py-3 bg-[#050506]/80 hover:bg-[#5E6AD2]/5 border border-white/[0.06] hover:border-[#5E6AD2]/30 text-slate-300 hover:text-white rounded-xl text-xs font-medium text-left transition-all cursor-pointer group"
                         >
-                          <div className="w-8 h-8 rounded-xl bg-violet-600/10 group-hover:bg-violet-500/20 text-violet-400 flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/10 group-hover:bg-[#5E6AD2]/20 text-[#8B95F6] flex items-center justify-center shrink-0">
                             <Icon className="w-4 h-4" />
                           </div>
                           <span>{s.text}</span>
@@ -1660,17 +1660,17 @@ export default function Assistant() {
                       className={`flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left ${isAi ? 'justify-start items-start' : 'justify-end items-end md:items-start'}`}
                     >
                       {isAi && (
-                        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm shadow-violet-950/50 transition-all ${
+                        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm transition-all ${
                           isStreamingCurrent
-                            ? 'bg-violet-600/30 border-violet-500 text-violet-300 animate-pulse'
-                            : 'bg-violet-600/20 border-violet-500/20 text-violet-400'
+                            ? 'bg-[#5E6AD2]/25 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
+                            : 'bg-[#5E6AD2]/10 border-[#5E6AD2]/25 text-[#6872D9]'
                         }`}>
                           <Bot className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                       )}
 
                       {!isAi && (
-                        <div className="md:hidden w-8 h-8 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
+                        <div className="md:hidden w-8 h-8 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center shrink-0">
                           <UserIcon className="w-4 h-4" />
                         </div>
                       )}
@@ -1678,20 +1678,20 @@ export default function Assistant() {
                       <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-sm transition-all ${
                         isAi
                           ? isStreamingCurrent
-                            ? 'bg-slate-950/80 border border-violet-500/40 text-slate-200 font-medium shadow-lg shadow-violet-950/30'
-                            : 'bg-slate-950/60 border border-white/5 text-slate-200 font-medium'
-                          : 'bg-gradient-to-r from-violet-600 to-cyan-500 text-white font-semibold'
+                            ? 'bg-[#0a0a0c] border border-[#5E6AD2]/40 text-slate-200 font-normal shadow-lg shadow-[#5E6AD2]/10'
+                            : 'bg-[#0a0a0c] border border-white/[0.06] text-slate-200 font-normal'
+                          : 'bg-[#5E6AD2] text-white font-medium shadow-sm shadow-[#5E6AD2]/20'
                         }`}>
 
                         {/* Live Streaming Gemini Transcript Banner */}
                         {isStreamingCurrent && (
-                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-violet-500/20 text-[10px] font-bold text-violet-300">
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#5E6AD2]/20 text-[10px] font-mono text-[#8B95F6]">
                             <span className="flex items-center gap-1.5">
                               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                              <Radio className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
-                              <span>Live Gemini Transcript Streaming...</span>
+                              <Radio className="w-3.5 h-3.5 text-[#8B95F6] animate-pulse" />
+                              <span>Live Gemini Streaming...</span>
                             </span>
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold">{selectedModel}</span>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">{selectedModel}</span>
                           </div>
                         )}
 
@@ -1711,7 +1711,7 @@ export default function Assistant() {
                                     onClick={() => setLightboxImage(imageSrc)}
                                     className="max-h-48 rounded-xl object-cover border border-white/20 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
                                   />
-                                  <span className="text-[10px] text-white/80 font-bold block mt-1">Receipt Attachment • Cloudflare R2 (Click to zoom)</span>
+                                  <span className="text-[10px] text-white/80 font-mono block mt-1">Receipt Attachment • Cloudflare R2 (Click to zoom)</span>
                                 </div>
                               )}
 
@@ -1720,7 +1720,7 @@ export default function Assistant() {
                                 
                                 {/* Live typing cursor during streaming */}
                                 {isStreamingCurrent && (
-                                  <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(139,92,246,0.8)]"></span>
+                                  <span className="inline-block w-2 h-4 bg-[#8B95F6] animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(94,106,210,0.8)]"></span>
                                 )}
                               </div>
                             </>
@@ -1729,10 +1729,10 @@ export default function Assistant() {
 
                         {/* Completed AI Transcript Actions */}
                         {isAi && msg.content && !isStreamingCurrent && (
-                          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/5 text-[10px] text-slate-400 font-semibold">
-                            <span className="flex items-center gap-1.5 text-slate-500 text-[9px] uppercase tracking-wider font-extrabold">
-                              <Sparkles className="w-3 h-3 text-violet-400" />
-                              <span>Gemini Transcript</span>
+                          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/[0.06] text-[10px] text-slate-400 font-medium">
+                            <span className="flex items-center gap-1.5 text-slate-500 text-[9px] uppercase font-mono tracking-wider">
+                              <Sparkles className="w-3 h-3 text-[#6872D9]" />
+                              <span>Gemini Response</span>
                             </span>
                             <div className="flex items-center gap-1.5">
                               {/* Read Aloud TTS Speaker (Sarvam AI Bulbul v3) */}
@@ -1742,10 +1742,10 @@ export default function Assistant() {
                                 disabled={audioLoadingMsgIdx === idx}
                                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                                   speakingMsgIdx === idx
-                                    ? 'bg-violet-500/25 text-violet-300 animate-pulse'
+                                    ? 'bg-[#5E6AD2]/25 text-[#8B95F6] animate-pulse'
                                     : audioLoadingMsgIdx === idx
-                                      ? 'bg-violet-500/15 text-violet-400'
-                                      : 'hover:bg-white/10 text-slate-400 hover:text-white'
+                                      ? 'bg-[#5E6AD2]/15 text-[#8B95F6]'
+                                      : 'hover:bg-white/[0.06] text-slate-400 hover:text-white'
                                 }`}
                                 title={
                                   audioLoadingMsgIdx === idx
@@ -1756,7 +1756,7 @@ export default function Assistant() {
                                 }
                               >
                                 {audioLoadingMsgIdx === idx ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B95F6]" />
                                 ) : speakingMsgIdx === idx ? (
                                   <VolumeX className="w-3.5 h-3.5" />
                                 ) : (
@@ -1768,7 +1768,7 @@ export default function Assistant() {
                               <button
                                 type="button"
                                 onClick={() => handleCopyTranscript(msg.content, idx)}
-                                className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                className="p-1.5 hover:bg-white/[0.06] rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
                                 title="Copy full transcript"
                               >
                                 {copiedMsgIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1779,7 +1779,7 @@ export default function Assistant() {
                       </div>
 
                       {!isAi && (
-                        <div className="hidden md:flex w-9 h-9 rounded-xl bg-cyan-600/20 border border-cyan-500/20 text-cyan-400 flex items-center justify-center shrink-0 shadow-sm shadow-cyan-950/50">
+                        <div className="hidden md:flex w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center shrink-0">
                           <UserIcon className="w-5 h-5" />
                         </div>
                       )}
@@ -1789,11 +1789,11 @@ export default function Assistant() {
 
                 {isGenerating && !messages[messages.length - 1]?.content && (
                   <div className="flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left justify-start items-start animate-fade-in">
-                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-violet-600/20 border border-violet-500/20 text-violet-400 flex items-center justify-center shrink-0 animate-pulse">
+                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#6872D9] flex items-center justify-center shrink-0 animate-pulse">
                       <Bot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-slate-950/70 border border-violet-500/20 text-slate-300 text-xs font-bold uppercase tracking-wider flex items-center gap-2.5 shadow-md shadow-violet-950/30">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
+                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-[#0a0a0c] border border-[#5E6AD2]/20 text-slate-300 text-xs font-mono flex items-center gap-2.5 shadow-md">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B95F6]" />
                       <span className="flex items-center gap-1.5">
                         <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
                         <span>Analyzing Vision & Ledger Data...</span>
@@ -1807,53 +1807,53 @@ export default function Assistant() {
           </div>
 
           {/* Pinned Input Container: Fixed on mobile right above bottom navbar, cleanly integrated at bottom on desktop */}
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#030712]/95 backdrop-blur-2xl border-t border-white/[0.08] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/5 md:shadow-none md:pt-3 space-y-2">
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#050506]/95 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/[0.06] md:shadow-none md:pt-3 space-y-2">
             
             {/* Attached Image Preview Pill */}
             {attachedImage && (
               <div className={`flex items-center justify-between gap-3 p-2.5 px-3 rounded-2xl animate-fade-in text-left shadow-lg transition-all ${
                 attachedImage.status === 'error'
                   ? 'bg-rose-950/60 border border-rose-500/40'
-                  : 'bg-violet-950/50 border border-violet-500/30'
+                  : 'bg-[#0a0a0c] border border-white/[0.08]'
               }`}>
                 <div className="flex items-center gap-3 min-w-0">
                   <img
                     src={attachedImage.previewUrl}
                     alt="Receipt Preview"
                     onClick={() => setLightboxImage(attachedImage.previewUrl)}
-                    className="w-11 h-11 rounded-xl object-cover border border-violet-500/40 shadow-sm shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
+                    className="w-11 h-11 rounded-xl object-cover border border-[#5E6AD2]/40 shadow-sm shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-black text-white truncate max-w-[150px] md:max-w-[220px] block">
+                      <span className="text-xs font-semibold text-white truncate max-w-[150px] md:max-w-[220px] block">
                         {attachedImage.name || 'Receipt Image'}
                       </span>
                       {attachedImage.sizeStr && (
-                        <span className="px-1.5 py-0.5 bg-violet-500/20 border border-violet-500/30 text-violet-300 text-[9px] font-extrabold rounded-md shrink-0">
+                        <span className="px-1.5 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#8B95F6] text-[9px] font-mono rounded-md shrink-0">
                           {attachedImage.sizeStr}
                         </span>
                       )}
                     </div>
                     {attachedImage.status === 'uploading' ? (
-                      <span className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1.5 mt-0.5 animate-pulse">
-                        <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                      <span className="text-[10px] text-[#8B95F6] font-mono flex items-center gap-1.5 mt-0.5 animate-pulse">
+                        <Loader2 className="w-3 h-3 animate-spin text-[#8B95F6] shrink-0" />
                         <span>Uploading to Cloudflare R2...</span>
                       </span>
                     ) : attachedImage.status === 'ready' ? (
-                      <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
+                      <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
                         <Check className="w-3 h-3 text-emerald-400 shrink-0" />
                         <span>Cloudflare R2 Ready • Direct Gemini Vision</span>
                       </span>
                     ) : attachedImage.status === 'error' ? (
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-rose-300 font-semibold flex items-center gap-1">
+                        <span className="text-[10px] text-rose-300 font-mono flex items-center gap-1">
                           <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
                           <span>R2 Upload failed</span>
                         </span>
                         <button
                           type="button"
                           onClick={handleRetryUpload}
-                          className="text-[10px] text-cyan-400 underline font-bold hover:text-cyan-300 cursor-pointer"
+                          className="text-[10px] text-[#8B95F6] underline font-bold hover:text-[#6872D9] cursor-pointer"
                         >
                           Retry
                         </button>
@@ -1865,7 +1865,7 @@ export default function Assistant() {
                 <button
                   type="button"
                   onClick={handleRemoveAttachedImage}
-                  className="p-1.5 hover:bg-white/10 text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer shrink-0"
+                  className="p-1.5 hover:bg-white/[0.06] text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer shrink-0"
                   title="Remove image"
                 >
                   <X className="w-4 h-4" />
@@ -1889,17 +1889,17 @@ export default function Assistant() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || isProcessingImage}
-                className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                className={`p-3 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
                   isProcessingImage
-                    ? 'bg-violet-600/20 border-violet-500 text-violet-300 animate-pulse'
+                    ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
                     : attachedImage
-                      ? 'bg-violet-600/20 border-violet-500 text-violet-300 shadow-md shadow-violet-900/30'
-                      : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                      ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-[#8B95F6] shadow-sm'
+                      : 'bg-[#0a0a0c] hover:bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
                 }`}
                 title={isProcessingImage ? "Compressing image..." : "Attach receipt image or camera photo (or paste from clipboard)"}
               >
                 {isProcessingImage ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                  <Loader2 className="w-5 h-5 animate-spin text-[#8B95F6]" />
                 ) : (
                   <Camera className="w-5 h-5" />
                 )}
@@ -1910,12 +1910,12 @@ export default function Assistant() {
                 type="button"
                 onClick={toggleSpeechRecognition}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
-                className={`p-3 rounded-2xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                className={`p-3 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
                   isListening
                     ? 'bg-rose-500/25 border-rose-500 text-rose-300 animate-pulse shadow-md shadow-rose-900/50'
                     : isTranscribingAudio
-                      ? 'bg-violet-600/25 border-violet-500 text-violet-300 animate-pulse'
-                      : 'bg-slate-950/80 hover:bg-slate-900 border-white/10 text-slate-400 hover:text-white'
+                      ? 'bg-[#5E6AD2]/25 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
+                      : 'bg-[#0a0a0c] hover:bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
                 }`}
                 title={
                   isListening
@@ -1926,7 +1926,7 @@ export default function Assistant() {
                 }
               >
                 {isTranscribingAudio ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                  <Loader2 className="w-5 h-5 animate-spin text-[#8B95F6]" />
                 ) : isListening ? (
                   <MicOff className="w-5 h-5" />
                 ) : (
@@ -1950,12 +1950,12 @@ export default function Assistant() {
                           ? "Add optional notes or hit send..."
                           : "Ask anything, speak (Sarvam Mic) or upload receipt..."
                 }
-                className={`flex-grow pl-4 pr-3 py-3 md:py-3.5 bg-slate-950/80 border rounded-2xl text-white placeholder-slate-600 text-sm focus:outline-none font-semibold transition-all ${
+                className={`flex-grow pl-4 pr-3 py-3 md:py-3.5 bg-[#050506] border rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all ${
                   isListening
-                    ? 'border-rose-500/50 ring-2 ring-rose-500/20'
+                    ? 'border-rose-500/50 ring-1 ring-rose-500/30'
                     : isTranscribingAudio
-                      ? 'border-violet-500/50 ring-2 ring-violet-500/20'
-                      : 'border-white/10 focus:border-violet-500 focus:ring-1 focus:ring-violet-500/20'
+                      ? 'border-[#5E6AD2]/50 ring-1 ring-[#5E6AD2]/30'
+                      : 'border-white/[0.08] focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30'
                 }`}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
               />
@@ -1963,7 +1963,7 @@ export default function Assistant() {
               <button
                 type="submit"
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && !attachedImage)}
-                className="p-3 md:p-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-2xl transition-all btn-glow shadow-md shadow-violet-600/15 disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0"
+                className="btn-linear-primary p-3 md:p-3.5 rounded-xl disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0 flex items-center justify-center"
               >
                 <Send className="w-5 h-5" />
               </button>
@@ -1977,9 +1977,9 @@ export default function Assistant() {
       {lightboxImage && (
         <div
           onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer"
         >
-          <div className="relative max-w-3xl max-h-[90vh] bg-slate-900 border border-white/10 rounded-2xl p-2 shadow-2xl">
+          <div className="relative max-w-3xl max-h-[90vh] bg-[#0a0a0c] border border-white/[0.08] rounded-2xl p-2 shadow-2xl">
             <img
               src={lightboxImage}
               alt="Receipt Zoom"
@@ -1987,7 +1987,7 @@ export default function Assistant() {
             />
             <button
               onClick={() => setLightboxImage(null)}
-              className="absolute top-4 right-4 p-2 bg-slate-950/80 text-white rounded-full hover:bg-rose-500 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-2 bg-[#050506] text-white rounded-full hover:bg-rose-500 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1996,8 +1996,8 @@ export default function Assistant() {
       )}
 
       {/* FOOTER */}
-      <footer className="hidden md:block border-t border-white/5 py-4 shrink-0 z-10 bg-slate-950/20 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 text-slate-600 text-[10px] text-center font-bold uppercase tracking-wider">
+      <footer className="hidden md:block border-t border-white/[0.06] py-4 shrink-0 z-10 bg-[#050506]/50 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-6 text-slate-500 text-[10px] text-center font-mono uppercase tracking-wider">
           Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Multimodal Receipt OCR, Database Tools & Ledger Sync.
         </div>
       </footer>

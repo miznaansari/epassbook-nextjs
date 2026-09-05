@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '@/lib/firebase';
 import { motion } from 'framer-motion';
 import { Wallet, Mail, Lock, LogIn, Sparkles, AlertCircle, ArrowLeft } from 'lucide-react';
@@ -14,7 +14,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loadingState, setLoadingState] = useState(false);
-  const { user, loading, login, refreshUser } = useAuth();
+  const { user, loading, login } = useAuth();
   const router = useRouter();
 
   const [showRetry, setShowRetry] = useState(false);
@@ -26,7 +26,7 @@ export default function Login() {
     }
   }, [user, loading, router]);
 
-  // Show manual PWA refresh/sync triggers if auth sync hangs beyond 4 seconds
+  // Show manual PWA refresh triggers if auth sync hangs beyond 4 seconds
   useEffect(() => {
     let timer;
     if (loading || user) {
@@ -73,7 +73,6 @@ export default function Login() {
 
     try {
       const userCredential = await signInWithPopup(auth, googleProvider);
-      // Explicitly set cookie & sync session instantly from the action handler
       const res = await fetch('/api/user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,7 +84,6 @@ export default function Login() {
       });
 
       if (res.ok) {
-        await refreshUser();
         router.push('/dashboard');
       } else {
         setError('Failed to sync session. Please try again.');
@@ -102,22 +100,22 @@ export default function Login() {
 
   if (loading || user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#050506] px-6">
+        <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
         {showRetry && (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col items-center gap-4 text-center mt-8 bg-slate-950/40 border border-white/5 p-6 rounded-2xl max-w-sm backdrop-blur-md"
+            className="flex flex-col items-center gap-3 text-center mt-6 bg-[#0a0a0c] border border-white/10 p-5 rounded-xl max-w-sm"
           >
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest leading-normal">PWA Sync is taking longer than expected...</p>
+            <p className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-widest">PWA Sync Delay</p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => window.location.reload()}
-                className="px-3.5 py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 hover:border-violet-500/40 text-violet-400 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                className="btn-linear-secondary px-3 py-1.5 text-xs"
               >
-                Force Reload
+                Reload
               </button>
               <button
                 type="button"
@@ -131,9 +129,9 @@ export default function Login() {
                   }
                   window.location.reload();
                 }}
-                className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 hover:border-rose-500/40 text-rose-400 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-lg"
               >
-                Clear Cache & Retry
+                Clear Cache
               </button>
             </div>
           </motion.div>
@@ -143,105 +141,99 @@ export default function Login() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center px-6 py-12">
-      {/* Decorative Orbs */}
-      <div className="absolute top-10 left-10 w-64 h-64 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-10 right-10 w-64 h-64 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none"></div>
-
+    <div className="relative min-h-screen flex items-center justify-center px-6 py-12 bg-[#050506] text-[#EDEDEF]">
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
+        transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-md"
       >
-        {/* Back Link */}
-        <Link href="/" className="inline-flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back to Home
+        <Link href="/" className="inline-flex items-center gap-2 text-[#8A8F98] hover:text-white transition-colors text-xs font-medium mb-6">
+          <ArrowLeft className="w-3.5 h-3.5" /> Back to Home
         </Link>
 
         {/* Auth Form Card */}
-        <div className="glass-card p-8 border border-white/5 shadow-2xl relative overflow-hidden">
-          {/* Top subtle highlight line */}
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-400"></div>
+        <div className="bg-[#0a0a0c] p-8 border border-white/10 rounded-2xl shadow-2xl relative overflow-hidden text-left">
+          <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center p-3 bg-violet-600/15 rounded-xl text-violet-400 mb-4">
-              <Wallet className="w-6 h-6" />
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center justify-center p-2.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 rounded-xl text-[#818cf8] mb-3">
+              <Wallet className="w-5 h-5" />
             </div>
-            <h2 className="text-2xl font-bold text-white tracking-tight">Welcome Back!</h2>
-            <p className="text-slate-400 text-sm mt-1">Log in to manage your monthly e-passbook</p>
+            <h2 className="text-xl font-semibold text-white tracking-tight">Sign In to MonthlyMoney</h2>
+            <p className="text-[#8A8F98] text-xs mt-1">Manage your intelligent ledger and salary cycles</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl text-xs flex items-center gap-2">
+            <div className="mb-5 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          <form onSubmit={handleEmailLogin} className="space-y-3.5">
             <div>
-              <label className="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Email Address</label>
+              <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Email Address</label>
               <div className="relative">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@example.com"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                  className="w-full pl-9 pr-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white placeholder-[#8A8F98]/50 text-xs focus:outline-none focus:border-[#5E6AD2]"
                   disabled={loadingState}
                 />
-                <Mail className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-600" />
+                <Mail className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#8A8F98]" />
               </div>
             </div>
 
             <div>
-              <label className="block text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Password</label>
+              <label className="block text-[#8A8F98] text-[10px] font-mono uppercase mb-1">Password</label>
               <div className="relative">
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all"
+                  className="w-full pl-9 pr-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white placeholder-[#8A8F98]/50 text-xs focus:outline-none focus:border-[#5E6AD2]"
                   disabled={loadingState}
                 />
-                <Lock className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-600" />
+                <Lock className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#8A8F98]" />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-bold text-sm transition-all btn-glow shadow-lg shadow-violet-600/20 flex items-center justify-center gap-2 mt-6 cursor-pointer"
+              className="btn-linear-primary w-full py-2.5 text-xs flex items-center justify-center gap-2 mt-4 cursor-pointer"
               disabled={loadingState}
             >
               {loadingState ? (
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
                 <>
-                  <LogIn className="w-4 h-4" /> Log In
+                  <LogIn className="w-3.5 h-3.5" /> Continue
                 </>
               )}
             </button>
           </form>
 
-          {/* Social login divider */}
-          <div className="relative my-6 flex items-center justify-center">
-            <div className="absolute w-full h-[1px] bg-white/5"></div>
-            <span className="relative px-3 bg-[#0d1423] text-[10px] text-slate-600 uppercase font-bold tracking-widest">Or Continue With</span>
+          {/* Social divider */}
+          <div className="relative my-5 flex items-center justify-center">
+            <div className="absolute w-full h-px bg-white/[0.06]" />
+            <span className="relative px-2.5 bg-[#0a0a0c] text-[9px] font-mono text-[#8A8F98] uppercase tracking-wider">Or</span>
           </div>
 
           <button
             onClick={handleGoogleLogin}
-            className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="btn-linear-secondary w-full py-2.5 text-xs flex items-center justify-center gap-2 cursor-pointer"
             disabled={loadingState}
           >
-            <Sparkles className="w-4 h-4 text-violet-400" /> Google Sign-In
+            <Sparkles className="w-3.5 h-3.5 text-[#818cf8]" /> Continue with Google
           </button>
 
-          <p className="text-center text-slate-500 text-xs mt-8">
+          <p className="text-center text-[#8A8F98] text-xs mt-6">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-violet-400 hover:text-violet-300 font-semibold transition-colors">
+            <Link href="/signup" className="text-[#818cf8] hover:text-white transition-colors font-medium">
               Sign Up
             </Link>
           </p>

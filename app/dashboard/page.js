@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import DashboardMobile from '@/components/DashboardMobile';
 import Navbar from '@/components/Navbar';
 import TransactionModal from '@/components/TransactionModal';
+import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -30,7 +31,8 @@ import {
   Filter,
   Target,
   Pencil,
-  Flame
+  Flame,
+  CheckCircle2
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 
@@ -62,7 +64,6 @@ export default function Dashboard() {
   const [salaryCelebrationOpen, setSalaryCelebrationOpen] = useState(false);
 
   // Forms State
-  // 1. Salary Form
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1; // 1-12
   const [salAmount, setSalAmount] = useState('');
@@ -88,8 +89,6 @@ export default function Dashboard() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-
-
   // Redirect if unauthenticated
   useEffect(() => {
     if (!loading && !user) {
@@ -97,7 +96,7 @@ export default function Dashboard() {
     }
   }, [user, loading, router]);
 
-  // Loading Recovery Timer Logic for PWA / iOS Web Apps
+  // Loading Recovery Timer Logic
   useEffect(() => {
     let stepTimer1;
     let stepTimer2;
@@ -110,7 +109,7 @@ export default function Dashboard() {
       stepTimer2 = setTimeout(() => setLoadingStep('Optimizing AI insights...'), 5000);
       recoveryTimer = setTimeout(() => {
         setShowRecovery(true);
-      }, 10000); // 10 seconds timeout for self-healing recovery actions
+      }, 10000);
     } else {
       setShowRecovery(false);
       setLoadingStep('Syncing secure session...');
@@ -194,8 +193,6 @@ export default function Dashboard() {
     }
   };
 
-
-
   // Handle Quick Delete Entry
   const handleDeleteEntry = async (id) => {
     if (!confirm('Are you sure you want to delete this transaction?')) return;
@@ -211,56 +208,33 @@ export default function Dashboard() {
     }
   };
 
+  // Linear Minimalist Loading Screen
   if (loading || !user || !data) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#030712] px-6 text-center select-none relative overflow-hidden">
-        {/* Soft Background Mesh */}
-        <div className="absolute inset-0 bg-radial-gradient from-violet-600/5 via-transparent to-transparent opacity-50 blur-3xl pointer-events-none"></div>
-
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
         <div className="relative z-10 flex flex-col items-center">
-          <div className="w-14 h-14 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin mb-6"></div>
-
-          <h3 className="text-white font-extrabold text-lg tracking-tight mb-1">ePassbook Wallet</h3>
-          <p className="text-slate-400 text-xs font-semibold animate-pulse">{loadingStep}</p>
+          <div className="w-10 h-10 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin mb-4" />
+          <h3 className="text-white font-medium text-sm tracking-tight mb-1">MonthlyMoney</h3>
+          <p className="text-[#8A8F98] text-xs font-mono">{loadingStep}</p>
 
           {showRecovery && (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              className="mt-10 p-6 bg-slate-900/80 border border-white/10 rounded-3xl max-w-sm text-center shadow-2xl backdrop-blur-md"
+              className="mt-8 p-6 bg-[#0a0a0c] border border-white/10 rounded-2xl max-w-sm text-center shadow-2xl"
             >
-              <AlertCircle className="w-7 h-7 text-amber-400 mx-auto mb-3 animate-bounce" />
-              <h4 className="text-white font-extrabold text-sm tracking-tight">Sync taking longer than usual</h4>
-              <p className="text-xs text-slate-400 mt-1.5 leading-relaxed font-medium">
-                PWAs on iOS can experience cache lockups. Resetting the offline application can restore connection instantly.
+              <AlertCircle className="w-6 h-6 text-amber-400 mx-auto mb-2" />
+              <h4 className="text-white font-semibold text-xs tracking-tight">Sync taking longer than usual</h4>
+              <p className="text-xs text-[#8A8F98] mt-1 leading-relaxed">
+                PWAs on iOS can experience cache lockups. Resetting the offline application restores connection immediately.
               </p>
 
-              <div className="mt-5 flex flex-col gap-2.5">
+              <div className="mt-4 flex flex-col gap-2">
                 <button
                   onClick={() => window.location.reload()}
-                  className="w-full py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wider uppercase transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="btn-linear-primary w-full py-2.5 text-xs font-medium cursor-pointer"
                 >
                   Refresh Application
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (let registration of registrations) {
-                          await registration.unregister();
-                        }
-                      }
-                      const cacheNames = await caches.keys();
-                      await Promise.all(cacheNames.map(name => caches.delete(name)));
-                      window.location.reload();
-                    } catch (e) {
-                      window.location.reload();
-                    }
-                  }}
-                  className="w-full py-3 bg-slate-950/60 border border-white/10 hover:bg-slate-900 text-slate-300 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                >
-                  Force Clear PWA Caches
                 </button>
                 <button
                   onClick={async () => {
@@ -278,9 +252,9 @@ export default function Dashboard() {
                     }
                     await logout();
                   }}
-                  className="w-full py-3 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/40 text-rose-400 rounded-xl text-xs font-black tracking-wider uppercase transition-all active:scale-95 cursor-pointer"
+                  className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium transition-all active:scale-95 cursor-pointer"
                 >
-                  Hard Logout & Reset PWA
+                  Hard Logout & Reset
                 </button>
               </div>
             </motion.div>
@@ -290,7 +264,7 @@ export default function Dashboard() {
     );
   }
 
-  // Format Helper
+  // Currency Formatter
   const formatCurrency = (val) => {
     const currencyCode = user?.currency || 'USD';
     const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
@@ -341,19 +315,11 @@ export default function Dashboard() {
       }
     });
 
-    const presets = Array.from(uniqueMap.values())
+    const list = Array.from(uniqueMap.values())
       .sort((a, b) => b.count - a.count || b.timestamp - a.timestamp)
-      .slice(0, 6);
+      .slice(0, 5);
 
-    if (presets.length < 4) {
-      defaultPresets.forEach(def => {
-        const isDup = presets.some(p => p.type === def.type && (p.title || '').toLowerCase() === def.title.toLowerCase());
-        if (!isDup && presets.length < 6) {
-          presets.push(def);
-        }
-      });
-    }
-    return presets;
+    return list.length > 0 ? list : defaultPresets;
   };
 
   const monthsList = [
@@ -479,47 +445,45 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative flex flex-col justify-between min-h-screen bg-[#030712] text-slate-100 selection:bg-violet-500/30 font-sans">
-      {/* Ambient Backlight Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[60%] h-[50%] bg-gradient-to-br from-violet-600/10 to-cyan-500/0 rounded-full blur-[140px] pointer-events-none z-0"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[50%] bg-gradient-to-tr from-emerald-500/5 to-amber-500/0 rounded-full blur-[140px] pointer-events-none z-0"></div>
-
+    <div className="relative flex flex-col justify-between min-h-screen bg-[#050506] text-[#EDEDEF]">
       <Navbar />
 
       {/* Main Dashboard Panel */}
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 relative z-10 space-y-6">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 relative z-10 space-y-6">
         
         {/* Row 1: Header Welcome and Date Filters */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card p-6 border border-white/5 rounded-2xl">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-card p-6 border border-white/[0.06] rounded-2xl">
           <div>
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="px-2.5 py-0.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 text-[9px] font-black uppercase tracking-widest rounded-md">
-                ePassbook Hub v0.1.30
+              <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] text-[9px] font-mono tracking-widest rounded-md uppercase">
+                v0.1.39 • Live Ledger
               </span>
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Synced Live</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider">Active Cycle</span>
             </div>
-            <h1 className="text-3xl font-black text-white tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
               Financial Overview
             </h1>
-            <p className="text-slate-400 text-xs mt-1 font-semibold flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-violet-400" />
+            <p className="text-[#8A8F98] text-xs mt-1 font-normal flex items-center gap-2">
+              <Calendar className="w-3.5 h-3.5 text-[#818cf8]" />
               Cycle Boundaries:
               {dataLoading ? (
-                <span className="inline-block w-28 h-3 bg-white/5 rounded animate-pulse"></span>
+                <span className="inline-block w-24 h-3 bg-white/5 rounded animate-pulse" />
               ) : data?.startDate ? (
-                <span className="text-slate-350 font-bold">
-                  <span className="text-violet-400">
+                <span className="text-[#EDEDEF] font-medium font-mono text-[11px]">
+                  <span>
                     {new Date(data.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
-                  <span className="mx-2 text-slate-650">→</span>
-                  <span className="text-violet-400">
+                  <span className="mx-2 text-[#8A8F98]">→</span>
+                  <span>
                     {new Date(data.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </span>
-                  <span className="text-slate-400 text-[10px] font-black ml-2 px-2 py-0.5 bg-slate-950/60 rounded border border-white/5">Cycle Day: {data.cycleDate}</span>
+                  <span className="text-[#8A8F98] ml-2 px-2 py-0.5 bg-white/[0.04] rounded border border-white/[0.06]">
+                    Cycle Day: {data.cycleDate}
+                  </span>
                 </span>
               ) : (
-                <span className="text-slate-500">Not configured</span>
+                <span className="text-[#8A8F98]">Not configured</span>
               )}
             </p>
           </div>
@@ -529,7 +493,7 @@ export default function Dashboard() {
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="bg-slate-950/80 border border-white/10 hover:border-white/20 rounded-xl px-4 py-2.5 text-xs text-white focus:outline-none focus:border-violet-500 font-bold cursor-pointer transition-all shadow-lg min-w-[150px]"
+              className="bg-[#0a0a0c] border border-white/10 hover:border-white/20 rounded-lg px-3.5 py-2 text-xs text-[#EDEDEF] focus:outline-none focus:border-[#5E6AD2] font-medium cursor-pointer transition-colors shadow-sm min-w-[150px]"
             >
               <option value="current">Current Cycle</option>
               <option value="last">Last Cycle</option>
@@ -539,19 +503,19 @@ export default function Dashboard() {
             </select>
 
             {filter === 'custom' && (
-              <div className="flex items-center gap-2 bg-slate-950/60 border border-white/5 rounded-xl px-3 py-2 text-xs">
+              <div className="flex items-center gap-2 bg-[#0a0a0c] border border-white/10 rounded-lg px-3 py-1.5 text-xs">
                 <input
                   type="date"
                   value={customStart}
                   onChange={(e) => setCustomStart(e.target.value)}
-                  className="bg-transparent text-white focus:outline-none cursor-pointer font-semibold"
+                  className="bg-transparent text-white focus:outline-none cursor-pointer text-xs"
                 />
-                <span className="text-slate-550 font-bold">to</span>
+                <span className="text-[#8A8F98]">to</span>
                 <input
                   type="date"
                   value={customEnd}
                   onChange={(e) => setCustomEnd(e.target.value)}
-                  className="bg-transparent text-white focus:outline-none cursor-pointer font-semibold"
+                  className="bg-transparent text-white focus:outline-none cursor-pointer text-xs"
                   onBlur={fetchDashboardData}
                 />
               </div>
@@ -560,116 +524,116 @@ export default function Dashboard() {
         </div>
 
         {/* 12-Column Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* Main Content Area: Left 8 Columns */}
-          <div className="lg:col-span-8 space-y-8">
+          <div className="lg:col-span-8 space-y-6">
             
             {/* Dual Wallet Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               
-              {/* Available Capital Card (Obsidian glass layout) */}
-              <div className="relative overflow-hidden glass-card p-6 flex flex-col justify-between min-h-[200px] border border-white/5 rounded-2xl shadow-2xl">
-                <div className="absolute right-0 top-0 w-32 h-32 bg-violet-600/10 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="absolute left-6 top-6 w-10 h-7 bg-white/5 rounded border border-white/10 flex items-center justify-center opacity-30">
-                  <div className="w-5 h-4 border border-white/20 rounded-sm"></div>
-                </div>
-                
-                <div className="flex justify-between items-start pt-8">
+              {/* Available Capital Card (Linear Spotlight) */}
+              <SpotlightCard 
+                className="p-6 flex flex-col justify-between min-h-[200px]"
+                spotlightColor="rgba(94, 106, 210, 0.16)"
+              >
+                <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-violet-500 animate-ping"></span> Total Available Capital
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]" /> Total Available Capital
                     </span>
                     <div className="mt-2.5">
                       {dataLoading ? (
-                        <div className="w-48 h-10 bg-white/5 rounded animate-pulse"></div>
+                        <div className="w-44 h-9 bg-white/5 rounded animate-pulse" />
                       ) : (
-                        <h2 className="text-4xl font-black text-white tracking-tight flex items-baseline gap-1.5">
+                        <h2 className="text-3xl sm:text-4xl font-semibold text-white tracking-tight">
                           {formatCurrency(data?.kpis?.currentBalance)}
                         </h2>
                       )}
                     </div>
                   </div>
-                  <span className="p-3.5 bg-violet-500/10 border border-violet-500/20 text-violet-400 rounded-2xl shadow-inner shrink-0">
-                    <Wallet className="w-6 h-6" />
+                  <span className="p-3 bg-white/[0.04] border border-white/[0.08] text-[#818cf8] rounded-xl">
+                    <Wallet className="w-5 h-5" />
                   </span>
                 </div>
                 
-                <div className="mt-6 border-t border-white/[0.04] pt-4 flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                <div className="mt-6 border-t border-white/[0.04] pt-4 flex justify-between items-center text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider">
                   <span>Liquid Wealth reserves</span>
                   <span>Active Cycle balance</span>
                 </div>
-              </div>
+              </SpotlightCard>
 
-              {/* Active Salary Balance Card (Emerald green theme) */}
-              <div className="relative overflow-hidden glass-card p-6 flex flex-col justify-between min-h-[200px] border border-white/5 rounded-2xl shadow-2xl">
-                <div className="absolute right-0 top-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                
+              {/* Active Salary Balance Card */}
+              <SpotlightCard 
+                className="p-6 flex flex-col justify-between min-h-[200px]"
+                spotlightColor="rgba(16, 185, 129, 0.14)"
+                borderColor="rgba(16, 185, 129, 0.18)"
+              >
                 <div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Active Salary balance
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Active Salary balance
                   </span>
                   <div className="mt-2.5">
                     {dataLoading ? (
-                      <div className="w-32 h-8 bg-white/5 rounded animate-pulse"></div>
+                      <div className="w-32 h-8 bg-white/5 rounded animate-pulse" />
                     ) : (
-                      <h2 className="text-3xl font-black text-emerald-400 tracking-tight">
+                      <h2 className="text-3xl font-semibold text-emerald-400 tracking-tight">
                         {formatCurrency(data?.kpis?.salaryBalance)}
                       </h2>
                     )}
-                    <span className="text-[10px] text-slate-500 font-semibold block mt-1">Remaining after monthly deductions</span>
+                    <span className="text-[10px] text-[#8A8F98] font-normal block mt-1">Remaining after current month allocations</span>
                   </div>
                 </div>
 
-                <div className="flex gap-3 mt-6">
+                <div className="flex gap-2.5 mt-6">
                   <button
                     onClick={() => setSalaryModalOpen(true)}
-                    className="flex-1 px-4 py-3 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                    className="btn-linear-secondary flex-1 px-3.5 py-2 text-xs text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10 flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <Plus className="w-4 h-4" /> Add Inflow
+                    <Plus className="w-3.5 h-3.5" /> Inflow
                   </button>
                   <button
                     onClick={() => setEntryModalOpen(true)}
-                    className="flex-1 px-4 py-3 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl text-xs font-black tracking-wider uppercase transition-all shadow-lg shadow-violet-600/25 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                    className="btn-linear-primary flex-1 px-3.5 py-2 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <PlusCircle className="w-4 h-4" /> New Entry
+                    <PlusCircle className="w-3.5 h-3.5" /> New Entry
                   </button>
                 </div>
-              </div>
+              </SpotlightCard>
             </div>
 
             {/* Cash Flow Recharts AreaChart */}
-            <div className="glass-card p-6 border border-white/5 rounded-2xl space-y-4">
+            <div className="glass-card p-6 border border-white/[0.06] rounded-2xl space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <TrendingUp className="w-4.5 h-4.5 text-violet-400" /> Cash Flow Trend
+                  <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-[#818cf8]" /> Cash Flow Trajectory
                   </h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Cumulative cycle balance wave</p>
+                  <p className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider mt-0.5">Cycle balance curve</p>
                 </div>
               </div>
 
               <div className="h-64 w-full">
                 {dataLoading ? (
-                  <div className="h-full w-full bg-white/5 rounded-xl animate-pulse"></div>
+                  <div className="h-full w-full bg-white/5 rounded-xl animate-pulse" />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={getChartData()} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorBalance" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.2}/>
-                          <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#5E6AD2" stopOpacity={0.25}/>
+                          <stop offset="95%" stopColor="#5E6AD2" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
                       <XAxis 
                         dataKey="name" 
-                        stroke="#475569" 
+                        stroke="#4B5563" 
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
                       />
                       <YAxis 
-                        stroke="#475569" 
+                        stroke="#4B5563" 
                         fontSize={10}
                         tickLine={false}
                         axisLine={false}
@@ -677,19 +641,19 @@ export default function Dashboard() {
                       />
                       <RechartsTooltip 
                         contentStyle={{ 
-                          backgroundColor: '#0d1220', 
+                          backgroundColor: '#0a0a0c', 
                           borderColor: 'rgba(255,255,255,0.1)', 
-                          borderRadius: '12px',
-                          color: '#fff',
+                          borderRadius: '10px',
+                          color: '#EDEDEF',
                           fontSize: '11px',
-                          fontFamily: 'sans-serif'
+                          boxShadow: '0 12px 32px rgba(0,0,0,0.8)'
                         }} 
                         formatter={(value) => [formatCurrency(value), 'Balance']}
                       />
                       <Area 
                         type="monotone" 
                         dataKey="Balance" 
-                        stroke="#8b5cf6" 
+                        stroke="#5E6AD2" 
                         strokeWidth={2}
                         fillOpacity={1} 
                         fill="url(#colorBalance)" 
@@ -701,75 +665,75 @@ export default function Dashboard() {
             </div>
 
             {/* KPI Metrics Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4">
               {[
                 {
                   title: "Spending",
                   amount: formatCurrency(data?.kpis?.spending),
-                  borderColor: "border-rose-500/20 hover:border-rose-500/40",
-                  bgColor: "bg-rose-500/5",
                   text: "text-rose-400",
                   icon: ArrowUpRight,
-                  desc: "Expenses logged"
+                  desc: "Expenses",
+                  border: "border-rose-500/20",
+                  bg: "bg-rose-500/10"
                 },
                 {
                   title: "Lending",
                   amount: formatCurrency(data?.kpis?.lending),
-                  borderColor: "border-blue-500/20 hover:border-blue-500/40",
-                  bgColor: "bg-blue-500/5",
                   text: "text-blue-400",
                   icon: ArrowRightLeft,
-                  desc: "Money lent"
+                  desc: "Receivable",
+                  border: "border-blue-500/20",
+                  bg: "bg-blue-500/10"
                 },
                 {
-                  title: "Loan Debts",
+                  title: "Loan Debt",
                   amount: formatCurrency(data?.kpis?.loan),
-                  borderColor: "border-orange-500/20 hover:border-orange-500/40",
-                  bgColor: "bg-orange-500/5",
                   text: "text-orange-400",
                   icon: HelpCircle,
-                  desc: "Active debts"
+                  desc: "Payable",
+                  border: "border-orange-500/20",
+                  bg: "bg-orange-500/10"
                 },
                 {
                   title: "Advances",
                   amount: formatCurrency(data?.kpis?.advance),
-                  borderColor: "border-cyan-500/20 hover:border-cyan-500/40",
-                  bgColor: "bg-cyan-500/5",
                   text: "text-cyan-400",
                   icon: Plus,
-                  desc: "Advance logs"
+                  desc: "Deposit",
+                  border: "border-cyan-500/20",
+                  bg: "bg-cyan-500/10"
                 },
                 {
                   title: "SIP / Savings",
                   amount: formatCurrency(data?.kpis?.savings),
-                  borderColor: "border-amber-500/20 hover:border-amber-500/40",
-                  bgColor: "bg-amber-500/5",
                   text: "text-amber-400",
                   icon: TrendingUp,
-                  desc: "Savings & SIP"
+                  desc: "Invested",
+                  border: "border-amber-500/20",
+                  bg: "bg-amber-500/10"
                 }
               ].map((card, idx) => {
                 const Icon = card.icon;
                 return (
                   <div
                     key={idx}
-                    className={`glass-card border-[1.5px] ${card.borderColor} p-4 text-left flex flex-col justify-between h-32 relative overflow-hidden group hover:-translate-y-1 rounded-2xl`}
+                    className="p-3.5 bg-[#0a0a0c]/60 border border-white/[0.06] hover:border-white/[0.12] rounded-xl flex flex-col justify-between h-28 transition-all"
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <h4 className="text-slate-400 text-[10px] font-black uppercase tracking-wider">{card.title}</h4>
-                        <span className="block text-[8px] text-slate-500 font-bold mt-1 leading-tight">{card.desc}</span>
+                        <h4 className="text-[#8A8F98] text-[10px] font-mono uppercase tracking-wider">{card.title}</h4>
+                        <span className="block text-[9px] text-[#8A8F98]/70 mt-0.5">{card.desc}</span>
                       </div>
-                      <span className={`p-1.5 rounded-lg ${card.bgColor} ${card.text} border border-white/5`}>
+                      <span className={`p-1.5 rounded-lg ${card.bg} ${card.text}`}>
                         <Icon className="w-3.5 h-3.5" />
                       </span>
                     </div>
 
-                    <div className="mt-2.5">
+                    <div className="mt-2">
                       {dataLoading ? (
-                        <div className="w-20 h-5 bg-white/5 rounded animate-pulse"></div>
+                        <div className="w-16 h-4 bg-white/5 rounded animate-pulse" />
                       ) : (
-                        <p className={`text-base font-black tracking-tight ${card.text} truncate`}>{card.amount}</p>
+                        <p className={`text-sm font-semibold tracking-tight ${card.text} truncate`}>{card.amount}</p>
                       )}
                     </div>
                   </div>
@@ -778,45 +742,45 @@ export default function Dashboard() {
             </div>
 
             {/* E-Passbook Ledger Feed Table */}
-            <div className="glass-card p-6 border border-white/5 rounded-2xl space-y-6">
+            <div className="glass-card p-6 border border-white/[0.06] rounded-2xl space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                    <History className="w-4.5 h-4.5 text-violet-400" /> Recent Transactions
+                  <h3 className="text-sm font-semibold text-white tracking-tight flex items-center gap-2">
+                    <History className="w-4 h-4 text-[#818cf8]" /> Recent Transactions
                   </h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">Real-time ledger audit log</p>
+                  <p className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider mt-0.5">Real-time ledger audit trail</p>
                 </div>
                 <Link
                   href="/transactions"
-                  className="px-4 py-2 bg-violet-650/15 hover:bg-violet-600/25 border border-violet-500/30 text-violet-300 hover:text-white rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                  className="btn-linear-secondary px-3 py-1.5 text-xs text-[#EDEDEF] flex items-center justify-center gap-1"
                 >
-                  View Full Passbook <ArrowUpRight className="w-3.5 h-3.5" />
+                  Full Passbook <ArrowUpRight className="w-3 h-3" />
                 </Link>
               </div>
 
               {/* Search & Category Filter Header */}
-              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
                 <div className="relative flex-grow">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-550 pointer-events-none">
-                    <Search className="w-4 h-4" />
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-[#8A8F98] pointer-events-none">
+                    <Search className="w-3.5 h-3.5" />
                   </span>
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search recent ledger..."
-                    className="w-full pl-10 pr-4 py-3 bg-slate-950/60 border border-white/10 rounded-2xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-violet-550/60 transition-all font-semibold"
+                    placeholder="Search transactions..."
+                    className="w-full pl-9 pr-3 py-2 bg-[#0a0a0c] border border-white/10 rounded-lg text-xs text-[#EDEDEF] placeholder-[#8A8F98]/60 focus:outline-none focus:border-[#5E6AD2] transition-colors"
                   />
                 </div>
 
-                <div className="flex gap-1 overflow-x-auto select-none py-1 scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <div className="flex gap-1 overflow-x-auto select-none py-0.5">
                   {['ALL', 'SPENDING', 'SAVINGS', 'LENDING', 'LOAN', 'ADVANCE'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setTypeFilter(tab)}
-                      className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all cursor-pointer border shrink-0 ${typeFilter === tab
-                        ? 'bg-violet-600/15 border-violet-500/40 text-violet-400 font-black shadow-lg shadow-violet-600/5'
-                        : 'bg-transparent border-transparent text-slate-500 hover:text-slate-350'
+                      className={`px-2.5 py-1.5 text-[10px] font-mono uppercase tracking-wider rounded-lg transition-all cursor-pointer border shrink-0 ${typeFilter === tab
+                        ? 'bg-white/[0.08] border-white/15 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08)]'
+                        : 'bg-transparent border-transparent text-[#8A8F98] hover:text-[#EDEDEF]'
                         }`}
                     >
                       {tab}
@@ -827,9 +791,9 @@ export default function Dashboard() {
 
               {/* Transactions Table */}
               {dataLoading ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {[1, 2, 3].map(n => (
-                    <div key={n} className="h-16 bg-white/5 rounded-xl animate-pulse"></div>
+                    <div key={n} className="h-14 bg-white/5 rounded-lg animate-pulse" />
                   ))}
                 </div>
               ) : (() => {
@@ -843,23 +807,23 @@ export default function Dashboard() {
 
                 if (filteredTransactions.length === 0) {
                   return (
-                    <div className="py-12 text-center text-slate-500 font-medium">
-                      <Wallet className="w-8 h-8 mx-auto mb-3 opacity-30 text-slate-400" />
-                      <p className="text-xs font-bold text-slate-400">No transactions match your search filter.</p>
+                    <div className="py-12 text-center text-[#8A8F98]">
+                      <Wallet className="w-7 h-7 mx-auto mb-2 opacity-30" />
+                      <p className="text-xs">No transactions match your search.</p>
                     </div>
                   );
                 }
 
                 return (
                   <div className="overflow-x-auto max-w-full">
-                    <table className="w-full text-left text-sm text-slate-300 border-collapse">
+                    <table className="w-full text-left text-xs text-[#8A8F98] border-collapse">
                       <thead>
-                        <tr className="border-b border-white/5 text-slate-500 text-[10px] font-black uppercase tracking-wider">
-                          <th className="pb-3.5">Transaction</th>
-                          <th className="pb-3.5">Category Type</th>
-                          <th className="pb-3.5">Date</th>
-                          <th className="pb-3.5 text-right">Amount</th>
-                          <th className="pb-3.5 text-center">Action</th>
+                        <tr className="border-b border-white/[0.06] text-[#8A8F98] text-[10px] font-mono uppercase tracking-widest">
+                          <th className="pb-3">Transaction</th>
+                          <th className="pb-3">Type</th>
+                          <th className="pb-3">Date</th>
+                          <th className="pb-3 text-right">Amount</th>
+                          <th className="pb-3 text-center">Action</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
@@ -881,44 +845,44 @@ export default function Dashboard() {
 
                           return (
                             <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors group">
-                              <td className="py-4 pr-3 font-semibold text-white">
+                              <td className="py-3 pr-3 text-white">
                                 <div className="flex items-center gap-3">
-                                  <span className={`p-2.5 rounded-xl border border-white/5 shrink-0 ${avatarColor}`}>
-                                    <AvatarIcon className="w-4 h-4" />
+                                  <span className={`p-2 rounded-lg border border-white/5 shrink-0 ${avatarColor}`}>
+                                    <AvatarIcon className="w-3.5 h-3.5" />
                                   </span>
                                   <div>
-                                    <div className="text-xs sm:text-sm font-black text-white group-hover:text-violet-400 transition-colors">{entry.title}</div>
+                                    <div className="font-medium text-[#EDEDEF] group-hover:text-white transition-colors">{entry.title}</div>
                                     {entry.description && (
-                                      <div className="text-[10px] text-slate-500 font-semibold truncate max-w-[180px] mt-0.5">{entry.description}</div>
+                                      <div className="text-[10px] text-[#8A8F98] truncate max-w-[180px] mt-0.5">{entry.description}</div>
                                     )}
                                     {entry.type === 'LENDING' && (
-                                      <div className="text-[10px] font-semibold mt-0.5">
+                                      <div className="text-[10px] mt-0.5">
                                         {entry.unpaidAmount === 0 ? (
-                                          <span className="text-emerald-400 font-black">✓ Fully Repaid</span>
+                                          <span className="text-emerald-400 font-medium">✓ Repaid</span>
                                         ) : (
-                                          <span className="text-slate-450">Unpaid: <strong className="text-blue-400 font-black">{formatCurrency(entry.unpaidAmount)}</strong></span>
+                                          <span className="text-[#8A8F98]">Unpaid: <strong className="text-blue-400 font-medium">{formatCurrency(entry.unpaidAmount)}</strong></span>
                                         )}
                                       </div>
                                     )}
                                   </div>
                                 </div>
                               </td>
-                              <td className="py-4 pr-3">
-                                <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black border uppercase tracking-wider ${colors[entry.type]}`}>
+                              <td className="py-3 pr-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono border uppercase tracking-wider ${colors[entry.type]}`}>
                                   {entry.type}
                                 </span>
                                 {entry.useSalaryBalance && (
-                                  <span className="block text-[8px] text-slate-500 mt-1 uppercase tracking-widest font-black">Deducted ({entry.salaryMonth}/{entry.salaryYear})</span>
+                                  <span className="block text-[8px] text-[#8A8F98] mt-0.5 uppercase tracking-widest font-mono">Deducted ({entry.salaryMonth}/{entry.salaryYear})</span>
                                 )}
                               </td>
-                              <td className="py-4 pr-3 text-xs text-slate-400 font-semibold">
-                                {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
+                              <td className="py-3 pr-3 text-[11px] text-[#8A8F98] font-mono">
+                                {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                               </td>
-                              <td className={`py-4 pr-3 text-right font-black tracking-tight text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                              <td className={`py-3 pr-3 text-right font-medium text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
                                 {entry.type === 'SPENDING' || entry.type === 'LENDING' ? '-' : '+'}{formatCurrency(entry.amount)}
                               </td>
-                              <td className="py-4 text-center">
-                                <div className="flex items-center justify-center gap-1.5">
+                              <td className="py-3 text-center">
+                                <div className="flex items-center justify-center gap-1">
                                   {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
                                     <button
                                       onClick={() => {
@@ -926,9 +890,9 @@ export default function Dashboard() {
                                         setEntryModalOpen(true);
                                       }}
                                       title="Receive Repayment"
-                                      className="p-2.5 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/20 rounded-xl transition-all cursor-pointer active:scale-90 flex items-center justify-center"
+                                      className="p-1.5 text-[#8A8F98] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
                                     >
-                                      <Plus className="w-4 h-4" />
+                                      <Plus className="w-3.5 h-3.5" />
                                     </button>
                                   )}
                                   <button
@@ -936,15 +900,15 @@ export default function Dashboard() {
                                       setEntryToEdit(entry);
                                       setEntryModalOpen(true);
                                     }}
-                                    className="p-2.5 text-slate-500 hover:text-violet-400 hover:bg-violet-500/10 border border-transparent hover:border-violet-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                    className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors cursor-pointer"
                                   >
-                                    <Pencil className="w-3.5 h-3.5" />
+                                    <Pencil className="w-3 h-3" />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteEntry(entry.id)}
-                                    className="p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 rounded-xl transition-all cursor-pointer active:scale-90"
+                                    className="p-1.5 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
                                   >
-                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <Trash2 className="w-3 h-3" />
                                   </button>
                                 </div>
                               </td>
@@ -960,61 +924,50 @@ export default function Dashboard() {
           </div>
 
           {/* Sidebar Area: Right 4 Columns */}
-          <div className="lg:col-span-4 space-y-8">
+          <div className="lg:col-span-4 space-y-6">
             
             {/* Streaks Card */}
             {!dataLoading && data?.streaks && (
-              <div className="glass-card p-6 border border-white/5 rounded-2xl text-left space-y-4">
-                <div className="flex items-center justify-between border-b border-white/[0.04] pb-3">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                    <Flame className="w-4.5 h-4.5 text-amber-500 animate-pulse" /> Financial Streaks
+              <div className="glass-card p-5 border border-white/[0.06] rounded-2xl text-left space-y-4">
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-3">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
+                    <Flame className="w-4 h-4 text-amber-500" /> Financial Discipline
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Zero Spending */}
-                  <div className="p-4 bg-amber-500/5 border border-amber-500/15 rounded-xl flex flex-col justify-between min-h-[90px]">
-                    <div>
-                      <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider block">Zero Spend</span>
-                      <span className="text-xl font-black text-white block mt-1">{data.streaks.level1} Days</span>
-                    </div>
-                    <span className="text-[8px] text-slate-500 font-bold block mt-2">No expenses logged</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 bg-[#0a0a0c] border border-white/[0.06] rounded-xl">
+                    <span className="text-[9px] font-mono text-amber-400 uppercase tracking-wider block">Zero Spend</span>
+                    <span className="text-xl font-semibold text-white block mt-1">{data.streaks.level1} Days</span>
+                    <span className="text-[9px] text-[#8A8F98] block mt-1">No outflow logged</span>
                   </div>
 
-                  {/* Limit Spending */}
-                  <div className="p-4 bg-yellow-500/5 border border-yellow-500/15 rounded-xl flex flex-col justify-between min-h-[90px]">
-                    <div>
-                      <span className="text-[9px] font-black text-yellow-400 uppercase tracking-wider block">Limit Spend</span>
-                      <span className="text-xl font-black text-white block mt-1">{data.streaks.level2} Days</span>
-                    </div>
-                    <span className="text-[8px] text-slate-500 font-bold block mt-2">Under {formatCurrency(data.streaks.level2Limit)}/day</span>
+                  <div className="p-3 bg-[#0a0a0c] border border-white/[0.06] rounded-xl">
+                    <span className="text-[9px] font-mono text-yellow-400 uppercase tracking-wider block">Controlled</span>
+                    <span className="text-xl font-semibold text-white block mt-1">{data.streaks.level2} Days</span>
+                    <span className="text-[9px] text-[#8A8F98] block mt-1">Under {formatCurrency(data.streaks.level2Limit)}/d</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Quick Autofill Presets Grid */}
+            {/* Quick Presets Strip */}
             {data?.recentTransactions && data.recentTransactions.length > 0 && (
-              <div className="glass-card p-6 border border-white/5 rounded-2xl text-left space-y-4">
-                <div className="flex items-center justify-between border-b border-white/[0.04] pb-3">
+              <div className="glass-card p-5 border border-white/[0.06] rounded-2xl text-left space-y-3">
+                <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="p-2 bg-gradient-to-br from-violet-500/20 to-cyan-500/10 border border-violet-500/30 text-violet-400 rounded-xl">
-                      <Zap className="w-4 h-4" />
-                    </span>
-                    <div>
-                      <span className="block text-xs font-black tracking-tight text-white uppercase leading-none">Quick Autofill</span>
-                      <span className="block text-[8px] text-slate-500 font-bold uppercase tracking-wider mt-1">One-tap transaction preset</span>
-                    </div>
+                    <Zap className="w-3.5 h-3.5 text-[#818cf8]" />
+                    <span className="text-xs font-semibold text-white">Quick Presets</span>
                   </div>
                   <button
                     onClick={() => setPresetsDrawerOpen(true)}
-                    className="px-3 py-1.5 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/25 hover:border-violet-500/40 text-[10px] font-black rounded-lg text-violet-300 hover:text-white transition-all cursor-pointer"
+                    className="text-[10px] font-mono text-[#818cf8] hover:text-white cursor-pointer"
                   >
-                    View All
+                    VIEW ALL
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2.5 max-h-[220px] overflow-y-auto pr-1">
+                <div className="space-y-1.5 max-h-[220px] overflow-y-auto">
                   {getPresetsList().map((preset, idx) => (
                     <button
                       key={idx}
@@ -1028,16 +981,13 @@ export default function Dashboard() {
                         });
                         setEntryModalOpen(true);
                       }}
-                      className="px-3.5 py-3.5 bg-white/[0.02] hover:bg-violet-650/10 border border-white/[0.05] hover:border-violet-550/30 text-xs font-bold rounded-xl text-slate-350 hover:text-white transition-all cursor-pointer flex items-center justify-between active:scale-98"
+                      className="w-full p-2.5 bg-[#0a0a0c]/80 hover:bg-white/[0.04] border border-white/[0.06] hover:border-white/15 text-xs rounded-lg transition-all cursor-pointer flex items-center justify-between"
                     >
-                      <div className="flex items-center gap-2">
-                        <span className="text-base shrink-0">{preset.label.split(' ').pop()}</span>
-                        <div className="text-left">
-                          <span className="block font-black text-white">{preset.title}</span>
-                          <span className="block text-[8px] text-slate-500 uppercase tracking-widest mt-0.5">{preset.type}</span>
-                        </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm shrink-0">{preset.label.split(' ').pop()}</span>
+                        <span className="font-medium text-[#EDEDEF] truncate">{preset.title}</span>
                       </div>
-                      <span className="text-[10px] font-black text-white bg-white/5 border border-white/5 px-2.5 py-1 rounded-lg">
+                      <span className="text-xs font-mono font-medium text-white px-2 py-0.5 bg-white/[0.05] rounded border border-white/[0.06]">
                         {formatCurrency(preset.amount)}
                       </span>
                     </button>
@@ -1046,53 +996,52 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* AI Insights Sidebar */}
-            <div className="glass-card p-6 border border-white/5 rounded-2xl text-left relative overflow-hidden flex flex-col justify-between min-h-[260px] shadow-2xl">
-              <div className="absolute right-[-20%] bottom-[-20%] w-48 h-48 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+            {/* AI Insights Card */}
+            <div className="glass-card p-5 border border-white/[0.06] rounded-2xl text-left space-y-4 shadow-xl">
+              <div className="flex items-center gap-2 border-b border-white/[0.06] pb-3">
+                <Sparkles className="w-4 h-4 text-[#818cf8]" />
+                <h3 className="text-xs font-semibold text-white tracking-tight">AI Insights Preview</h3>
+              </div>
 
-              <div className="space-y-4">
-                <h3 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-4.5 h-4.5 text-violet-400 animate-pulse" /> AI Insights Preview
-                </h3>
-
-                <div className="p-4 bg-violet-600/10 border border-violet-500/20 rounded-xl space-y-1">
-                  <h4 className="text-[10px] font-black text-violet-300 uppercase tracking-widest flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-ping"></span> Savings Engine Active
+              <div className="space-y-2.5">
+                <div className="p-3 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 rounded-xl space-y-1">
+                  <h4 className="text-[10px] font-mono text-[#818cf8] uppercase tracking-wider flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]" /> Savings Trajectory
                   </h4>
-                  <p className="text-slate-300 text-xs leading-relaxed font-semibold">
+                  <p className="text-[#EDEDEF] text-xs leading-relaxed font-normal">
                     {data?.kpis?.spending > 0
-                      ? `You spent ${formatCurrency(data?.kpis?.spending)} this cycle. Your salary balance is ${formatCurrency(data?.kpis?.salaryBalance)}. Try talking to your AI Assistant to compare budgets and get saving suggestions!`
-                      : "No spending logged this cycle yet! Keep track of expenses to let Gemini analyze savings trends and get optimization ideas."}
+                      ? `You spent ${formatCurrency(data?.kpis?.spending)} this cycle. Your salary balance is ${formatCurrency(data?.kpis?.salaryBalance)}. Chat with Gemini to discover category-specific savings opportunities.`
+                      : "No spending logged this cycle yet! Keep recording transactions to activate intelligent savings recommendations."}
                   </p>
                 </div>
 
-                <div className="p-4 bg-cyan-600/10 border border-cyan-500/20 rounded-xl space-y-1">
-                  <h4 className="text-[10px] font-black text-cyan-300 uppercase tracking-widest">Cycle Outlook</h4>
-                  <p className="text-slate-300 text-xs leading-relaxed font-semibold">
-                    Based on your salary cycle starting on the <span className="font-black text-cyan-400">{data?.cycleDate}th</span>, all monthly ledgers are computed dynamically.
+                <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl space-y-1">
+                  <h4 className="text-[10px] font-mono text-[#8A8F98] uppercase tracking-wider">Salary Cycle</h4>
+                  <p className="text-[#8A8F98] text-xs leading-relaxed">
+                    Ledger cycle resets on the <span className="text-white font-medium">{data?.cycleDate}th</span> of every month.
                   </p>
                 </div>
               </div>
 
               <Link
                 href="/assistant"
-                className="mt-6 w-full py-3.5 bg-gradient-to-r from-violet-600 to-cyan-500 hover:from-violet-700 hover:to-cyan-600 text-white rounded-xl font-black tracking-wider text-xs text-center uppercase transition-all btn-glow shadow-lg shadow-violet-600/15 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="btn-linear-primary w-full py-2.5 text-xs text-center flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Sparkles className="w-4 h-4 shrink-0" /> Ask AI Assistant
+                <Sparkles className="w-3.5 h-3.5" /> Launch AI Assistant
               </Link>
             </div>
           </div>
         </div>
       </main>
 
-      {/* FOOTER */}
-      <footer className="border-t border-white/5 py-6 bg-slate-950/20 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 text-slate-655 text-xs text-center font-bold">
-          © {new Date().getFullYear()} ePassbook. Crafted with HSL Theme.
+      {/* Footer */}
+      <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
+        <div className="max-w-7xl mx-auto px-6 text-[#8A8F98] text-xs text-center font-mono">
+          © {new Date().getFullYear()} MonthlyMoney. Precision-Engineered Ledger.
         </div>
       </footer>
 
-      {/* MODAL 1: Add Salary */}
+      {/* MODAL 1: Add Salary / Inflow */}
       <AnimatePresence>
         {salaryModalOpen && (
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
@@ -1101,41 +1050,34 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSalaryModalOpen(false)}
-              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer z-0"
             />
             <motion.div
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 400 }}
-              dragElastic={{ top: 0, bottom: 0.8 }}
-              onDragEnd={(event, info) => {
-                if (info.offset.y > 100 || info.velocity.y > 100) {
-                  setSalaryModalOpen(false);
-                }
-              }}
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full md:max-w-md bg-[#0d1423]/60 backdrop-blur-3xl border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto cursor-grab active:cursor-grabbing select-none z-10 text-left"
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full md:max-w-md bg-[#0a0a0c] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative shadow-2xl max-h-[90vh] md:max-h-none overflow-y-auto z-10 text-left"
             >
-              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-emerald-500"></div>
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                  <PiggyBank className="w-5 h-5 text-emerald-400" /> Log Month-Wise Inflow
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                  <PiggyBank className="w-4 h-4 text-emerald-400" /> Log Inflow Capital
                 </h3>
-                <button onClick={() => setSalaryModalOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+                <button onClick={() => setSalaryModalOpen(false)} className="text-[#8A8F98] hover:text-white cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/50 border border-white/5 rounded-xl mb-4">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[#050506] border border-white/[0.06] rounded-lg mb-4">
                 <button
                   type="button"
                   onClick={() => setSalaryType('SALARY')}
-                  className={`py-2 text-xs font-black uppercase rounded-lg transition-all cursor-pointer ${
+                  className={`py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                     salaryType === 'SALARY'
-                      ? 'bg-emerald-500 text-white shadow-md'
-                      : 'text-slate-505 hover:text-slate-350'
+                      ? 'bg-white/[0.08] text-white border border-white/10 shadow-sm'
+                      : 'text-[#8A8F98] hover:text-white'
                   }`}
                 >
                   Salary
@@ -1143,39 +1085,38 @@ export default function Dashboard() {
                 <button
                   type="button"
                   onClick={() => setSalaryType('BONUS')}
-                  className={`py-2 text-xs font-black uppercase rounded-lg transition-all cursor-pointer ${
+                  className={`py-1.5 text-xs font-medium rounded-md transition-all cursor-pointer ${
                     salaryType === 'BONUS'
-                      ? 'bg-cyan-500 text-white shadow-md'
-                      : 'text-slate-505 hover:text-slate-355'
+                      ? 'bg-white/[0.08] text-white border border-white/10 shadow-sm'
+                      : 'text-[#8A8F98] hover:text-white'
                   }`}
                 >
-                  Bonus
+                  Bonus / Extra
                 </button>
               </div>
 
               <form onSubmit={handleAddSalary} className="space-y-4">
                 <div>
-                  <label className="block text-slate-450 text-xs font-semibold uppercase mb-2">
+                  <label className="block text-[#8A8F98] text-xs font-medium mb-1.5">
                     {salaryType === 'SALARY' ? 'Salary Amount' : 'Bonus Amount'}
                   </label>
                   <input
                     type="number"
                     inputMode="decimal"
-                    pattern="[0-9]*"
                     value={salAmount}
                     onChange={(e) => setSalAmount(e.target.value)}
                     placeholder="e.g. 5000"
-                    className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white placeholder-slate-600 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-semibold"
+                    className="w-full px-3.5 py-2.5 bg-[#050506] border border-white/10 rounded-lg text-white placeholder-[#8A8F98]/50 text-sm focus:outline-none focus:border-[#5E6AD2] transition-colors"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-455 text-xs font-semibold uppercase mb-2">Month</label>
+                    <label className="block text-[#8A8F98] text-xs font-medium mb-1.5">Month</label>
                     <select
                       value={salMonth}
                       onChange={(e) => setSalMonth(e.target.value)}
-                      className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-all cursor-pointer font-semibold"
+                      className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] cursor-pointer"
                     >
                       {monthsList.map(m => (
                         <option key={m.value} value={m.value}>{m.name}</option>
@@ -1183,25 +1124,28 @@ export default function Dashboard() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-slate-455 text-xs font-semibold uppercase mb-2">Year</label>
+                    <label className="block text-[#8A8F98] text-xs font-medium mb-1.5">Year</label>
                     <input
                       type="number"
                       value={salYear}
                       onChange={(e) => setSalYear(e.target.value)}
-                      placeholder="e.g. 2026"
-                      className="w-full px-4 py-3 bg-slate-950/40 border border-white/10 rounded-xl text-white text-sm focus:outline-none focus:border-emerald-500 transition-all font-semibold"
+                      className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                     />
                   </div>
                 </div>
 
+                {salError && (
+                  <p className="text-xs text-rose-400">{salError}</p>
+                )}
+
                 <button
                   type="submit"
                   disabled={salLoading}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-black text-sm transition-all shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center justify-center uppercase tracking-wider"
+                  className="btn-linear-primary w-full py-2.5 text-xs font-medium flex items-center justify-center cursor-pointer"
                 >
                   {salLoading ? (
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  ) : salaryType === 'SALARY' ? "Save Salary" : "Save Bonus"}
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : salaryType === 'SALARY' ? "Save Salary Inflow" : "Save Bonus Inflow"}
                 </button>
               </form>
             </motion.div>
@@ -1209,7 +1153,7 @@ export default function Dashboard() {
         )}
       </AnimatePresence>
 
-      {/* MODAL 3: Presets Selector Drawer */}
+      {/* MODAL 2: Presets Drawer */}
       <AnimatePresence>
         {presetsDrawerOpen && (
           <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
@@ -1218,86 +1162,68 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setPresetsDrawerOpen(false)}
-              className="absolute inset-0 bg-slate-950/85 backdrop-blur-sm cursor-pointer z-0"
+              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer z-0"
             />
             <motion.div
-              drag="y"
-              dragConstraints={{ top: 0, bottom: 400 }}
-              dragElastic={{ top: 0, bottom: 0.8 }}
-              onDragEnd={(event, info) => {
-                if (info.offset.y > 100 || info.velocity.y > 100) {
-                  setPresetsDrawerOpen(false);
-                }
-              }}
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full md:max-w-lg bg-[#0d1423]/60 backdrop-blur-3xl border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto cursor-grab active:cursor-grabbing select-none z-10 text-left"
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full md:max-w-lg bg-[#0a0a0c] border border-white/10 rounded-t-3xl md:rounded-2xl p-6 relative shadow-2xl max-h-[85vh] overflow-y-auto z-10 text-left"
             >
-              <div className="w-12 h-1 bg-white/15 rounded-full mx-auto mb-4 md:hidden shrink-0"></div>
-              <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-violet-500 to-cyan-500"></div>
+              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-              <div className="flex justify-between items-center mb-6">
+              <div className="flex justify-between items-center mb-5">
                 <div>
-                  <h3 className="text-lg font-black text-white flex items-center gap-2">
-                    <Zap className="w-5 h-5 text-violet-400 animate-pulse shrink-0" /> One-Tap Autofill
+                  <h3 className="text-base font-semibold text-white flex items-center gap-2">
+                    <Zap className="w-4 h-4 text-[#818cf8]" /> One-Tap Presets
                   </h3>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider font-bold mt-1">Select a transaction preset to pre-fill the form</p>
+                  <p className="text-xs text-[#8A8F98] mt-0.5">Quickly prefill a transaction with your common entries</p>
                 </div>
-                <button onClick={() => setPresetsDrawerOpen(false)} className="text-slate-500 hover:text-white cursor-pointer"><X className="w-5 h-5" /></button>
+                <button onClick={() => setPresetsDrawerOpen(false)} className="text-[#8A8F98] hover:text-white cursor-pointer">
+                  <X className="w-4 h-4" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                {getPresetsList().map((preset, idx) => {
-                  const colors = {
-                    SPENDING: 'border-rose-500/25 hover:border-rose-500/40 bg-rose-500/5 text-rose-400',
-                    LENDING: 'border-blue-500/25 hover:border-blue-500/40 bg-blue-500/5 text-blue-400',
-                    LOAN: 'border-orange-500/25 hover:border-orange-500/40 bg-orange-500/5 text-orange-400',
-                    ADVANCE: 'border-cyan-500/25 hover:border-cyan-500/40 bg-cyan-500/5 text-cyan-400',
-                    SAVINGS: 'border-amber-500/25 hover:border-amber-500/40 bg-amber-500/5 text-amber-400',
-                  };
-                  return (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => {
-                        setEntryToEdit({
-                          amount: preset.amount,
-                          type: preset.type,
-                          title: preset.title,
-                          description: preset.desc || '',
-                          useSalaryBalance: preset.type === 'SPENDING'
-                        });
-                        setPresetsDrawerOpen(false);
-                        setEntryModalOpen(true);
-                      }}
-                      className={`p-4 border rounded-2xl transition-all text-left flex flex-col justify-between gap-3 group relative overflow-hidden cursor-pointer hover:bg-white/[0.02] active:scale-98 ${colors[preset.type] || 'border-white/10'}`}
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 via-violet-500/0 to-violet-500/0 group-hover:to-violet-500/[0.02] transition-all"></div>
-
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="block text-xs font-black tracking-tight text-white uppercase group-hover:text-violet-400 transition-colors">{preset.title}</span>
-                          <span className="block text-[9px] text-slate-550 mt-0.5 uppercase tracking-wider font-bold truncate max-w-[140px]">{preset.desc || 'No description preset'}</span>
-                        </div>
-                        <span className="text-lg shrink-0">{preset.label.split(' ').pop()}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4">
+                {getPresetsList().map((preset, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setEntryToEdit({
+                        amount: preset.amount,
+                        type: preset.type,
+                        title: preset.title,
+                        description: preset.desc || '',
+                        useSalaryBalance: preset.type === 'SPENDING'
+                      });
+                      setPresetsDrawerOpen(false);
+                      setEntryModalOpen(true);
+                    }}
+                    className="p-3.5 bg-[#050506] hover:bg-white/[0.04] border border-white/[0.06] hover:border-white/15 rounded-xl transition-all text-left flex flex-col justify-between gap-2.5 cursor-pointer"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="block text-xs font-medium text-white">{preset.title}</span>
+                        <span className="block text-[10px] text-[#8A8F98] mt-0.5 truncate max-w-[130px]">{preset.desc || 'Preset'}</span>
                       </div>
+                      <span className="text-base shrink-0">{preset.label.split(' ').pop()}</span>
+                    </div>
 
-                      <div className="flex justify-between items-center mt-2 border-t border-white/[0.04] pt-2">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">{preset.type}</span>
-                        <span className="text-xs font-black text-white px-2.5 py-1 bg-white/5 rounded-xl border border-white/5">{formatCurrency(preset.amount)}</span>
-                      </div>
-                    </button>
-                  );
-                })}
+                    <div className="flex justify-between items-center pt-2 border-t border-white/[0.04]">
+                      <span className="text-[9px] font-mono uppercase tracking-wider text-[#8A8F98]">{preset.type}</span>
+                      <span className="text-xs font-mono font-medium text-white">{formatCurrency(preset.amount)}</span>
+                    </div>
+                  </button>
+                ))}
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* MODAL 4: Salary Success Celebration Overlay */}
+      {/* MODAL 3: Salary Success Celebration */}
       <AnimatePresence>
         {salaryCelebrationOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 overflow-hidden">
@@ -1306,45 +1232,33 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSalaryCelebrationOpen(false)}
-              className="absolute inset-0 bg-slate-950/90 backdrop-blur-md cursor-pointer z-0"
+              className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer z-0"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.8, y: 50 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.8, y: -50 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-              className="w-full max-w-md bg-gradient-to-br from-[#121c33]/70 to-[#070b14]/70 backdrop-blur-3xl border border-emerald-500/35 rounded-3xl p-8 relative overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.15)] text-center z-10"
+              initial={{ opacity: 0, scale: 0.94 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.94 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="w-full max-w-sm bg-[#0a0a0c] border border-emerald-500/30 rounded-2xl p-6 text-center z-10 shadow-2xl relative"
             >
-              <div className="absolute -top-12 -left-12 w-24 h-24 bg-emerald-500/10 rounded-full blur-xl animate-pulse"></div>
-              <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl animate-pulse"></div>
-              <div className="flex flex-col items-center justify-center space-y-6">
-                <div className="relative">
-                  <motion.div
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                    className="w-20 h-20 bg-emerald-500/20 border border-emerald-500/35 text-emerald-400 rounded-full flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/10"
-                  >
-                    <PiggyBank className="w-10 h-10" />
-                  </motion.div>
-                </div>
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-black text-white tracking-tight">Salary Logged!</h2>
-                  <p className="text-emerald-400 text-sm font-bold uppercase tracking-widest">Congrats! Enjoy Your Salary! 🎉</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSalaryCelebrationOpen(false)}
-                  className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-650 hover:to-cyan-650 text-white rounded-2xl font-black tracking-wider text-xs uppercase transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center cursor-pointer"
-                >
-                  Superb, Let's Save!
-                </button>
+              <div className="w-14 h-14 bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
+                <PiggyBank className="w-7 h-7" />
               </div>
+              <h2 className="text-lg font-semibold text-white tracking-tight">Salary Logged</h2>
+              <p className="text-emerald-400 text-xs font-mono mt-1">Inflow added to active cycle balance.</p>
+              <button
+                type="button"
+                onClick={() => setSalaryCelebrationOpen(false)}
+                className="btn-linear-primary w-full py-2.5 text-xs mt-5 cursor-pointer"
+              >
+                Done
+              </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* TransactionModal component rendered at the root level */}
+      {/* TransactionModal component */}
       <TransactionModal
         isOpen={entryModalOpen}
         onClose={() => {
