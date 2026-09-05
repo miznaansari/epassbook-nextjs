@@ -3,7 +3,6 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { geminiTools, executeTool } from '@/lib/gemini';
 import { requireUser } from '@/lib/requireUser';
 import { db } from '@/lib/db';
-import { optimizeImageForGemini } from '@/lib/imageProcessor';
 
 // Initialize the Google Generative AI SDK
 // Uses GEMINI_API_KEY environment variable
@@ -48,7 +47,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages, sessionId, model: requestModel, image } = await req.json();
+    const { messages, sessionId, model: requestModel, imageUrl, image } = await req.json();
     const userId = user.id;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -82,14 +81,19 @@ export async function POST(req) {
     // 2. Persist the latest User Message in the database
     const lastUserMsg = messages[messages.length - 1];
     let userMessageContent = (lastUserMsg.content || '').trim();
-    if (!userMessageContent && image) {
+    const activeImageUrl = imageUrl || (typeof image === 'string' ? image : (image?.url || null));
+    const hasImageAttachment = Boolean(activeImageUrl || image?.data);
+
+    if (!userMessageContent && hasImageAttachment) {
       userMessageContent = "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval to create transactions.";
     }
 
-    // If image was attached, append image preview representation for chat persistence
-    const dbContentToStore = image?.data
-      ? (userMessageContent ? `${userMessageContent}\n\n[Attached Receipt Image]` : `[Attached Receipt Image]`)
-      : userMessageContent;
+    // If image was attached, append markdown image preview representation for chat persistence
+    const dbContentToStore = activeImageUrl
+      ? (userMessageContent ? `${userMessageContent}\n\n![Receipt Attachment](${activeImageUrl})` : `![Receipt Attachment](${activeImageUrl})`)
+      : (image?.data
+        ? (userMessageContent ? `${userMessageContent}\n\n[Attached Receipt Image]` : `[Attached Receipt Image]`)
+        : userMessageContent);
 
     await db.chatMessage.create({
       data: {
@@ -103,7 +107,7 @@ export async function POST(req) {
     if (session.title === 'New Chat' || !session.title) {
       const truncatedTitle = userMessageContent.length > 35
         ? userMessageContent.substring(0, 32) + '...'
-        : (image ? 'Receipt Analysis' : userMessageContent);
+        : (hasImageAttachment ? 'Receipt Analysis' : userMessageContent);
       await db.chatSession.update({
         where: { id: activeSessionId },
         data: { title: truncatedTitle },
@@ -142,7 +146,7 @@ export async function POST(req) {
 
     // Map requestModel to the exact model name (if image is attached, ensure a vision-capable Gemini model is used)
     let chosenModel = 'gemini-3.1-flash-lite';
-    if (image) {
+    if (hasImageAttachment) {
       chosenModel = requestModel === 'gemini-3.5-flash-lite' ? 'gemini-3.5-flash-lite' : 'gemini-3.1-flash-lite';
     } else if (requestModel === 'gemini-3.5-flash-lite') {
       chosenModel = 'gemini-3.5-flash-lite';
@@ -201,21 +205,41 @@ If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka 
       tools: geminiTools,
     });
 
-    // Prepare last message parts (multimodal if image provided)
+    // Prepare last message parts (multimodal if image provided via Cloudflare R2 or direct data)
     const lastParts = [];
-    if (image && image.data) {
-      // Use Sharp to auto-orient, resize (max 1536px for optimal Gemini tiling), strip EXIF bloat, and MozJPEG compress
-      const optimized = await optimizeImageForGemini(image.data, {
-        preset: 'balanced', // 1536px max dimension, MozJPEG Q85 with 4:4:4 chroma subsampling
-        mimeType: image.mimeType || 'image/jpeg',
-      });
+    if (activeImageUrl) {
+      try {
+        const imgRes = await fetch(activeImageUrl);
+        if (!imgRes.ok) {
+          throw new Error(`Failed to fetch image from Cloudflare R2 CDN (${imgRes.status}): ${imgRes.statusText}`);
+        }
+        const arrayBuffer = await imgRes.arrayBuffer();
+        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+        const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
 
-      lastParts.push({
-        inlineData: {
-          data: optimized.data,
-          mimeType: optimized.mimeType,
-        },
-      });
+        lastParts.push({
+          inlineData: {
+            data: base64Data,
+            mimeType,
+          },
+        });
+      } catch (fetchErr) {
+        console.error('Error fetching image from Cloudflare R2:', fetchErr);
+        throw new Error(`Could not load receipt image from Cloudflare R2: ${fetchErr.message}`);
+      }
+    } else if (image && image.data) {
+      // Direct base64 fallback (without Sharp)
+      const cleanBase64 = typeof image.data === 'string'
+        ? image.data.replace(/^data:[^;]+;base64,/, '').trim()
+        : '';
+      if (cleanBase64) {
+        lastParts.push({
+          inlineData: {
+            data: cleanBase64,
+            mimeType: image.mimeType || 'image/jpeg',
+          },
+        });
+      }
     }
     lastParts.push({ text: userMessageContent });
 

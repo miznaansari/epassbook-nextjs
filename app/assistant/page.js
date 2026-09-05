@@ -661,158 +661,31 @@ export default function Assistant() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  // Compress & prepare large mobile camera images on client before state assignment
-  const compressClientImage = (file) => {
-    return new Promise((resolve) => {
-      const originalSize = file?.size || 0;
-      const fileName = file?.name || 'Receipt Image';
-      const fileMime = file?.type || 'image/jpeg';
+  // Upload image file directly to Cloudflare R2 bucket via /api/upload
+  const uploadFileToR2 = async (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
 
-      const reader = new FileReader();
-
-      reader.onerror = () => {
-        resolve({
-          data: '',
-          previewUrl: '',
-          name: fileName,
-          mimeType: fileMime,
-          originalSizeStr: formatFileSize(originalSize),
-          compressedSizeStr: formatFileSize(originalSize),
-          isCompressed: false,
-        });
-      };
-
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result || '';
-
-        // If file is already small (< 1MB) or reading failed, no client canvas downscaling needed
-        if (!dataUrl || originalSize < 1024 * 1024) {
-          resolve({
-            data: dataUrl,
-            previewUrl: dataUrl,
-            name: fileName,
-            mimeType: fileMime,
-            originalSizeStr: formatFileSize(originalSize),
-            compressedSizeStr: formatFileSize(originalSize),
-            isCompressed: false,
-          });
-          return;
-        }
-
-        // Downscale large mobile camera photo using offscreen canvas to prevent mobile memory spikes
-        try {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-
-          img.onerror = () => {
-            // Fallback if image fails to decode on canvas (e.g. raw HEIC in some browsers)
-            resolve({
-              data: dataUrl,
-              previewUrl: dataUrl,
-              name: fileName,
-              mimeType: fileMime,
-              originalSizeStr: formatFileSize(originalSize),
-              compressedSizeStr: formatFileSize(originalSize),
-              isCompressed: false,
-            });
-          };
-
-          img.onload = () => {
-            try {
-              const MAX_DIM = 2048; // Crisp client-side max dimension
-              let width = img.naturalWidth || img.width || 0;
-              let height = img.naturalHeight || img.height || 0;
-
-              if (width <= 0 || height <= 0) {
-                resolve({
-                  data: dataUrl,
-                  previewUrl: dataUrl,
-                  name: fileName,
-                  mimeType: fileMime,
-                  originalSizeStr: formatFileSize(originalSize),
-                  compressedSizeStr: formatFileSize(originalSize),
-                  isCompressed: false,
-                });
-                return;
-              }
-
-              if (width > MAX_DIM || height > MAX_DIM) {
-                if (width > height) {
-                  height = Math.round((height * MAX_DIM) / width);
-                  width = MAX_DIM;
-                } else {
-                  width = Math.round((width * MAX_DIM) / height);
-                  height = MAX_DIM;
-                }
-              }
-
-              const canvas = document.createElement('canvas');
-              canvas.width = width;
-              canvas.height = height;
-              const ctx = canvas.getContext('2d');
-              if (!ctx) {
-                resolve({
-                  data: dataUrl,
-                  previewUrl: dataUrl,
-                  name: fileName,
-                  mimeType: fileMime,
-                  originalSizeStr: formatFileSize(originalSize),
-                  compressedSizeStr: formatFileSize(originalSize),
-                  isCompressed: false,
-                });
-                return;
-              }
-
-              ctx.drawImage(img, 0, 0, width, height);
-
-              const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-              const approxCompressedBytes = Math.round((compressedDataUrl.length - 22) * 0.75);
-
-              resolve({
-                data: compressedDataUrl,
-                previewUrl: compressedDataUrl,
-                name: fileName,
-                mimeType: 'image/jpeg',
-                originalSizeStr: formatFileSize(originalSize),
-                compressedSizeStr: formatFileSize(approxCompressedBytes),
-                isCompressed: true,
-              });
-            } catch (err) {
-              console.warn('Canvas compression error, falling back:', err);
-              resolve({
-                data: dataUrl,
-                previewUrl: dataUrl,
-                name: fileName,
-                mimeType: fileMime,
-                originalSizeStr: formatFileSize(originalSize),
-                compressedSizeStr: formatFileSize(originalSize),
-                isCompressed: false,
-              });
-            }
-          };
-
-          img.src = dataUrl;
-        } catch (err) {
-          console.warn('Image loading error, falling back:', err);
-          resolve({
-            data: dataUrl,
-            previewUrl: dataUrl,
-            name: fileName,
-            mimeType: fileMime,
-            originalSizeStr: formatFileSize(originalSize),
-            compressedSizeStr: formatFileSize(originalSize),
-            isCompressed: false,
-          });
-        }
-      };
-
-      reader.readAsDataURL(file);
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
     });
+
+    if (!res.ok) {
+      let errMsg = 'Failed to upload image to Cloudflare R2.';
+      try {
+        const errData = await res.json();
+        errMsg = errData.error || errMsg;
+      } catch (e) {}
+      throw new Error(errMsg);
+    }
+
+    const data = await res.json();
+    return data;
   };
 
-  // Handle Image File Selection (Camera / File Picker)
-  const handleImageSelect = async (e) => {
-    const file = e.target.files?.[0];
+  // Process and upload selected or pasted image to Cloudflare R2
+  const handleFileProcess = async (file, customName = null) => {
     if (!file) return;
 
     const isImage = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(file.name || '');
@@ -821,21 +694,58 @@ export default function Assistant() {
       return;
     }
 
+    const fileName = customName || file.name || 'receipt.jpg';
+    let previewUrl = '';
+    try {
+      previewUrl = URL.createObjectURL(file);
+    } catch (e) {
+      console.warn('Could not create ObjectURL, preview will fallback:', e);
+    }
+
+    setAttachedImage({
+      file,
+      previewUrl,
+      name: fileName,
+      sizeStr: formatFileSize(file.size),
+      url: null,
+      status: 'uploading',
+    });
     setIsProcessingImage(true);
     setError('');
 
     try {
-      const processed = await compressClientImage(file);
-      if (processed && processed.data) {
-        setAttachedImage(processed);
-      }
+      const uploadResult = await uploadFileToR2(file);
+      setAttachedImage(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          url: uploadResult.url,
+          key: uploadResult.key,
+          status: 'ready',
+        };
+      });
     } catch (err) {
-      console.error('Error processing image:', err);
-      setError('Failed to process image file.');
+      console.error('Error uploading to Cloudflare R2:', err);
+      setError(err.message || 'Failed to upload image to Cloudflare R2.');
+      setAttachedImage(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          status: 'error',
+          errorMessage: err.message,
+        };
+      });
     } finally {
       setIsProcessingImage(false);
-      e.target.value = '';
     }
+  };
+
+  // Handle Image File Selection (Camera / File Picker)
+  const handleImageSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await handleFileProcess(file);
+    e.target.value = '';
   };
 
   // Handle Paste Event from Clipboard (Ctrl+V / Cmd+V)
@@ -848,29 +758,25 @@ export default function Assistant() {
       if (item.type.indexOf('image') !== -1) {
         const file = item.getAsFile();
         if (file) {
-          setIsProcessingImage(true);
-          setError('');
-          try {
-            const processed = await compressClientImage(file);
-            if (processed && processed.data) {
-              setAttachedImage({
-                ...processed,
-                name: 'Pasted Image',
-              });
-            }
-          } catch (err) {
-            console.error('Error processing pasted image:', err);
-            setError('Failed to process pasted image.');
-          } finally {
-            setIsProcessingImage(false);
-          }
+          await handleFileProcess(file, 'Pasted Receipt Image');
+          break;
         }
       }
     }
   };
 
+  // Retry failed upload
+  const handleRetryUpload = async () => {
+    if (attachedImage?.file) {
+      await handleFileProcess(attachedImage.file, attachedImage.name);
+    }
+  };
+
   // Remove attached image
   const handleRemoveAttachedImage = () => {
+    if (attachedImage?.previewUrl && attachedImage.previewUrl.startsWith('blob:')) {
+      try { URL.revokeObjectURL(attachedImage.previewUrl); } catch (e) {}
+    }
     setAttachedImage(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -940,6 +846,23 @@ export default function Assistant() {
 
     if ((!prompt.trim() && !imageToSend) || isGenerating) return;
 
+    // If image is still uploading to Cloudflare R2, await completion or upload directly
+    let finalImageUrl = imageToSend?.url || null;
+    if (imageToSend && !finalImageUrl && imageToSend.file) {
+      setIsGenerating(true);
+      setError('');
+      try {
+        const upRes = await uploadFileToR2(imageToSend.file);
+        finalImageUrl = upRes.url;
+        setAttachedImage(prev => prev ? { ...prev, url: upRes.url, status: 'ready' } : null);
+      } catch (upErr) {
+        console.error('Upload failed before message dispatch:', upErr);
+        setError('Failed to upload image to Cloudflare R2 before sending: ' + upErr.message);
+        setIsGenerating(false);
+        return;
+      }
+    }
+
     setError('');
     setInput('');
     const imageToClear = attachedImage;
@@ -982,7 +905,7 @@ export default function Assistant() {
     const userMessage = {
       role: 'user',
       content: defaultMsg,
-      imagePreview: imageToSend?.previewUrl || null,
+      imagePreview: finalImageUrl || imageToSend?.previewUrl || null,
     };
 
     const cleanMessages = messages.filter(m => m.id || !m.content.includes("Yo! 👋 I am your Antigravity Finance AI."));
@@ -994,14 +917,8 @@ export default function Assistant() {
         messages: updatedMessages,
         sessionId: currentSessionId,
         model: selectedModel,
+        imageUrl: finalImageUrl || null,
       };
-
-      if (imageToSend) {
-        payload.image = {
-          data: imageToSend.data,
-          mimeType: imageToSend.mimeType || 'image/jpeg',
-        };
-      }
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -1721,27 +1638,37 @@ export default function Assistant() {
                           </div>
                         )}
 
-                        {/* If user attached an image, render preview inside bubble */}
-                        {!isAi && msg.imagePreview && (
-                          <div className="mb-3">
-                            <img
-                              src={msg.imagePreview}
-                              alt="Attached Receipt"
-                              onClick={() => setLightboxImage(msg.imagePreview)}
-                              className="max-h-48 rounded-xl object-cover border border-white/20 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-                            />
-                            <span className="text-[10px] text-white/80 font-bold block mt-1">Receipt Attachment (Click to zoom)</span>
-                          </div>
-                        )}
+                        {/* If user attached an image or it was loaded from DB */}
+                        {(() => {
+                          const extractedImgMatch = !isAi && msg.content ? msg.content.match(/!\[(?:Receipt Attachment|Attached Receipt|Receipt)\]\((https?:\/\/[^\s)]+)\)/) : null;
+                          const imageSrc = msg.imagePreview || (extractedImgMatch ? extractedImgMatch[1] : null);
+                          const textContentToRender = extractedImgMatch ? msg.content.replace(extractedImgMatch[0], '').trim() : msg.content;
 
-                        <div className="break-words">
-                          {formatMessageContent(msg.content, isAi, user?.currency, () => loadSessions(false))}
-                          
-                          {/* Live typing cursor during streaming */}
-                          {isStreamingCurrent && (
-                            <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(139,92,246,0.8)]"></span>
-                          )}
-                        </div>
+                          return (
+                            <>
+                              {!isAi && imageSrc && (
+                                <div className="mb-3">
+                                  <img
+                                    src={imageSrc}
+                                    alt="Attached Receipt"
+                                    onClick={() => setLightboxImage(imageSrc)}
+                                    className="max-h-48 rounded-xl object-cover border border-white/20 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
+                                  />
+                                  <span className="text-[10px] text-white/80 font-bold block mt-1">Receipt Attachment • Cloudflare R2 (Click to zoom)</span>
+                                </div>
+                              )}
+
+                              <div className="break-words">
+                                {formatMessageContent(textContentToRender, isAi, user?.currency, () => loadSessions(false))}
+                                
+                                {/* Live typing cursor during streaming */}
+                                {isStreamingCurrent && (
+                                  <span className="inline-block w-2 h-4 bg-violet-400 animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(139,92,246,0.8)]"></span>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
 
                         {/* Completed AI Transcript Actions */}
                         {isAi && msg.content && !isStreamingCurrent && (
@@ -1827,7 +1754,11 @@ export default function Assistant() {
             
             {/* Attached Image Preview Pill */}
             {attachedImage && (
-              <div className="flex items-center justify-between gap-3 p-2.5 px-3 bg-violet-950/50 border border-violet-500/30 rounded-2xl animate-fade-in text-left shadow-lg">
+              <div className={`flex items-center justify-between gap-3 p-2.5 px-3 rounded-2xl animate-fade-in text-left shadow-lg transition-all ${
+                attachedImage.status === 'error'
+                  ? 'bg-rose-950/60 border border-rose-500/40'
+                  : 'bg-violet-950/50 border border-violet-500/30'
+              }`}>
                 <div className="flex items-center gap-3 min-w-0">
                   <img
                     src={attachedImage.previewUrl}
@@ -1838,22 +1769,39 @@ export default function Assistant() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-xs font-black text-white truncate max-w-[150px] md:max-w-[220px] block">
-                        {attachedImage.name || 'Receipt Image Attached'}
+                        {attachedImage.name || 'Receipt Image'}
                       </span>
-                      {attachedImage.isCompressed ? (
-                        <span className="px-1.5 py-0.5 bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-[9px] font-extrabold rounded-md shrink-0">
-                          {attachedImage.originalSizeStr} → {attachedImage.compressedSizeStr}
-                        </span>
-                      ) : attachedImage.originalSizeStr ? (
+                      {attachedImage.sizeStr && (
                         <span className="px-1.5 py-0.5 bg-violet-500/20 border border-violet-500/30 text-violet-300 text-[9px] font-extrabold rounded-md shrink-0">
-                          {attachedImage.originalSizeStr}
+                          {attachedImage.sizeStr}
                         </span>
-                      ) : null}
+                      )}
                     </div>
-                    <span className="text-[10px] text-violet-300 font-semibold flex items-center gap-1 mt-0.5">
-                      <Sparkles className="w-3 h-3 text-cyan-400 shrink-0" />
-                      <span>Optimized for Gemini AI Vision</span>
-                    </span>
+                    {attachedImage.status === 'uploading' ? (
+                      <span className="text-[10px] text-cyan-300 font-semibold flex items-center gap-1.5 mt-0.5 animate-pulse">
+                        <Loader2 className="w-3 h-3 animate-spin text-cyan-400 shrink-0" />
+                        <span>Uploading to Cloudflare R2...</span>
+                      </span>
+                    ) : attachedImage.status === 'ready' ? (
+                      <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 mt-0.5">
+                        <Check className="w-3 h-3 text-emerald-400 shrink-0" />
+                        <span>Cloudflare R2 Ready • Direct Gemini Vision</span>
+                      </span>
+                    ) : attachedImage.status === 'error' ? (
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-rose-300 font-semibold flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
+                          <span>R2 Upload failed</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRetryUpload}
+                          className="text-[10px] text-cyan-400 underline font-bold hover:text-cyan-300 cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
