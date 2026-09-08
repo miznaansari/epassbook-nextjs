@@ -33,8 +33,18 @@ import {
   Building,
   RefreshCw,
   ExternalLink,
-  Briefcase
+  Briefcase,
+  LineChart as LineChartIcon
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+  CartesianGrid
+} from 'recharts';
 
 export default function SavingsManagement() {
   const { user, loading, logout } = useAuth();
@@ -336,6 +346,180 @@ export default function SavingsManagement() {
     stocksCount: 0
   };
 
+  // Chart Timeframe Filter State
+  const [chartTimeframe, setChartTimeframe] = useState('ALL'); // 'ALL' | '1Y' | '6M' | '30D'
+
+  // Format compact currency for chart axis ticks
+  const formatCompactCurrency = (val) => {
+    const currencyCode = user?.currency || 'USD';
+    const symbol = currencyCode === 'INR' ? '₹' : '$';
+    const abs = Math.abs(val);
+    if (abs >= 10000000) return `${symbol}${(val / 10000000).toFixed(1)}Cr`;
+    if (abs >= 100000) return `${symbol}${(val / 100000).toFixed(1)}L`;
+    if (abs >= 1000) return `${symbol}${(val / 1000).toFixed(0)}k`;
+    return `${symbol}${val}`;
+  };
+
+  // Build Chronological Timeline for Cumulative Savings Growth & Withdrawals
+  const getSavingsGrowthTimeline = () => {
+    if (!data?.pots || data.pots.length === 0) return [];
+
+    const rawEvents = [];
+
+    data.pots.forEach(pot => {
+      // 1. Deposits
+      (pot.deposits || []).forEach(d => {
+        rawEvents.push({
+          date: new Date(d.date),
+          rawDate: d.date,
+          amount: parseFloat(d.amount) || 0,
+          type: 'DEPOSIT',
+          title: d.title || pot.title,
+          potTitle: pot.title,
+          isStock: pot.isStock,
+        });
+      });
+
+      // 2. Withdrawals
+      (pot.withdrawals || []).forEach(w => {
+        rawEvents.push({
+          date: new Date(w.date),
+          rawDate: w.date,
+          amount: parseFloat(w.amount) || 0,
+          type: 'WITHDRAWAL',
+          title: w.title || `Withdrawal from ${pot.title}`,
+          potTitle: pot.title,
+          isStock: false,
+        });
+      });
+
+      // 3. Fallback for stock pots without standalone deposit entries
+      if (pot.isStock && (!pot.deposits || pot.deposits.length === 0) && pot.stockInfo?.investedValue > 0) {
+        rawEvents.push({
+          date: new Date(pot.lastActivityDate || Date.now()),
+          rawDate: pot.lastActivityDate || new Date().toISOString(),
+          amount: parseFloat(pot.stockInfo.investedValue) || 0,
+          type: 'DEPOSIT',
+          title: `Stock Equity (${pot.stockInfo.symbol})`,
+          potTitle: pot.title,
+          isStock: true,
+        });
+      }
+    });
+
+    if (rawEvents.length === 0) return [];
+
+    // Sort events chronologically from oldest to newest
+    rawEvents.sort((a, b) => a.date - b.date);
+
+    let running = 0;
+    const points = [];
+
+    // Add starting baseline point (0) right before the first transaction
+    const firstDate = new Date(rawEvents[0].date);
+    const dayBefore = new Date(firstDate);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    points.push({
+      date: dayBefore.toISOString().split('T')[0],
+      name: dayBefore.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      fullDate: dayBefore.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      Balance: 0,
+      change: 0,
+      type: 'BASELINE',
+      title: 'Ledger Initial',
+      potTitle: 'Baseline',
+    });
+
+    rawEvents.forEach(evt => {
+      if (evt.type === 'DEPOSIT') {
+        running += evt.amount;
+      } else if (evt.type === 'WITHDRAWAL') {
+        running = Math.max(0, running - evt.amount);
+      }
+
+      points.push({
+        date: evt.rawDate,
+        name: evt.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        fullDate: evt.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        Balance: Math.round(running * 100) / 100,
+        change: evt.amount,
+        type: evt.type,
+        title: evt.title,
+        potTitle: evt.potTitle,
+        isStock: evt.isStock,
+      });
+    });
+
+    // Timeframe filters
+    if (chartTimeframe === '30D') {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+      const filtered = points.filter(p => new Date(p.date) >= cutoff);
+      return filtered.length > 1 ? filtered : points;
+    } else if (chartTimeframe === '6M') {
+      const cutoff = new Date();
+      cutoff.setMonth(cutoff.getMonth() - 6);
+      const filtered = points.filter(p => new Date(p.date) >= cutoff);
+      return filtered.length > 1 ? filtered : points;
+    } else if (chartTimeframe === '1Y') {
+      const cutoff = new Date();
+      cutoff.setFullYear(cutoff.getFullYear() - 1);
+      const filtered = points.filter(p => new Date(p.date) >= cutoff);
+      return filtered.length > 1 ? filtered : points;
+    }
+
+    return points;
+  };
+
+  const timelineData = getSavingsGrowthTimeline();
+  const allTimePeak = timelineData.length > 0 ? Math.max(...timelineData.map(p => p.Balance), 0) : 0;
+
+  // Custom Interactive Tooltip
+  const CustomSavingsTooltip = ({ active, payload }) => {
+    if (active && payload && payload.length) {
+      const point = payload[0].payload;
+      const isDeposit = point.type === 'DEPOSIT';
+      const isWithdrawal = point.type === 'WITHDRAWAL';
+
+      return (
+        <div className="bg-[#08080a]/95 border border-white/10 p-3.5 rounded-2xl shadow-[0_16px_35px_rgba(0,0,0,0.85)] backdrop-blur-2xl text-left font-sans space-y-2 min-w-[210px]">
+          <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] pb-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A8F98]">
+              {point.fullDate || point.name}
+            </span>
+            {isDeposit && (
+              <span className="px-1.5 py-0.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9px] font-mono font-semibold rounded-md flex items-center gap-1">
+                <ArrowDownLeft className="w-2.5 h-2.5" /> DEPOSIT
+              </span>
+            )}
+            {isWithdrawal && (
+              <span className="px-1.5 py-0.5 bg-rose-500/15 border border-rose-500/30 text-rose-400 text-[9px] font-mono font-semibold rounded-md flex items-center gap-1">
+                <ArrowUpRight className="w-2.5 h-2.5" /> WITHDRAWAL
+              </span>
+            )}
+          </div>
+
+          <div>
+            <span className="text-[10px] text-[#8A8F98] block">Cumulative Savings Balance</span>
+            <span className="text-base font-bold text-white tracking-tight">
+              {formatCurrency(point.Balance)}
+            </span>
+          </div>
+
+          {(isDeposit || isWithdrawal) && (
+            <div className="pt-1.5 border-t border-white/[0.06] text-[11px] flex items-center justify-between text-[#8A8F98]">
+              <span className="truncate max-w-[130px] font-medium">{point.title}</span>
+              <span className={`font-mono font-bold ${isDeposit ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {isDeposit ? '+' : '-'}{formatCurrency(point.change)}
+              </span>
+            </div>
+          )}
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF] app-sidebar-offset">
       <Navbar />
@@ -343,151 +527,288 @@ export default function SavingsManagement() {
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-28 text-left">
         
         {/* Header Titles & Primary Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
-              <PiggyBank className="w-7 h-7 text-[#818cf8]" /> Saving Management
+            <h1 className="text-xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2">
+              <PiggyBank className="w-5 h-5 sm:w-7 sm:h-7 text-[#818cf8]" /> Saving Management
             </h1>
-            <p className="text-[#8A8F98] text-xs mt-1">
-              Track accumulated savings, live stock equity market valuations, recurring SIP balances, and perform partial or full withdrawals.
+            <p className="text-[#8A8F98] text-[11px] sm:text-xs mt-0.5">
+              Track savings pots, equity market valuations & SIP plans.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2">
             {stockSummary.stocksCount > 0 && (
               <button
                 type="button"
                 disabled={refreshingPrices}
                 onClick={handleRefreshStockPrices}
-                className="btn-linear-secondary px-3 py-2 text-xs text-white border-white/10 hover:bg-white/5 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                className="btn-linear-secondary px-2.5 py-1.5 text-[11px] sm:text-xs text-white border-white/10 hover:bg-white/5 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
                 title="Refresh live stock market prices"
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${refreshingPrices ? 'animate-spin text-[#818cf8]' : ''}`} />
-                <span>{refreshingPrices ? 'Syncing...' : 'Sync Stock Prices'}</span>
+                <RefreshCw className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${refreshingPrices ? 'animate-spin text-[#818cf8]' : ''}`} />
+                <span>{refreshingPrices ? 'Syncing...' : 'Sync Prices'}</span>
               </button>
             )}
 
             <button
               onClick={() => router.push('/assistant?prompt=Show+my+savings+and+withdrawal+breakdown')}
-              className="btn-linear-secondary px-3.5 py-2 text-xs text-[#818cf8] border-[#5E6AD2]/30 hover:bg-[#5E6AD2]/10 flex items-center gap-1.5 cursor-pointer"
+              className="btn-linear-secondary px-2.5 py-1.5 text-[11px] sm:text-xs text-[#818cf8] border-[#5E6AD2]/30 hover:bg-[#5E6AD2]/10 flex items-center gap-1.5 cursor-pointer"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span>AI Advisor</span>
             </button>
 
             <button
               onClick={() => handleOpenDeposit()}
-              className="btn-linear-primary px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#5E6AD2]/20"
+              className="btn-linear-primary px-3 py-1.5 text-[11px] sm:text-xs flex items-center gap-1.5 cursor-pointer shadow-lg shadow-[#5E6AD2]/20"
             >
-              <Plus className="w-4 h-4" />
-              <span>New Deposit / Pot</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>New Pot</span>
             </button>
           </div>
         </div>
 
-        {/* Top KPI Metrics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* Top KPI Metrics Cards (2 columns on mobile, 4 columns on lg) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6 sm:mb-8">
           
-          {/* Card 1: Net Savings Balance (Live Value) */}
-          <SpotlightCard className="p-5" spotlightColor="rgba(94, 106, 210, 0.16)">
+          {/* Card 1: Net Savings Balance */}
+          <SpotlightCard className="p-3 sm:p-5" spotlightColor="rgba(94, 106, 210, 0.16)">
             <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" /> Net Savings Balance
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#8A8F98] flex items-center gap-1 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" /> Net Balance
                 </span>
-                <div className="mt-2">
+                <div className="mt-1 sm:mt-2">
                   {loadingData ? (
-                    <div className="w-28 h-7 bg-white/5 rounded animate-pulse" />
+                    <div className="w-16 sm:w-28 h-5 sm:h-7 bg-white/5 rounded animate-pulse" />
                   ) : (
-                    <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
+                    <h2 className="text-base sm:text-2xl lg:text-3xl font-semibold text-white tracking-tight truncate">
                       {formatCurrency(summary.netSavingsBalance)}
                     </h2>
                   )}
-                  <span className="text-[10px] text-[#8A8F98] block mt-0.5">Live valuation across all pots</span>
+                  <span className="text-[9px] sm:text-[10px] text-[#8A8F98] block mt-0.5 truncate">Live pot valuation</span>
                 </div>
               </div>
-              <span className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-[#818cf8] rounded-xl">
-                <PiggyBank className="w-5 h-5" />
+              <span className="p-1.5 sm:p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-[#818cf8] rounded-lg sm:rounded-xl shrink-0 ml-1">
+                <PiggyBank className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
               </span>
             </div>
           </SpotlightCard>
 
           {/* Card 2: Total Lifetime Deposited */}
-          <SpotlightCard className="p-5" spotlightColor="rgba(16, 185, 129, 0.14)">
+          <SpotlightCard className="p-3 sm:p-5" spotlightColor="rgba(16, 185, 129, 0.14)">
             <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Lifetime Invested
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#8A8F98] flex items-center gap-1 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" /> Lifetime Invested
                 </span>
-                <div className="mt-2">
+                <div className="mt-1 sm:mt-2">
                   {loadingData ? (
-                    <div className="w-28 h-7 bg-white/5 rounded animate-pulse" />
+                    <div className="w-16 sm:w-28 h-5 sm:h-7 bg-white/5 rounded animate-pulse" />
                   ) : (
-                    <h2 className="text-2xl sm:text-3xl font-semibold text-emerald-400 tracking-tight">
+                    <h2 className="text-base sm:text-2xl lg:text-3xl font-semibold text-emerald-400 tracking-tight truncate">
                       {formatCurrency(summary.totalAllTimeSaved)}
                     </h2>
                   )}
-                  <span className="text-[10px] text-[#8A8F98] block mt-0.5">Cost basis invested</span>
+                  <span className="text-[9px] sm:text-[10px] text-[#8A8F98] block mt-0.5 truncate">Cost basis invested</span>
                 </div>
               </div>
-              <span className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
-                <ArrowDownLeft className="w-5 h-5" />
+              <span className="p-1.5 sm:p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg sm:rounded-xl shrink-0 ml-1">
+                <ArrowDownLeft className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
               </span>
             </div>
           </SpotlightCard>
 
-          {/* Card 3: Stock Equity P&L Returns OR Total Withdrawn */}
-          <SpotlightCard className="p-5" spotlightColor={stockSummary.totalStockReturns >= 0 ? "rgba(16, 185, 129, 0.14)" : "rgba(244, 63, 94, 0.14)"}>
+          {/* Card 3: Stock Equity P&L Returns */}
+          <SpotlightCard className="p-3 sm:p-5" spotlightColor={stockSummary.totalStockReturns >= 0 ? "rgba(16, 185, 129, 0.14)" : "rgba(244, 63, 94, 0.14)"}>
             <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
-                  <span className={`w-1.5 h-1.5 rounded-full ${stockSummary.totalStockReturns >= 0 ? 'bg-emerald-400' : 'bg-rose-400'}`} /> Stock P&L Returns
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#8A8F98] flex items-center gap-1 truncate">
+                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${stockSummary.totalStockReturns >= 0 ? 'bg-emerald-400' : 'bg-rose-400'}`} /> Stock P&L
                 </span>
-                <div className="mt-2">
+                <div className="mt-1 sm:mt-2">
                   {loadingData ? (
-                    <div className="w-28 h-7 bg-white/5 rounded animate-pulse" />
+                    <div className="w-16 sm:w-28 h-5 sm:h-7 bg-white/5 rounded animate-pulse" />
                   ) : (
-                    <h2 className={`text-2xl sm:text-3xl font-semibold tracking-tight ${stockSummary.totalStockReturns >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    <h2 className={`text-base sm:text-2xl lg:text-3xl font-semibold tracking-tight truncate ${stockSummary.totalStockReturns >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {stockSummary.totalStockReturns >= 0 ? '+' : ''}{formatCurrency(stockSummary.totalStockReturns)}
                     </h2>
                   )}
-                  <span className="text-[10px] text-[#8A8F98] block mt-0.5">
+                  <span className="text-[9px] sm:text-[10px] text-[#8A8F98] block mt-0.5 truncate">
                     {stockSummary.stocksCount > 0
-                      ? `${stockSummary.totalStockReturnsPercentage >= 0 ? '+' : ''}${stockSummary.totalStockReturnsPercentage.toFixed(2)}% total equity gain`
-                      : '0 stocks tracked'}
+                      ? `${stockSummary.totalStockReturnsPercentage >= 0 ? '+' : ''}${stockSummary.totalStockReturnsPercentage.toFixed(1)}% equity gain`
+                      : '0 stocks'}
                   </span>
                 </div>
               </div>
-              <span className={`p-2.5 rounded-xl border ${stockSummary.totalStockReturns >= 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
-                {stockSummary.totalStockReturns >= 0 ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+              <span className={`p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border shrink-0 ml-1 ${stockSummary.totalStockReturns >= 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                {stockSummary.totalStockReturns >= 0 ? <TrendingUp className="w-3.5 h-3.5 sm:w-5 sm:h-5" /> : <TrendingDown className="w-3.5 h-3.5 sm:w-5 sm:h-5" />}
               </span>
             </div>
           </SpotlightCard>
 
           {/* Card 4: Active Pots & SIPs */}
-          <SpotlightCard className="p-5" spotlightColor="rgba(245, 158, 11, 0.14)">
+          <SpotlightCard className="p-3 sm:p-5" spotlightColor="rgba(245, 158, 11, 0.14)">
             <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Active Pots & SIPs
+              <div className="min-w-0 flex-1">
+                <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-[#8A8F98] flex items-center gap-1 truncate">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" /> Active Pots
                 </span>
-                <div className="mt-2">
+                <div className="mt-1 sm:mt-2">
                   {loadingData ? (
-                    <div className="w-28 h-7 bg-white/5 rounded animate-pulse" />
+                    <div className="w-16 sm:w-28 h-5 sm:h-7 bg-white/5 rounded animate-pulse" />
                   ) : (
-                    <h2 className="text-2xl sm:text-3xl font-semibold text-amber-400 tracking-tight">
-                      {summary.activePotsCount} <span className="text-sm font-normal text-[#8A8F98]">Pots</span> / {summary.activeSipsCount} <span className="text-sm font-normal text-[#8A8F98]">SIPs</span>
+                    <h2 className="text-base sm:text-2xl lg:text-3xl font-semibold text-amber-400 tracking-tight truncate">
+                      {summary.activePotsCount} <span className="text-xs font-normal text-[#8A8F98]">Pots</span>
                     </h2>
                   )}
-                  <span className="text-[10px] text-[#8A8F98] block mt-0.5">
+                  <span className="text-[9px] sm:text-[10px] text-[#8A8F98] block mt-0.5 truncate">
                     Withdrawn: {formatCurrency(summary.totalAllTimeWithdrawn)}
                   </span>
                 </div>
               </div>
-              <span className="p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl">
-                <Coins className="w-5 h-5" />
+              <span className="p-1.5 sm:p-2.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg sm:rounded-xl shrink-0 ml-1">
+                <Coins className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
               </span>
             </div>
+          </SpotlightCard>
+        </div>
+
+        {/* Cumulative Savings Growth Curve Line Chart */}
+        <div className="mb-8">
+          <SpotlightCard className="p-4 sm:p-6" spotlightColor="rgba(94, 106, 210, 0.18)">
+            {/* Chart Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4 sm:mb-5 pb-3 sm:pb-4 border-b border-white/[0.06]">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] text-[9px] font-mono tracking-widest rounded-md uppercase flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" /> Trajectory
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-[9px] sm:text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider">Growth Curve</span>
+                </div>
+                <h2 className="text-base sm:text-xl font-semibold text-white tracking-tight flex items-center gap-2">
+                  <LineChartIcon className="w-4 h-4 sm:w-5 sm:h-5 text-[#818cf8]" />
+                  <span>Savings Growth Timeline</span>
+                </h2>
+                <p className="text-[11px] sm:text-xs text-[#8A8F98] mt-0.5">
+                  Ascends with deposits & SIPs, dips on withdrawals.
+                </p>
+              </div>
+
+              {/* Stats & Timeframe Filter Switcher */}
+              <div className="flex flex-wrap items-center gap-3">
+                {allTimePeak > 0 && (
+                  <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] border border-white/[0.06] rounded-xl text-xs">
+                    <span className="text-[#8A8F98] font-mono text-[10px] uppercase">All-Time Peak:</span>
+                    <span className="font-semibold text-white font-mono">{formatCurrency(allTimePeak)}</span>
+                  </div>
+                )}
+
+                {/* Timeframe Chips */}
+                <div className="flex items-center bg-[#0a0a0c] border border-white/10 rounded-xl p-0.5">
+                  {[
+                    { id: '30D', label: '30D' },
+                    { id: '6M', label: '6M' },
+                    { id: '1Y', label: '1Y' },
+                    { id: 'ALL', label: 'All Time' },
+                  ].map((tf) => (
+                    <button
+                      key={tf.id}
+                      type="button"
+                      onClick={() => setChartTimeframe(tf.id)}
+                      className={`px-2.5 py-1 text-[11px] font-mono rounded-lg font-medium transition-all cursor-pointer ${
+                        chartTimeframe === tf.id
+                          ? 'bg-[#5E6AD2] text-white shadow-sm font-semibold'
+                          : 'text-[#8A8F98] hover:text-white hover:bg-white/[0.04]'
+                      }`}
+                    >
+                      {tf.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Chart Viewport */}
+            {timelineData.length > 1 ? (
+              <div className="w-full h-64 sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={timelineData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="savingsGrowthGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#818cf8" stopOpacity={0.4} />
+                        <stop offset="60%" stopColor="#5E6AD2" stopOpacity={0.12} />
+                        <stop offset="100%" stopColor="#5E6AD2" stopOpacity={0} />
+                      </linearGradient>
+                      <filter id="savingsGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#818cf8" floodOpacity="0.45" />
+                      </filter>
+                    </defs>
+
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+
+                    <XAxis
+                      dataKey="name"
+                      stroke="#8A8F98"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      dy={8}
+                    />
+
+                    <YAxis
+                      stroke="#8A8F98"
+                      fontSize={10}
+                      tickLine={false}
+                      axisLine={false}
+                      tickFormatter={(val) => formatCompactCurrency(val)}
+                      dx={-4}
+                    />
+
+                    <RechartsTooltip content={<CustomSavingsTooltip />} />
+
+                    <Area
+                      type="monotone"
+                      dataKey="Balance"
+                      stroke="#818cf8"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#savingsGrowthGradient)"
+                      filter="url(#savingsGlow)"
+                      activeDot={{
+                        r: 6,
+                        fill: "#818cf8",
+                        stroke: "#ffffff",
+                        strokeWidth: 2,
+                        className: "shadow-lg shadow-indigo-500/50"
+                      }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="py-12 px-4 flex flex-col items-center justify-center text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] flex items-center justify-center">
+                  <PiggyBank className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-white">No Savings History Recorded Yet</h3>
+                  <p className="text-xs text-[#8A8F98] max-w-sm mt-0.5">
+                    Start accumulating your wealth! Make your first deposit or log a SIP contribution to chart your savings growth curve.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleOpenDeposit()}
+                  className="btn-linear-primary px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer mt-2"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Log First Deposit</span>
+                </button>
+              </div>
+            )}
           </SpotlightCard>
         </div>
 
