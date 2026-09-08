@@ -36,6 +36,9 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip } from 'recharts';
 
+// In-memory cache for instant zero-flash navigation
+let cachedDashboardData = null;
+
 export default function Dashboard() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
@@ -44,9 +47,9 @@ export default function Dashboard() {
   const [showRecovery, setShowRecovery] = useState(false);
   const [loadingStep, setLoadingStep] = useState('Syncing secure session...');
 
-  // Primary Data State
-  const [data, setData] = useState(null);
-  const [dataLoading, setDataLoading] = useState(true);
+  // Primary Data State (Initialized from cache for instant 0ms rendering)
+  const [data, setData] = useState(cachedDashboardData);
+  const [dataLoading, setDataLoading] = useState(!cachedDashboardData);
   const [filter, setFilter] = useState('current'); // current, last, last3, last6, custom
 
   // Custom Date Range Pickers
@@ -102,7 +105,7 @@ export default function Dashboard() {
     let stepTimer2;
     let recoveryTimer;
 
-    const isDashboardLoading = loading || !user || !data;
+    const isDashboardLoading = loading || !user || (!data && dataLoading);
 
     if (isDashboardLoading) {
       stepTimer1 = setTimeout(() => setLoadingStep('Loading financial ledger...'), 2500);
@@ -120,12 +123,12 @@ export default function Dashboard() {
       clearTimeout(stepTimer2);
       clearTimeout(recoveryTimer);
     };
-  }, [loading, user, data]);
+  }, [loading, user, data, dataLoading]);
 
   // Fetch Dashboard Aggregated Data
   const fetchDashboardData = async () => {
     if (!user) return;
-    setDataLoading(true);
+    if (!cachedDashboardData) setDataLoading(true);
     try {
       let url = `/api/dashboard?filter=${filter}`;
       if (filter === 'custom' && customStart && customEnd) {
@@ -136,6 +139,7 @@ export default function Dashboard() {
       if (res.ok) {
         const payload = await res.json();
         setData(payload);
+        cachedDashboardData = payload;
       } else if (res.status === 401) {
         console.warn('Session expired (401), executing automatic logout.');
         logout();
@@ -208,58 +212,11 @@ export default function Dashboard() {
     }
   };
 
-  // Linear Minimalist Loading Screen
-  if (loading || !user || !data) {
+  // Only show minimal auth spinner if user session is actively being verified on cold start
+  if (loading && !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
-        <div className="relative z-10 flex flex-col items-center">
-          <div className="w-10 h-10 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin mb-4" />
-          <h3 className="text-white font-medium text-sm tracking-tight mb-1">MonthlyMoney</h3>
-          <p className="text-[#8A8F98] text-xs font-mono">{loadingStep}</p>
-
-          {showRecovery && (
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-8 p-6 bg-[#0a0a0c] border border-white/10 rounded-2xl max-w-sm text-center shadow-2xl"
-            >
-              <AlertCircle className="w-6 h-6 text-amber-400 mx-auto mb-2" />
-              <h4 className="text-white font-semibold text-xs tracking-tight">Sync taking longer than usual</h4>
-              <p className="text-xs text-[#8A8F98] mt-1 leading-relaxed">
-                PWAs on iOS can experience cache lockups. Resetting the offline application restores connection immediately.
-              </p>
-
-              <div className="mt-4 flex flex-col gap-2">
-                <button
-                  onClick={() => window.location.reload()}
-                  className="btn-linear-primary w-full py-2.5 text-xs font-medium cursor-pointer"
-                >
-                  Refresh Application
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      if ('serviceWorker' in navigator) {
-                        const registrations = await navigator.serviceWorker.getRegistrations();
-                        for (let registration of registrations) {
-                          await registration.unregister();
-                        }
-                      }
-                      const cacheNames = await caches.keys();
-                      await Promise.all(cacheNames.map(name => caches.delete(name)));
-                    } catch (e) {
-                      console.error(e);
-                    }
-                    await logout();
-                  }}
-                  className="w-full py-2.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium transition-all active:scale-95 cursor-pointer"
-                >
-                  Hard Logout & Reset
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-[#050506]">
+        <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
       </div>
     );
   }
@@ -411,7 +368,7 @@ export default function Dashboard() {
     }
 
     const sorted = [...data.recentTransactions].sort((a, b) => new Date(a.date) - new Date(b.date));
-    let runningBalance = data.kpis.currentBalance;
+    let runningBalance = data?.kpis?.currentBalance || 0;
     
     sorted.forEach(t => {
       const amt = parseFloat(t.amount);

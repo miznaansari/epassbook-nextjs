@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
 import packageInfo from '@/package.json';
@@ -19,11 +20,16 @@ import {
   Clock,
   Volume2,
   Cpu,
-  ArrowRight
+  ArrowRight,
+  Sun,
+  Moon,
+  Monitor,
+  Palette
 } from 'lucide-react';
 
 export default function Settings() {
   const { user, loading, refreshUser } = useAuth();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const router = useRouter();
 
   // Settings Forms State
@@ -253,6 +259,70 @@ export default function Settings() {
                   placeholder="e.g. 1"
                   className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
                 />
+              </div>
+            </div>
+
+            {/* Appearance & Theme Mode */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between border-b border-white/[0.06] pb-2">
+                <h3 className="text-xs font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
+                  <Palette className="w-3.5 h-3.5 text-[#818cf8]" /> Appearance & Theme
+                </h3>
+                <span className="text-[10px] font-mono text-[#818cf8] uppercase px-2 py-0.5 bg-white/[0.04] border border-white/[0.08] rounded">
+                  Active: {resolvedTheme}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  {
+                    id: 'dark',
+                    title: 'Dark Mode',
+                    desc: 'Deep obsidian contrast',
+                    icon: Moon,
+                    colorClass: 'text-[#818cf8]'
+                  },
+                  {
+                    id: 'light',
+                    title: 'Light Mode',
+                    desc: 'Clean paper aesthetic',
+                    icon: Sun,
+                    colorClass: 'text-amber-500'
+                  },
+                  {
+                    id: 'system',
+                    title: 'System Auto',
+                    desc: 'Sync with OS profile',
+                    icon: Monitor,
+                    colorClass: 'text-blue-400'
+                  }
+                ].map((item) => {
+                  const IconComponent = item.icon;
+                  const isSelected = theme === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setTheme(item.id)}
+                      className={`p-3.5 rounded-xl border flex flex-col items-start gap-1.5 transition-all cursor-pointer text-left ${
+                        isSelected
+                          ? 'bg-[#5E6AD2]/15 border-[#5E6AD2] text-white shadow-md'
+                          : 'bg-[#050506] border-white/[0.06] text-[#8A8F98] hover:text-white hover:border-white/15'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-[#5E6AD2]/20' : 'bg-white/[0.04]'}`}>
+                          <IconComponent className={`w-4 h-4 ${item.colorClass}`} />
+                        </div>
+                        {isSelected && (
+                          <span className="w-2 h-2 rounded-full bg-[#5E6AD2] ring-4 ring-[#5E6AD2]/20" />
+                        )}
+                      </div>
+                      <span className="text-xs font-semibold text-white mt-1">{item.title}</span>
+                      <span className="text-[10px] text-[#8A8F98]">{item.desc}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTheme } from '@/context/ThemeContext';
 
 /**
  * SpotlightCard
@@ -9,18 +10,26 @@ import { useState, useRef } from 'react';
  * - 300px radial spotlight that follows the cursor relative to card bounds
  * - Multi-layer shadow with top-edge hairline highlight
  * - Precise hover translateY with expo-out easing
+ * - Automatic adaptation to Dark and Light modes
  */
 export default function SpotlightCard({
   children,
   className = '',
-  spotlightColor = 'rgba(94, 106, 210, 0.14)',
-  borderColor = 'rgba(255, 255, 255, 0.06)',
-  hoverBorderColor = 'rgba(255, 255, 255, 0.12)',
+  spotlightColor,
+  borderColor,
+  hoverBorderColor,
   ...props
 }) {
   const cardRef = useRef(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const isLight = resolvedTheme === 'light';
+
+  // Dynamic theme defaults
+  const activeSpotlight = spotlightColor || (isLight ? 'rgba(94, 106, 210, 0.08)' : 'rgba(94, 106, 210, 0.14)');
+  const defaultBorder = borderColor || (isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)');
+  const defaultHoverBorder = hoverBorderColor || (isLight ? 'rgba(94, 106, 210, 0.35)' : 'rgba(255, 255, 255, 0.12)');
 
   const handleMouseMove = (e) => {
     if (!cardRef.current) return;
@@ -40,18 +49,30 @@ export default function SpotlightCard({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`relative overflow-hidden rounded-2xl bg-gradient-to-b from-white/[0.04] to-white/[0.015] backdrop-blur-xl transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${className}`}
+      className={`relative overflow-hidden rounded-2xl ${
+        isLight 
+          ? 'bg-white shadow-[0_1px_3px_rgba(0,0,0,0.05),0_4px_16px_rgba(0,0,0,0.03)]' 
+          : 'bg-gradient-to-b from-white/[0.04] to-white/[0.015]'
+      } backdrop-blur-xl transition-all duration-250 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${className}`}
       style={{
-        border: `1px solid ${isHovered ? hoverBorderColor : borderColor}`,
-        boxShadow: isHovered
-          ? '0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 50px rgba(94, 106, 210, 0.10)'
-          : '0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.45)',
+        border: `1px solid ${isHovered ? defaultHoverBorder : defaultBorder}`,
+        boxShadow: isLight
+          ? isHovered
+            ? '0 10px 28px rgba(0, 0, 0, 0.08), 0 0 30px rgba(94, 106, 210, 0.08)'
+            : '0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 16px rgba(0, 0, 0, 0.03)'
+          : isHovered
+            ? '0 0 0 1px rgba(255, 255, 255, 0.08), 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 50px rgba(94, 106, 210, 0.10)'
+            : '0 0 0 1px rgba(255, 255, 255, 0.04), 0 4px 20px rgba(0, 0, 0, 0.45)',
       }}
       {...props}
     >
       {/* Top Edge Hairline Specular Highlight */}
       <div 
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-80" 
+        className={`pointer-events-none absolute inset-x-0 top-0 h-px ${
+          isLight 
+            ? 'bg-gradient-to-r from-transparent via-slate-200 to-transparent opacity-90' 
+            : 'bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-80'
+        }`} 
       />
 
       {/* Mouse Tracking Radial Spotlight */}
@@ -59,7 +80,7 @@ export default function SpotlightCard({
         className="pointer-events-none absolute -inset-px transition-opacity duration-300"
         style={{
           opacity: isHovered ? 1 : 0,
-          background: `radial-gradient(320px circle at ${position.x}px ${position.y}px, ${spotlightColor}, transparent 70%)`,
+          background: `radial-gradient(320px circle at ${position.x}px ${position.y}px, ${activeSpotlight}, transparent 70%)`,
         }}
       />
 

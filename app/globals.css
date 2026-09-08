@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Linear / Modern Design System Tokens */
+  /* Linear / Modern Design System Tokens - Dark (Default) */
   --background-deep: #020203;
   --background-base: #050506;
   --background-elevated: #0a0a0c;
@@ -29,12 +29,12 @@
   --border-hover: rgba(255, 255, 255, 0.10);
   --border-accent: rgba(94, 106, 210, 0.30);
 
-  /* Financial Semantics - Calibrated for high-contrast dark space */
+  /* Financial Semantics - Dark space */
   --salary: 160 84% 42%;     /* #10b981 (Emerald) */
   --spending: 343 89% 62%;   /* #f43f5e (Rose) */
   --lending: 217 91% 62%;    /* #3b82f6 (Blue) */
   --loan: 24 95% 55%;        /* #f97316 (Orange) */
-  --balance: 236 57% 60%;     /* #5E6AD2 (Linear Indigo) */
+  --balance: 236 57% 60%;    /* #5E6AD2 (Linear Indigo) */
   --advance: 189 94% 45%;    /* #06b6d4 (Cyan) */
 
   /* Standard compatibility variables */
@@ -55,6 +55,56 @@
   --input: 240 5% 15%;
   --ring: 236 57% 60%;
   --radius: 1rem;
+}
+
+/* Light Theme Variables */
+html.light,
+[data-theme="light"],
+.light {
+  --background-deep: #F1F5F9;
+  --background-base: #F8FAFC;
+  --background-elevated: #FFFFFF;
+
+  --surface: rgba(0, 0, 0, 0.035);
+  --surface-hover: rgba(0, 0, 0, 0.06);
+  --surface-active: rgba(0, 0, 0, 0.08);
+
+  --foreground: #0F172A;
+  --foreground-muted: #64748B;
+  --foreground-subtle: #94A3B8;
+
+  --accent: #5E6AD2;
+  --accent-bright: #4F46E5;
+  --accent-glow: rgba(94, 106, 210, 0.15);
+  --accent-subtle: rgba(94, 106, 210, 0.08);
+
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.14);
+  --border-accent: rgba(94, 106, 210, 0.35);
+
+  --salary: 160 84% 36%;
+  --spending: 343 89% 54%;
+  --lending: 217 91% 54%;
+  --loan: 24 95% 48%;
+  --balance: 236 57% 55%;
+  --advance: 189 94% 40%;
+
+  --background: 210 40% 98%;   /* #F8FAFC */
+  --card: 0 0% 100%;           /* #FFFFFF */
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 236 57% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222 47% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --destructive: 343 89% 54%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 236 57% 60%;
 }
 
 @theme {
@@ -98,6 +148,9 @@
   --color-popover-foreground: hsl(var(--popover-foreground));
 }
 
+/* ========================================================================= */
+/* BASE HTML & BODY                                                          */
+/* ========================================================================= */
 html {
   overflow-x: clip;
   background-color: #050506;
@@ -115,7 +168,16 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Linear Technical Grid Overlay */
+/* Light Mode Body Root */
+html.light,
+html.light body {
+  background-color: #F8FAFC !important;
+  color: #0F172A !important;
+}
+
+/* ========================================================================= */
+/* GRID & AMBIENT BACKGROUNDS                                                */
+/* ========================================================================= */
 .bg-grid-pattern {
   background-size: 48px 48px;
   background-image: 
@@ -123,7 +185,20 @@ body {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
 
-/* Precision Global Scrollbar */
+html.light .bg-grid-pattern {
+  background-image: 
+    linear-gradient(to right, rgba(0, 0, 0, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.035) 1px, transparent 1px) !important;
+  opacity: 0.6 !important;
+}
+
+html.light .light-base-gradient {
+  background: radial-gradient(ellipse at top, #FFFFFF 0%, #F8FAFC 50%, #F1F5F9 100%) !important;
+}
+
+/* ========================================================================= */
+/* PRECISION SCROLLBARS                                                      */
+/* ========================================================================= */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -133,19 +208,34 @@ body {
   background: #050506;
 }
 
+html.light ::-webkit-scrollbar-track {
+  background: #F8FAFC !important;
+}
+
 ::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.16) !important;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
 }
 
-/* Linear / Frosted Side Navbar Dedicated Scrollbar */
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.28) !important;
+}
+
 .sidebar-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+html.light .sidebar-scrollbar {
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
 }
 
 .sidebar-scrollbar::-webkit-scrollbar {
@@ -163,6 +253,10 @@ body {
   transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
+html.light .sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12) !important;
+}
+
 .sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
   background: rgba(94, 106, 210, 0.35);
 }
@@ -172,10 +266,13 @@ body {
   box-shadow: 0 0 10px rgba(94, 106, 210, 0.6);
 }
 
-/* Thin Scrollbar Utility */
 .scrollbar-thin {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+html.light .scrollbar-thin {
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
 }
 
 .scrollbar-thin::-webkit-scrollbar {
@@ -193,11 +290,17 @@ body {
   transition: background 0.2s ease;
 }
 
+html.light .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12) !important;
+}
+
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: rgba(94, 106, 210, 0.4);
 }
 
-/* Linear Glassmorphic Cards */
+/* ========================================================================= */
+/* CARDS & SURFACES                                                          */
+/* ========================================================================= */
 .glass-card {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
   backdrop-filter: blur(16px);
@@ -216,7 +319,19 @@ body {
   transform: translateY(-2px);
 }
 
-/* Linear Glass Nav */
+html.light .glass-card {
+  background: #FFFFFF !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light .glass-card:hover {
+  background: #FFFFFF !important;
+  border-color: rgba(94, 106, 210, 0.35) !important;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.07), 0 0 30px rgba(94, 106, 210, 0.07) !important;
+}
+
+/* Glass Nav */
 .glass-nav {
   position: sticky;
   top: 0;
@@ -232,7 +347,64 @@ body {
   will-change: transform;
 }
 
-/* Responsive Desktop Sidebar Layout Offset */
+html.light .glass-nav {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* Gen-Z Floating Capsule Bottom Dock */
+.floating-bottom-dock {
+  background-color: rgba(7, 7, 10, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85), inset 0 1px 0 0 rgba(255, 255, 255, 0.15);
+}
+
+html.light .floating-bottom-dock {
+  background-color: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04) !important;
+}
+
+.dock-active-pill {
+  background: linear-gradient(135deg, rgba(94, 106, 210, 0.35) 0%, rgba(112, 86, 224, 0.25) 50%, rgba(94, 106, 210, 0.20) 100%);
+  border: 1px solid rgba(94, 106, 210, 0.50);
+  box-shadow: 0 0 18px rgba(94, 106, 210, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.20);
+}
+
+html.light .dock-active-pill {
+  background: #EEF2FF !important;
+  border: 1px solid rgba(94, 106, 210, 0.30) !important;
+  box-shadow: 0 2px 10px rgba(94, 106, 210, 0.12) !important;
+}
+
+.dock-item-active {
+  color: #FFFFFF;
+}
+
+html.light .dock-item-active {
+  color: #5E6AD2 !important;
+}
+
+.dock-item-inactive {
+  color: #8A8F98;
+}
+
+html.light .dock-item-inactive {
+  color: #64748B !important;
+}
+
+.dock-item-inactive:hover {
+  color: #EDEDEF;
+}
+
+html.light .dock-item-inactive:hover {
+  color: #0F172A !important;
+}
+
+/* Desktop Sidebar Layout Offset */
 @media (min-width: 768px) {
   .app-sidebar-offset {
     padding-left: var(--sidebar-width, 260px);
@@ -249,14 +421,28 @@ body {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 8px 36px rgba(0, 0, 0, 0.6), 0 0 60px rgba(94, 106, 210, 0.12);
 }
 
+html.light .shadow-linear-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 18px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .shadow-linear-card:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08), 0 0 30px rgba(94, 106, 210, 0.08) !important;
+}
+
 .shadow-linear-elevated {
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 16px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
 }
 
-/* Linear Primary CTA Button with Glow */
+html.light .shadow-linear-elevated {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* ========================================================================= */
+/* BUTTONS                                                                   */
+/* ========================================================================= */
 .btn-linear-primary {
   background-color: #5E6AD2;
-  color: #FFFFFF;
+  color: #FFFFFF !important;
   border-radius: 8px;
   font-weight: 600;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -269,11 +455,21 @@ body {
   transform: translateY(-1px);
 }
 
+html.light .btn-linear-primary {
+  background-color: #5E6AD2 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 10px rgba(94, 106, 210, 0.32), inset 0 1px 0 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+html.light .btn-linear-primary:hover {
+  background-color: #4F46E5 !important;
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.4) !important;
+}
+
 .btn-linear-primary:active {
   transform: scale(0.98);
 }
 
-/* Linear Secondary Button */
 .btn-linear-secondary {
   background-color: rgba(255, 255, 255, 0.05);
   color: #EDEDEF;
@@ -291,11 +487,24 @@ body {
   transform: translateY(-1px);
 }
 
+html.light .btn-linear-secondary {
+  background-color: #FFFFFF !important;
+  color: #1E293B !important;
+  border: 1px solid rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .btn-linear-secondary:hover {
+  background-color: #F8FAFC !important;
+  border-color: rgba(0, 0, 0, 0.20) !important;
+  color: #0F172A !important;
+}
+
 .btn-linear-secondary:active {
   transform: scale(0.98);
 }
 
-/* Linear Financial Status Badges & Glows */
+/* Status Glows */
 .glow-salary {
   box-shadow: 0 0 20px -6px rgba(16, 185, 129, 0.25);
   border-color: rgba(16, 185, 129, 0.25) !important;
@@ -349,7 +558,7 @@ body {
   left: 120%;
 }
 
-/* Linear Float & Ambient Blob Keyframes */
+/* Float Animations */
 @keyframes float {
   0%, 100% {
     transform: translateY(0px) rotate(0deg);
@@ -376,7 +585,6 @@ body {
   animation: float-slow 12s ease-in-out infinite;
 }
 
-/* Shimmer accent text animation */
 @keyframes shimmer {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -386,4 +594,213 @@ body {
 .animate-shimmer {
   background-size: 200% auto;
   animation: shimmer 5s ease infinite;
+}
+
+/* ========================================================================= */
+/* LIGHT MODE COMPREHENSIVE TAILWIND CLASS AUTOMAPPINGS                     */
+/* Ensures existing UI components render flawlessly in Light Mode            */
+/* ========================================================================= */
+
+/* 1. Surfaces & Backgrounds */
+html.light .bg-\[\#050506\],
+html.light .bg-\[\#020203\],
+html.light .bg-\[\#000000\],
+html.light .bg-black {
+  background-color: #F8FAFC !important;
+}
+
+html.light .bg-\[\#0a0a0c\],
+html.light .bg-\[\#060608\],
+html.light .bg-\[\#08080a\],
+html.light .bg-\[\#0e0e14\],
+html.light .bg-\[\#0f0f13\],
+html.light .bg-\[\#121216\],
+html.light .bg-\[\#13131a\],
+html.light .bg-\[\#18181f\] {
+  background-color: #FFFFFF !important;
+}
+
+/* Translucent Navbars & Drawers */
+html.light aside,
+html.light header,
+html.light nav {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .bg-\[\#050506\]\/90,
+html.light .bg-\[\#050506\]\/85,
+html.light .bg-\[\#060608\]\/94,
+html.light .bg-\[\#060608\]\/95,
+html.light .bg-\[\#07070a\]\/92,
+html.light .bg-\[\#08080a\]\/98 {
+  background-color: rgba(255, 255, 255, 0.94) !important;
+}
+
+/* Backdrop modal overlays */
+html.light .bg-black\/80,
+html.light .bg-black\/70 {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
+
+/* Subtle background tints */
+html.light .bg-white\/\[0\.01\],
+html.light .bg-white\/\[0\.02\],
+html.light .bg-white\/\[0\.03\],
+html.light .bg-white\/\[0\.04\],
+html.light .bg-white\/\[0\.05\],
+html.light .bg-white\/\[0\.06\],
+html.light .bg-white\/\[0\.08\],
+html.light .bg-white\/5,
+html.light .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.035) !important;
+}
+
+html.light .hover\:bg-white\/\[0\.03\]:hover,
+html.light .hover\:bg-white\/\[0\.04\]:hover,
+html.light .hover\:bg-white\/\[0\.05\]:hover,
+html.light .hover\:bg-white\/\[0\.06\]:hover,
+html.light .hover\:bg-white\/\[0\.08\]:hover,
+html.light .hover\:bg-white\/10:hover {
+  background-color: rgba(0, 0, 0, 0.065) !important;
+}
+
+/* 2. Text Colors & Headings */
+html.light .text-white,
+html.light .text-\[\#EDEDEF\],
+html.light .text-\[\#F8FAFC\] {
+  color: #0F172A !important;
+}
+
+html.light .text-\[\#8A8F98\],
+html.light .text-\[\#a1a7b5\],
+html.light .text-white\/80,
+html.light .text-white\/70,
+html.light .text-white\/60 {
+  color: #64748B !important;
+}
+
+html.light .text-white\/50,
+html.light .text-white\/40,
+html.light .text-white\/30,
+html.light .text-white\/20 {
+  color: #94A3B8 !important;
+}
+
+html.light .hover\:text-white:hover {
+  color: #0F172A !important;
+}
+
+/* Gradient headings that started with white in dark mode */
+html.light .from-white {
+  --tw-gradient-from: #0F172A !important;
+}
+
+html.light .via-\[\#EDEDEF\] {
+  --tw-gradient-stops: var(--tw-gradient-from), #334155, var(--tw-gradient-to) !important;
+}
+
+/* Semantic Status Accents in Light Mode for Maximum Readability */
+html.light .text-emerald-400 {
+  color: #059669 !important;
+}
+
+html.light .text-rose-400 {
+  color: #E11D48 !important;
+}
+
+html.light .text-blue-400 {
+  color: #2563EB !important;
+}
+
+html.light .text-orange-400 {
+  color: #EA580C !important;
+}
+
+html.light .text-cyan-400 {
+  color: #0891B2 !important;
+}
+
+html.light .text-\[\#818cf8\],
+html.light .text-\[\#a5b4fc\] {
+  color: #4F46E5 !important;
+}
+
+/* 3. Borders & Dividers */
+html.light .border-white\/10,
+html.light .border-white\/\[0\.08\],
+html.light .border-white\/\[0\.06\],
+html.light .border-white\/\[0\.04\],
+html.light .border-white\/5,
+html.light .border-white\/\[0\.12\],
+html.light .border-white\/20,
+html.light .border-white\/\[0\.1\],
+html.light .border-white\/\[0\.05\] {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light .hover\:border-white\/10:hover,
+html.light .hover\:border-white\/\[0\.12\]:hover,
+html.light .hover\:border-white\/\[0\.15\]:hover,
+html.light .hover\:border-white\/20:hover {
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+
+html.light .divide-white\/5 > * + *,
+html.light .divide-white\/10 > * + * {
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 4. Form Inputs, Selects & Textareas */
+html.light input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html.light select,
+html.light textarea {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+html.light input:focus,
+html.light select:focus,
+html.light textarea:focus {
+  border-color: #5E6AD2 !important;
+  box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.18) !important;
+}
+
+html.light input::placeholder,
+html.light textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+html.light select option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+/* 5. Tooltips, Popovers & Floating Elements */
+html.light .bg-\[\#0a0a0c\]\/98,
+html.light .bg-\[\#08080a\]\/98 {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 6. Mobile Safe Areas and Drawer */
+html.light aside {
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light header {
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.03) !important;
+}
+
+html.light nav.fixed {
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 7. Footer */
+html.light footer {
+  background-color: #F1F5F9 !important;
+  border-color: rgba(0, 0, 0, 0.06) !important;
 }

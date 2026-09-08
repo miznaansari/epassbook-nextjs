@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext';
+import { useTheme } from '@/context/ThemeContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setPendingCameraPhoto } from '@/lib/cameraBridge';
 import { 
@@ -34,12 +35,16 @@ import {
   ShieldCheck,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus
+  Plus,
+  Sun,
+  Moon,
+  Monitor
 } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
   const { isCollapsed, toggleSidebar, mounted } = useSidebar();
+  const { theme, resolvedTheme, toggleTheme, setTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -304,7 +309,7 @@ export default function Navbar() {
           ))}
         </div>
 
-        {/* Sidebar Footer: Quick Actions & User Profile */}
+        {/* Sidebar Footer: Quick Actions, Theme Switcher & User Profile */}
         <div className="p-3 border-t border-white/[0.08] bg-white/[0.01] space-y-2">
           {/* Quick OCR Scan Button */}
           {!isCollapsed ? (
@@ -328,6 +333,46 @@ export default function Navbar() {
               </button>
               <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0a0a0c]/98 border border-white/[0.12] rounded-xl text-xs text-white font-medium whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50">
                 Scan Receipt OCR
+              </div>
+            </div>
+          )}
+
+          {/* Theme Toggle Button */}
+          {!isCollapsed ? (
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="w-full py-2 px-3 text-xs font-medium text-[#8A8F98] hover:text-[#EDEDEF] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/10 rounded-xl transition-all cursor-pointer active:scale-98 flex items-center justify-between"
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            >
+              <div className="flex items-center gap-2">
+                {resolvedTheme === 'dark' ? (
+                  <Moon className="w-3.5 h-3.5 text-[#818cf8]" />
+                ) : (
+                  <Sun className="w-3.5 h-3.5 text-amber-500" />
+                )}
+                <span>{resolvedTheme === 'dark' ? 'Dark Mode' : 'Light Mode'}</span>
+              </div>
+              <span className="text-[10px] font-mono uppercase text-[#8A8F98]/70 px-1.5 py-0.5 rounded bg-white/[0.04]">
+                {resolvedTheme === 'dark' ? 'Dark' : 'Light'}
+              </span>
+            </button>
+          ) : (
+            <div className="relative group flex justify-center">
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="w-11 h-11 text-[#8A8F98] hover:text-[#EDEDEF] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/10 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+                aria-label={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              >
+                {resolvedTheme === 'dark' ? (
+                  <Moon className="w-4 h-4 text-[#818cf8]" />
+                ) : (
+                  <Sun className="w-4 h-4 text-amber-500" />
+                )}
+              </button>
+              <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0a0a0c]/98 border border-white/[0.12] rounded-xl text-xs text-white font-medium whitespace-nowrap shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50">
+                Switch to {resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode
               </div>
             </div>
           )}
@@ -421,6 +466,21 @@ export default function Navbar() {
               <span>Scan Receipt</span>
             </button>
 
+            {/* Top Bar Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 text-[#8A8F98] hover:text-[#EDEDEF] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-white/15 rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              aria-label="Toggle Theme"
+            >
+              {resolvedTheme === 'dark' ? (
+                <Moon className="w-3.5 h-3.5 text-[#818cf8]" />
+              ) : (
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+              )}
+            </button>
+
             {/* User Profile Pill */}
             <div className="flex items-center gap-2 px-2.5 py-1 bg-white/[0.03] border border-white/[0.06] rounded-xl">
               <div className="w-6 h-6 rounded-md bg-[#0a0a0c] border border-white/10 text-[#818cf8] flex items-center justify-center overflow-hidden">
@@ -461,7 +521,7 @@ export default function Navbar() {
             </div>
           </Link>
 
-          {/* Right Action Hub: Camera, Profile & Menu */}
+          {/* Right Action Hub: Camera, Theme, Profile & Menu */}
           <div className="flex items-center gap-2 shrink-0">
             {/* Quick OCR Scan Button */}
             <button
@@ -472,6 +532,21 @@ export default function Navbar() {
               title="Open Camera to scan receipt"
             >
               <Camera className="w-4 h-4 text-[#818cf8]" />
+            </button>
+
+            {/* Mobile Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 text-[#8A8F98] bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] rounded-xl transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+              aria-label="Toggle Theme"
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+            >
+              {resolvedTheme === 'dark' ? (
+                <Moon className="w-4 h-4 text-[#818cf8]" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-500" />
+              )}
             </button>
 
             {/* User Avatar */}
@@ -500,71 +575,96 @@ export default function Navbar() {
 
 
       {/* ========================================================================= */}
-      {/* 4. MOBILE HIGH-ERGONOMICS BOTTOM NAVIGATION BAR (< md)                     */}
+      {/* 4. GEN-Z / ALPHA FLOATING CAPSULE DOCK (< md)                             */}
       {/* ========================================================================= */}
-      <nav 
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-[#060608]/94 backdrop-blur-2xl border-t border-white/[0.08] shadow-[0_-12px_40px_rgba(0,0,0,0.85),inset_0_1px_0_0_rgba(255,255,255,0.08)] py-2 px-2 flex items-center justify-between"
+      <div 
+        className="fixed left-3 right-3 max-w-[420px] mx-auto z-50 md:hidden"
         style={{ 
-          paddingBottom: 'max(14px, calc(env(safe-area-inset-bottom, 0px) + 8px))',
+          bottom: 'max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px))',
           transform: 'translate3d(0, 0, 0)',
           WebkitTransform: 'translate3d(0, 0, 0)',
           willChange: 'transform',
         }}
       >
-        {mobileBottomLinks.map((link) => {
-          const Icon = link.icon;
-          const isActive = pathname === link.path;
-
-          return (
-            <Link
-              key={link.path}
-              href={link.path}
-              className={`flex flex-col items-center justify-center min-h-[54px] py-1.5 px-1 rounded-2xl transition-all duration-200 flex-1 min-w-0 active:scale-95 relative ${
-                isActive
-                  ? 'bg-gradient-to-b from-[#5E6AD2]/25 to-[#5E6AD2]/5 border border-[#5E6AD2]/35 text-white shadow-[0_0_16px_rgba(94,106,210,0.25),inset_0_1px_0_0_rgba(255,255,255,0.15)] font-semibold'
-                  : 'text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.03] border border-transparent'
-              }`}
-            >
-              <div className="relative">
-                <Icon 
-                  className={`w-4 h-4 transition-transform duration-200 ${
-                    isActive ? 'scale-110 text-[#818cf8]' : 'text-[#8A8F98]'
-                  }`} 
-                />
-                {link.isAi && !isActive && (
-                  <span className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-[#818cf8] rounded-full animate-pulse" />
-                )}
-              </div>
-
-              <span className={`text-[10px] tracking-tight mt-1 truncate w-full text-center ${
-                isActive ? 'font-semibold text-white' : 'font-medium text-[#8A8F98]'
-              }`}>
-                {link.name}
-              </span>
-
-              {isActive && (
-                <span className="w-1.5 h-1 rounded-full bg-[#818cf8] mt-0.5 shadow-[0_0_6px_#818cf8]" />
-              )}
-            </Link>
-          );
-        })}
-
-        {/* 5th Bottom Item: Menu / More Drawer Trigger */}
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          className={`flex flex-col items-center justify-center min-h-[54px] py-1.5 px-1 rounded-2xl transition-all duration-200 flex-1 min-w-0 active:scale-95 cursor-pointer border ${
-            drawerOpen
-              ? 'bg-[#5E6AD2]/20 border-[#5E6AD2]/40 text-white'
-              : 'text-[#8A8F98] hover:text-[#EDEDEF] hover:bg-white/[0.03] border-transparent'
-          }`}
+        <nav 
+          className="relative floating-bottom-dock rounded-full p-1.5 flex items-center justify-between transition-all duration-200"
         >
-          <Menu className={`w-4 h-4 ${drawerOpen ? 'text-[#818cf8]' : 'text-[#8A8F98]'}`} />
-          <span className="text-[10px] tracking-tight font-medium mt-1 truncate w-full text-center">
-            Menu
-          </span>
-        </button>
-      </nav>
+          {/* Ambient Top Glow Line */}
+          <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#5E6AD2]/30 to-transparent" />
+
+          {mobileBottomLinks.map((link) => {
+            const Icon = link.icon;
+            const isActive = pathname === link.path;
+
+            return (
+              <Link
+                key={link.path}
+                href={link.path}
+                className={`relative flex flex-col items-center justify-center h-12 flex-1 rounded-full transition-all duration-200 active:scale-90 select-none ${
+                  isActive ? 'dock-item-active' : 'dock-item-inactive'
+                }`}
+              >
+                {/* Active Floating Spring Pill */}
+                {isActive && (
+                  <motion.div
+                    layoutId="genzActiveTab"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    className="absolute inset-0 dock-active-pill rounded-full"
+                  />
+                )}
+
+                {/* Icon & AI indicator */}
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="relative">
+                    <Icon 
+                      className={`w-[18px] h-[18px] transition-all duration-200 ${
+                        isActive 
+                          ? 'scale-105 drop-shadow-[0_0_8px_rgba(94,106,210,0.5)]' 
+                          : 'opacity-85'
+                      }`} 
+                    />
+                    {link.isAi && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gradient-to-r from-[#5E6AD2] to-[#818cf8] animate-pulse shadow-[0_0_8px_#5E6AD2]" />
+                    )}
+                  </div>
+
+                  <span className={`text-[9px] tracking-tight mt-0.5 leading-none truncate max-w-[56px] text-center ${
+                    isActive ? 'font-bold' : 'font-medium'
+                  }`}>
+                    {link.name}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+
+          {/* 5th Dock Action: Menu / More Drawer Trigger */}
+          <button
+            type="button"
+            onClick={() => setDrawerOpen(true)}
+            className={`relative flex flex-col items-center justify-center h-12 flex-1 rounded-full transition-all duration-200 active:scale-90 cursor-pointer select-none ${
+              drawerOpen ? 'dock-item-active' : 'dock-item-inactive'
+            }`}
+            aria-label="Open Navigation Menu"
+          >
+            {drawerOpen && (
+              <motion.div
+                layoutId="genzActiveTab"
+                transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                className="absolute inset-0 dock-active-pill rounded-full"
+              />
+            )}
+            <div className="relative z-10 flex flex-col items-center">
+              <Menu className={`w-[18px] h-[18px] transition-transform ${drawerOpen ? 'scale-105' : 'opacity-85'}`} />
+              <span className={`text-[9px] tracking-tight mt-0.5 leading-none truncate max-w-[56px] text-center ${
+                drawerOpen ? 'font-bold' : 'font-medium'
+              }`}>
+                Menu
+              </span>
+            </div>
+          </button>
+        </nav>
+      </div>
 
 
       {/* ========================================================================= */}
@@ -607,7 +707,7 @@ export default function Navbar() {
               </div>
 
               {/* Drawer Content Area */}
-              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-5 sidebar-scrollbar">
+              <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 sidebar-scrollbar">
                 
                 {/* User Profile Card */}
                 <div className="p-3.5 bg-gradient-to-b from-white/[0.05] to-white/[0.02] border border-white/[0.08] backdrop-blur-md rounded-2xl flex items-center justify-between gap-3 shadow-inner">
@@ -642,6 +742,44 @@ export default function Navbar() {
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
+                </div>
+
+                {/* Theme Switcher in Drawer */}
+                <div className="p-3 bg-white/[0.03] border border-white/[0.06] rounded-2xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-[#EDEDEF] flex items-center gap-2">
+                      {resolvedTheme === 'dark' ? <Moon className="w-3.5 h-3.5 text-[#818cf8]" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                      Appearance Theme
+                    </span>
+                    <span className="text-[10px] font-mono text-[#8A8F98] uppercase px-1.5 py-0.5 bg-white/[0.04] rounded">
+                      {theme}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1.5 pt-1">
+                    {[
+                      { id: 'dark', label: 'Dark', icon: Moon },
+                      { id: 'light', label: 'Light', icon: Sun },
+                      { id: 'system', label: 'Auto', icon: Monitor },
+                    ].map((t) => {
+                      const IconComp = t.icon;
+                      const isSelected = theme === t.id;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => setTheme(t.id)}
+                          className={`py-1.5 px-2 rounded-xl text-[11px] font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-[#5E6AD2]/20 border-[#5E6AD2]/40 text-white font-semibold shadow-sm'
+                              : 'bg-white/[0.02] border-transparent text-[#8A8F98] hover:text-white'
+                          }`}
+                        >
+                          <IconComp className="w-3 h-3" />
+                          <span>{t.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Categorized Navigation Groups */}
