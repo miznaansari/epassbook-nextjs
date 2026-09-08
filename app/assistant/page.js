@@ -1881,7 +1881,9 @@ export default function Assistant() {
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">{selectedModel}</span>
                           </div>
-                                {/* If user attached image(s) or loaded from DB */}
+                        )}
+
+                        {/* If user attached image(s) or loaded from DB */}
                         {(() => {
                           let extractedImgUrls = [];
                           if (!isAi) {
