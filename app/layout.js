@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { SidebarProvider } from "@/context/SidebarContext";
 import PWARegistration from "@/components/PWARegistration";
 import OneSignalProvider from "@/components/providers/OneSignalProvider";
 import IOSOnboardingBanner from "@/components/IOSOnboardingBanner";
@@ -79,11 +80,13 @@ export default function RootLayout({ children }) {
             strategy="afterInteractive" 
           />
           <AuthProvider>
-            <PWARegistration />
-            <OneSignalProvider />
-            <IOSOnboardingBanner />
-            <NotificationScheduler />
-            {children}
+            <SidebarProvider>
+              <PWARegistration />
+              <OneSignalProvider />
+              <IOSOnboardingBanner />
+              <NotificationScheduler />
+              {children}
+            </SidebarProvider>
           </AuthProvider>
         </div>
       </body>

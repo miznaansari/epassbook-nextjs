@@ -76,7 +76,7 @@ export default function DashboardMobile({
   setParentLending
 }) {
   return (
-    <div className="relative min-h-screen pb-24 bg-[#050506] text-[#EDEDEF]">
+    <div className="relative min-h-screen pb-32 sm:pb-8 bg-[#050506] text-[#EDEDEF]">
       <Navbar />
 
       <main className="px-4 py-4 relative z-10 space-y-4">
@@ -430,7 +430,14 @@ export default function DashboardMobile({
                           <AvatarIcon className="w-3 h-3" />
                         </span>
                         <div className="min-w-0">
-                          <h4 className="text-[11px] font-medium text-white truncate">{entry.title}</h4>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <h4 className="text-[11px] font-medium text-white truncate">{entry.title}</h4>
+                            {Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || '')) && (
+                              <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-semibold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 shrink-0 font-mono" title="Added via AI">
+                                <Sparkles className="w-2 h-2 text-indigo-400" /> AI
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1 mt-0.5 flex-wrap font-mono">
                             <span className={`px-1 py-0.2 rounded text-[7px] border uppercase ${colors[entry.type]}`}>
                               {entry.type}

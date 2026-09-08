@@ -12,6 +12,8 @@ import {
   Filter,
   Trash2,
   Calendar,
+  CalendarDays,
+  Layers,
   Wallet,
   ArrowUpRight,
   ArrowRightLeft,
@@ -26,7 +28,9 @@ import {
   Square,
   MinusSquare,
   Loader2,
-  Check
+  Check,
+  Sparkles,
+  Bot
 } from 'lucide-react';
 
 const monthsList = [
@@ -53,6 +57,7 @@ export default function Transactions() {
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
+  const [groupBy, setGroupBy] = useState('date'); // 'date' | 'month'
 
   // Multi-select state
   const [selectedIds, setSelectedIds] = useState([]);
@@ -75,7 +80,7 @@ export default function Transactions() {
     setLoadingEntries(true);
     try {
       let url = '/api/entries';
-      if (typeFilter !== 'ALL') {
+      if (typeFilter !== 'ALL' && typeFilter !== 'AI') {
         url += `?type=${typeFilter}`;
       }
 
@@ -189,6 +194,14 @@ export default function Transactions() {
 
   // Filter and search entries client-side
   const filteredEntries = entries.filter(e => {
+    // Type or AI filter
+    if (typeFilter === 'AI') {
+      const isAi = Boolean(e.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(e.description || ''));
+      if (!isAi) return false;
+    } else if (typeFilter !== 'ALL' && e.type !== typeFilter) {
+      return false;
+    }
+
     const titleMatch = e.title.toLowerCase().includes(searchTerm.toLowerCase());
     const descMatch = (e.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     return titleMatch || descMatch;
@@ -197,17 +210,6 @@ export default function Transactions() {
   // Calculate sum of selected transactions
   const selectedEntriesList = entries.filter(e => selectedIds.includes(e.id));
   const selectedTotalAmount = selectedEntriesList.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-
-  // Group entries month-wise for collapsible history
-  const groupedEntries = {};
-  filteredEntries.forEach(entry => {
-    const d = new Date(entry.date);
-    const key = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-    if (!groupedEntries[key]) {
-      groupedEntries[key] = [];
-    }
-    groupedEntries[key].push(entry);
-  });
 
   const formatCurrency = (val) => {
     const currencyCode = user?.currency || 'USD';
@@ -218,27 +220,66 @@ export default function Transactions() {
     }).format(val || 0);
   };
 
+  const formatDateGroupLabel = (dateStr) => {
+    if (groupBy === 'month') return dateStr;
+    const date = new Date(dateStr + 'T00:00:00');
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const isToday = date.toDateString() === today.toDateString();
+    const isYesterday = date.toDateString() === yesterday.toDateString();
+
+    const formatted = date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+
+    if (isToday) return `Today • ${formatted}`;
+    if (isYesterday) return `Yesterday • ${formatted}`;
+    return formatted;
+  };
+
+  // Group entries date-wise or month-wise
+  const groupedEntries = {};
+  filteredEntries.forEach(entry => {
+    const d = new Date(entry.date);
+    let key;
+    if (groupBy === 'date') {
+      key = d.toISOString().split('T')[0];
+    } else {
+      key = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    }
+    if (!groupedEntries[key]) {
+      groupedEntries[key] = [];
+    }
+    groupedEntries[key].push(entry);
+  });
+
   const isAllFilteredSelected = filteredEntries.length > 0 && filteredEntries.every(e => selectedIds.includes(e.id));
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF] app-sidebar-offset">
       <Navbar />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-28">
 
         {/* Header Titles & Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
               <ReceiptText className="w-7 h-7 text-[#818cf8]" /> E-Passbook
             </h1>
-            <p className="text-[#8A8F98] text-xs mt-1">Audit, search, multi-select, and manage your complete historical ledger entries.</p>
+            <p className="text-[#8A8F98] text-xs mt-1">Audit, search, multi-select date-wise, and manage your complete historical ledger entries.</p>
           </div>
 
-          {/* Search and Type Filter Controls */}
-          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+          {/* Search, Type Filter, View Switcher & Batch Selection */}
+          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+            
             {/* Search Input */}
-            <div className="relative w-full sm:w-64">
+            <div className="relative flex-1 sm:w-56 min-w-[160px]">
               <input
                 type="text"
                 value={searchTerm}
@@ -249,11 +290,43 @@ export default function Transactions() {
               <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#8A8F98]" />
             </div>
 
-            {/* Selector Dropdown */}
+            {/* View Mode Toggle: Date Wise vs Month Wise */}
+            <div className="flex items-center bg-[#0a0a0c] border border-white/10 rounded-lg p-0.5 shrink-0">
+              <button
+                type="button"
+                onClick={() => setGroupBy('date')}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  groupBy === 'date'
+                    ? 'bg-[#5E6AD2] text-white shadow-sm'
+                    : 'text-[#8A8F98] hover:text-white'
+                }`}
+                title="Group transactions date-wise"
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Date Wise</span>
+                <span className="sm:hidden">Date</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupBy('month')}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
+                  groupBy === 'month'
+                    ? 'bg-[#5E6AD2] text-white shadow-sm'
+                    : 'text-[#8A8F98] hover:text-white'
+                }`}
+                title="Group transactions month-wise"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Month Wise</span>
+                <span className="sm:hidden">Month</span>
+              </button>
+            </div>
+
+            {/* Category / Source Selector Dropdown */}
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-[#0a0a0c] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#5E6AD2] font-medium w-full sm:w-auto cursor-pointer"
+              className="bg-[#0a0a0c] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#5E6AD2] font-medium shrink-0 cursor-pointer"
             >
               <option value="ALL">All Categories</option>
               <option value="SPENDING">Spendings</option>
@@ -261,6 +334,7 @@ export default function Transactions() {
               <option value="LOAN">Loans</option>
               <option value="ADVANCE">Advances</option>
               <option value="SAVINGS">Savings / SIPs</option>
+              <option value="AI">✨ AI Added Only</option>
             </select>
 
             {/* Select All Filtered Toggle */}
@@ -290,12 +364,12 @@ export default function Transactions() {
           </div>
         </div>
 
-        {/* Grouped Month-wise Passbook History list */}
+        {/* Grouped Passbook History list */}
         {loadingEntries ? (
           <div className="space-y-6">
-            {[1, 2].map(n => (
+            {[1, 2, 3].map(n => (
               <div key={n} className="space-y-3">
-                <div className="w-32 h-5 bg-white/5 rounded animate-pulse" />
+                <div className="w-40 h-5 bg-white/5 rounded animate-pulse" />
                 <div className="glass-card p-6 border border-white/[0.06] space-y-3">
                   {[1, 2, 3].map(i => (
                     <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />
@@ -314,30 +388,39 @@ export default function Transactions() {
           </div>
         ) : (
           <div className="space-y-6 text-left">
-            {Object.entries(groupedEntries).map(([monthKey, list], groupIdx) => {
-              const allMonthSelected = list.length > 0 && list.every(e => selectedIds.includes(e.id));
-              const someMonthSelected = list.some(e => selectedIds.includes(e.id)) && !allMonthSelected;
+            {Object.entries(groupedEntries).map(([groupKey, list], groupIdx) => {
+              const allGroupSelected = list.length > 0 && list.every(e => selectedIds.includes(e.id));
+              const someGroupSelected = list.some(e => selectedIds.includes(e.id)) && !allGroupSelected;
+              const groupLabel = formatDateGroupLabel(groupKey);
+
+              const groupSpendTotal = list
+                .filter(e => e.type === 'SPENDING' || e.type === 'LENDING' || e.type === 'SAVINGS')
+                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
+
+              const groupIncomeTotal = list
+                .filter(e => e.type === 'LOAN' || e.type === 'ADVANCE')
+                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
 
               return (
                 <motion.div
-                  key={monthKey}
+                  key={groupKey}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: groupIdx * 0.04 }}
+                  transition={{ duration: 0.35, delay: groupIdx * 0.03 }}
                   className="space-y-2.5"
                 >
-                  {/* Month/Year Section Header with Batch Select Toggle */}
+                  {/* Date / Month Section Header with Batch Select Toggle */}
                   <div className="flex items-center justify-between px-1">
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => toggleSelectGroup(list)}
                         className="text-[#8A8F98] hover:text-white transition-colors cursor-pointer p-0.5"
-                        title={allMonthSelected ? "Deselect this month" : "Select all in this month"}
+                        title={allGroupSelected ? `Deselect all in ${groupLabel}` : `Select all in ${groupLabel}`}
                       >
-                        {allMonthSelected ? (
+                        {allGroupSelected ? (
                           <CheckSquare className="w-4 h-4 text-[#818cf8]" />
-                        ) : someMonthSelected ? (
+                        ) : someGroupSelected ? (
                           <MinusSquare className="w-4 h-4 text-[#818cf8]" />
                         ) : (
                           <Square className="w-4 h-4" />
@@ -345,20 +428,30 @@ export default function Transactions() {
                       </button>
 
                       <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> {monthKey}
+                        <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> {groupLabel}
                       </h3>
-                      <span className="text-[10px] bg-white/[0.04] border border-white/[0.06] px-2 py-0.2 rounded-full text-[#8A8F98] font-mono">
+                      <span className="text-[10px] bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-full text-[#8A8F98] font-mono">
                         {list.length} {list.length === 1 ? 'entry' : 'entries'}
                       </span>
                     </div>
 
-                    <span className="text-[11px] font-mono text-[#8A8F98]">
+                    <div className="flex items-center gap-3 text-[11px] font-mono text-[#8A8F98]">
+                      {groupSpendTotal > 0 && (
+                        <span className="hidden sm:inline text-rose-400/80">
+                          Out: -{formatCurrency(groupSpendTotal)}
+                        </span>
+                      )}
+                      {groupIncomeTotal > 0 && (
+                        <span className="hidden sm:inline text-emerald-400/80">
+                          In: +{formatCurrency(groupIncomeTotal)}
+                        </span>
+                      )}
                       {list.filter(e => selectedIds.includes(e.id)).length > 0 && (
                         <span className="text-[#818cf8] font-semibold">
                           {list.filter(e => selectedIds.includes(e.id)).length} selected
                         </span>
                       )}
-                    </span>
+                    </div>
                   </div>
 
                   {/* Ledger table */}
@@ -370,9 +463,9 @@ export default function Transactions() {
                             <th className="pb-3 w-8 text-center">
                               <span className="sr-only">Select</span>
                             </th>
-                            <th className="pb-3">Title</th>
+                            <th className="pb-3">Title & Details</th>
                             <th className="pb-3">Category</th>
-                            <th className="pb-3">Date</th>
+                            {groupBy === 'month' && <th className="pb-3">Date</th>}
                             <th className="pb-3 text-right">Amount</th>
                             <th className="pb-3 text-center">Action</th>
                           </tr>
@@ -380,6 +473,8 @@ export default function Transactions() {
                         <tbody className="divide-y divide-white/[0.04]">
                           {list.map((entry) => {
                             const isSelected = selectedIds.includes(entry.id);
+                            const isAi = Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || ''));
+
                             const typeConfigs = {
                               SPENDING: { text: 'text-rose-400 bg-rose-500/10 border-rose-500/20', sign: '-' },
                               LENDING: { text: 'text-blue-400 bg-blue-500/10 border-blue-500/20', sign: '-' },
@@ -407,7 +502,19 @@ export default function Transactions() {
                                   />
                                 </td>
                                 <td className="py-3 pr-2">
-                                  <div className="font-medium text-white group-hover:text-[#EDEDEF]">{entry.title}</div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-medium text-white group-hover:text-[#EDEDEF]">{entry.title}</span>
+                                    {isAi && (
+                                      <span
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gradient-to-r from-indigo-500/15 to-purple-500/15 border border-indigo-500/30 text-indigo-300 font-mono tracking-tight shadow-sm"
+                                        title="Added via AI Assistant"
+                                      >
+                                        <Sparkles className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
+                                        <span>AI Added</span>
+                                      </span>
+                                    )}
+                                  </div>
+
                                   {entry.description && (
                                     <div className="text-[10px] text-[#8A8F98] mt-0.5 max-w-sm truncate">
                                       {entry.description}
@@ -433,9 +540,11 @@ export default function Transactions() {
                                     </span>
                                   )}
                                 </td>
-                                <td className="py-3 pr-2 text-[11px] text-[#8A8F98] font-mono">
-                                  {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                                </td>
+                                {groupBy === 'month' && (
+                                  <td className="py-3 pr-2 text-[11px] text-[#8A8F98] font-mono">
+                                    {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                                  </td>
+                                )}
                                 <td className={`py-3 pr-2 text-right font-mono font-medium text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
                                   {conf.sign}{formatCurrency(entry.amount)}
                                 </td>

@@ -320,7 +320,7 @@ export default function McpManagementPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground">
+    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground app-sidebar-offset">
       <Navbar />
 
       <main className="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 pb-28 md:pb-16 space-y-8">

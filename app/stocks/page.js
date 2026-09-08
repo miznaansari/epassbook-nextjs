@@ -335,10 +335,10 @@ export default function StocksPage() {
   const isProfit = summary.totalReturns >= 0;
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30">
+    <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30 app-sidebar-offset">
       <Navbar />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 relative z-10">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-8 relative z-10">
         {/* Header Title and Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 glass-card p-5">
           <div>

@@ -75,7 +75,7 @@ export default function ReportsMobile({
   ];
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30 select-none pb-20">
+    <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30 select-none pb-32 sm:pb-8">
       <main className="flex-grow w-full px-4 py-4 relative z-10 space-y-4">
         {/* Title Header */}
         <div className="text-left">

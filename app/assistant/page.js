@@ -40,7 +40,9 @@ import {
   Radio,
   Activity,
   RotateCcw,
-  Undo2
+  Undo2,
+  Coins,
+  Wallet
 } from 'lucide-react';
 
 // Interactive Transaction Proposal Card Component
@@ -79,7 +81,8 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
             salaryMonth: item.salaryMonth || currentMonth,
             salaryYear: item.salaryYear || currentYear,
             description: item.description || 'Logged via AI Assistant Receipt OCR',
-            date: item.date ? new Date(item.date).toISOString() : now.toISOString()
+            date: item.date ? new Date(item.date).toISOString() : now.toISOString(),
+            isAiGenerated: true
           })
         });
 
@@ -672,9 +675,11 @@ export default function Assistant() {
   // Suggested Prompts list
   const suggestions = [
     { text: "Scan my grocery / restaurant receipt image", icon: Receipt, isImagePrompt: true },
+    { text: "Show my savings pots and accumulated balances.", icon: PiggyBank },
     { text: "Where did I spend the most money this month?", icon: TrendingUp },
+    { text: "Withdraw money from my savings pot or SIP.", icon: Coins },
     { text: "Compare this month spending with last month.", icon: LineChart },
-    { text: "Give me my loan and lending summary.", icon: PiggyBank }
+    { text: "Give me my loan and lending summary.", icon: Wallet }
   ];
 
   // Redirect if unauthenticated
@@ -1491,7 +1496,7 @@ export default function Assistant() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-background">
+    <div className="relative min-h-screen flex flex-col overflow-hidden bg-background app-sidebar-offset">
       <Navbar />
 
       {/* Decorative Ambient Orbs */}
@@ -1788,7 +1793,7 @@ export default function Assistant() {
           )}
 
           {/* CHAT VIEWPORT scroll container */}
-          <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 pb-36 md:pb-4 scrollbar-thin scroll-smooth min-h-0">
+          <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 pb-44 md:pb-4 scrollbar-thin scroll-smooth min-h-0">
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-[#6872D9]" />
@@ -2029,7 +2034,7 @@ export default function Assistant() {
           </div>
 
           {/* Pinned Input Container: Fixed on mobile right above bottom navbar, cleanly integrated at bottom on desktop */}
-          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#050506]/95 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/[0.06] md:shadow-none md:pt-3 space-y-2">
+          <div className="fixed bottom-[calc(max(14px,calc(env(safe-area-inset-bottom,0px)+8px))+64px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#050506]/95 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/[0.06] md:shadow-none md:pt-3 space-y-2">
             
             {/* Multi-Image Attachment Preview Strip (up to 10 images) */}
             {attachedImages.length > 0 && (

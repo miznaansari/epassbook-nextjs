@@ -14,6 +14,10 @@
   --foreground-muted: #8A8F98;
   --foreground-subtle: rgba(255, 255, 255, 0.50);
 
+  /* Sidebar Layout Metrics */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 72px;
+
   /* Linear Signature Indigo Accent */
   --accent: #5E6AD2;
   --accent-bright: #6872D9;
@@ -119,7 +123,7 @@ body {
     linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
 
-/* Precision Scrollbar */
+/* Precision Global Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -136,6 +140,61 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.22);
+}
+
+/* Linear / Frosted Side Navbar Dedicated Scrollbar */
+.sidebar-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(94, 106, 210, 0.35);
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6872D9;
+  box-shadow: 0 0 10px rgba(94, 106, 210, 0.6);
+}
+
+/* Thin Scrollbar Utility */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(94, 106, 210, 0.4);
 }
 
 /* Linear Glassmorphic Cards */
@@ -171,6 +230,14 @@ body {
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
   will-change: transform;
+}
+
+/* Responsive Desktop Sidebar Layout Offset */
+@media (min-width: 768px) {
+  .app-sidebar-offset {
+    padding-left: var(--sidebar-width, 260px);
+    transition: padding-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
 }
 
 /* Linear Multi-Layer Shadows */

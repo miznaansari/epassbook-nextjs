@@ -133,6 +133,7 @@ model FinancialEntry {
   updatedAt          DateTime  @updatedAt
   deductions         SalaryDeduction[]
   parentEntryId      Int?
+  isAiGenerated      Boolean   @default(false)
 
   @@index([userId, date])
   @@index([userId, type])

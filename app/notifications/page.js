@@ -318,10 +318,10 @@ export default function NotificationCampaigns() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground">
+    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground app-sidebar-offset">
       <Navbar />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-12 text-left">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-32 sm:pb-12 text-left">
         {/* Page Header */}
         <div className="mb-8 border-b border-white/[0.06] pb-6">
           <div className="flex items-center gap-3">

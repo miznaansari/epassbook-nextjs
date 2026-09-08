@@ -178,10 +178,10 @@ export default function Settings() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
+    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF] app-sidebar-offset">
       <Navbar />
 
-      <main className="flex-grow max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 pb-24 md:pb-12">
+      <main className="flex-grow max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 pb-32 sm:pb-12">
 
         {/* Title Header */}
         <div className="text-left mb-6">

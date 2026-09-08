@@ -593,7 +593,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between">
+    <div className="relative min-h-screen flex flex-col justify-between app-sidebar-offset">
       <Navbar />
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">

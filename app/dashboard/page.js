@@ -445,7 +445,7 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="relative flex flex-col justify-between min-h-screen bg-[#050506] text-[#EDEDEF]">
+    <div className="relative flex flex-col justify-between min-h-screen bg-[#050506] text-[#EDEDEF] app-sidebar-offset">
       <Navbar />
 
       {/* Main Dashboard Panel */}
@@ -851,7 +851,14 @@ export default function Dashboard() {
                                     <AvatarIcon className="w-3.5 h-3.5" />
                                   </span>
                                   <div>
-                                    <div className="font-medium text-[#EDEDEF] group-hover:text-white transition-colors">{entry.title}</div>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="font-medium text-[#EDEDEF] group-hover:text-white transition-colors">{entry.title}</span>
+                                      {Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || '')) && (
+                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-semibold bg-gradient-to-r from-indigo-500/15 to-purple-500/15 border border-indigo-500/30 text-indigo-300 font-mono tracking-tight" title="Added via AI Assistant">
+                                          <Sparkles className="w-2 h-2 text-indigo-400" /> AI
+                                        </span>
+                                      )}
+                                    </div>
                                     {entry.description && (
                                       <div className="text-[10px] text-[#8A8F98] truncate max-w-[180px] mt-0.5">{entry.description}</div>
                                     )}

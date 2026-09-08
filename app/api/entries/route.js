@@ -54,6 +54,7 @@ export async function GET(req) {
     });
 
     const enriched = await Promise.all(entries.map(async (entry) => {
+      const isAi = Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || ''));
       if (entry.type === 'LENDING') {
         const repayments = await db.financialEntry.findMany({
           where: { parentEntryId: entry.id }
@@ -61,6 +62,7 @@ export async function GET(req) {
         const totalRepaid = repayments.reduce((sum, r) => sum + parseFloat(r.amount), 0);
         return {
           ...entry,
+          isAiGenerated: isAi,
           unpaidAmount: Math.max(0, parseFloat(entry.amount) - totalRepaid),
           repayments: repayments.map(r => ({
             id: r.id,
@@ -71,7 +73,10 @@ export async function GET(req) {
           }))
         };
       }
-      return entry;
+      return {
+        ...entry,
+        isAiGenerated: isAi,
+      };
     }));
 
     return NextResponse.json(enriched);
@@ -100,6 +105,7 @@ export async function POST(req) {
       deductions,
       date,
       parentEntryId,
+      isAiGenerated,
     } = await req.json();
 
     if (amount === undefined || !title || !type) {
@@ -124,6 +130,7 @@ export async function POST(req) {
       type,
       useSalaryBalance: !!useSalaryBalance,
       date: date ? new Date(date) : new Date(),
+      isAiGenerated: Boolean(isAiGenerated || /logged via ai|ai assistant|gemini/i.test(description || '')),
     };
 
     let deductionsToCreate = [];
@@ -348,7 +355,8 @@ export async function PUT(req) {
       salaryMonth,
       salaryYear,
       deductions,
-      date
+      date,
+      isAiGenerated
     } = body;
 
     if (!id) {
@@ -382,7 +390,8 @@ export async function PUT(req) {
       useSalaryBalance: !!useSalaryBalance,
       date: date ? new Date(date) : existingEntry.date,
       salaryMonth: null,
-      salaryYear: null
+      salaryYear: null,
+      ...(isAiGenerated !== undefined ? { isAiGenerated: Boolean(isAiGenerated) } : {})
     };
 
     let deductionsToCreate = [];
