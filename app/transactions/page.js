@@ -21,7 +21,12 @@ import {
   TrendingUp,
   X,
   Pencil,
-  Plus
+  Plus,
+  CheckSquare,
+  Square,
+  MinusSquare,
+  Loader2,
+  Check
 } from 'lucide-react';
 
 const monthsList = [
@@ -48,6 +53,10 @@ export default function Transactions() {
   const [loadingEntries, setLoadingEntries] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
@@ -91,7 +100,7 @@ export default function Transactions() {
     }
   }, [user, typeFilter]);
 
-  // Handle Delete Entry
+  // Handle Single Delete Entry
   const handleDeleteEntry = async (id) => {
     if (!confirm('Are you sure you want to delete this transaction permanently?')) return;
     try {
@@ -99,6 +108,7 @@ export default function Transactions() {
         method: 'DELETE',
       });
       if (res.ok) {
+        setSelectedIds(prev => prev.filter(i => i !== id));
         await fetchEntries();
       } else if (res.status === 401) {
         console.warn('Session expired (401), redirecting to login.');
@@ -106,6 +116,66 @@ export default function Transactions() {
       }
     } catch (err) {
       console.error('Delete error:', err);
+    }
+  };
+
+  // Handle Multi-Select Delete
+  const handleDeleteSelected = async () => {
+    if (selectedIds.length === 0 || isDeletingBatch) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected transaction${selectedIds.length === 1 ? '' : 's'} permanently?`)) return;
+
+    setIsDeletingBatch(true);
+    try {
+      const res = await fetch('/api/entries', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      });
+
+      if (res.ok) {
+        setSelectedIds([]);
+        await fetchEntries();
+      } else if (res.status === 401) {
+        console.warn('Session expired (401), redirecting to login.');
+        logout();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Failed to delete selected transactions.');
+      }
+    } catch (err) {
+      console.error('Batch delete error:', err);
+      alert('Error occurred during batch deletion.');
+    } finally {
+      setIsDeletingBatch(false);
+    }
+  };
+
+  // Multi-select helpers
+  const toggleSelectOne = (id) => {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectGroup = (groupEntries) => {
+    const groupIds = groupEntries.map(e => e.id);
+    const allGroupSelected = groupIds.every(id => selectedIds.includes(id));
+
+    if (allGroupSelected) {
+      setSelectedIds(prev => prev.filter(id => !groupIds.includes(id)));
+    } else {
+      setSelectedIds(prev => Array.from(new Set([...prev, ...groupIds])));
+    }
+  };
+
+  const toggleSelectAllFiltered = (allFiltered) => {
+    const filteredIds = allFiltered.map(e => e.id);
+    const allSelected = filteredIds.length > 0 && filteredIds.every(id => selectedIds.includes(id));
+
+    if (allSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredIds);
     }
   };
 
@@ -123,6 +193,10 @@ export default function Transactions() {
     const descMatch = (e.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     return titleMatch || descMatch;
   });
+
+  // Calculate sum of selected transactions
+  const selectedEntriesList = entries.filter(e => selectedIds.includes(e.id));
+  const selectedTotalAmount = selectedEntriesList.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
 
   // Group entries month-wise for collapsible history
   const groupedEntries = {};
@@ -144,11 +218,13 @@ export default function Transactions() {
     }).format(val || 0);
   };
 
+  const isAllFilteredSelected = filteredEntries.length > 0 && filteredEntries.every(e => selectedIds.includes(e.id));
+
   return (
     <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
       <Navbar />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8">
+      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-28">
 
         {/* Header Titles & Controls */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -156,7 +232,7 @@ export default function Transactions() {
             <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
               <ReceiptText className="w-7 h-7 text-[#818cf8]" /> E-Passbook
             </h1>
-            <p className="text-[#8A8F98] text-xs mt-1">Audit, search, and manage your complete historical ledger entries.</p>
+            <p className="text-[#8A8F98] text-xs mt-1">Audit, search, multi-select, and manage your complete historical ledger entries.</p>
           </div>
 
           {/* Search and Type Filter Controls */}
@@ -186,6 +262,31 @@ export default function Transactions() {
               <option value="ADVANCE">Advances</option>
               <option value="SAVINGS">Savings / SIPs</option>
             </select>
+
+            {/* Select All Filtered Toggle */}
+            {filteredEntries.length > 0 && (
+              <button
+                type="button"
+                onClick={() => toggleSelectAllFiltered(filteredEntries)}
+                className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                  isAllFilteredSelected
+                    ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-white'
+                    : 'bg-[#0a0a0c] border-white/10 text-[#8A8F98] hover:text-white hover:border-white/20'
+                }`}
+              >
+                {isAllFilteredSelected ? (
+                  <>
+                    <CheckSquare className="w-3.5 h-3.5 text-[#818cf8]" />
+                    <span>Deselect All</span>
+                  </>
+                ) : (
+                  <>
+                    <Square className="w-3.5 h-3.5" />
+                    <span>Select All ({filteredEntries.length})</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -213,126 +314,243 @@ export default function Transactions() {
           </div>
         ) : (
           <div className="space-y-6 text-left">
-            {Object.entries(groupedEntries).map(([monthKey, list], groupIdx) => (
-              <motion.div
-                key={monthKey}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, delay: groupIdx * 0.04 }}
-                className="space-y-2.5"
-              >
-                {/* Month/Year Section Header */}
-                <div className="flex items-center gap-2 px-1">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> {monthKey}
-                  </h3>
-                  <span className="text-[10px] bg-white/[0.04] border border-white/[0.06] px-2 py-0.2 rounded-full text-[#8A8F98] font-mono">
-                    {list.length} {list.length === 1 ? 'entry' : 'entries'}
-                  </span>
-                </div>
+            {Object.entries(groupedEntries).map(([monthKey, list], groupIdx) => {
+              const allMonthSelected = list.length > 0 && list.every(e => selectedIds.includes(e.id));
+              const someMonthSelected = list.some(e => selectedIds.includes(e.id)) && !allMonthSelected;
 
-                {/* Ledger table */}
-                <div className="glass-card p-4 sm:p-5 border border-white/[0.06] rounded-2xl overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs text-[#8A8F98]">
-                      <thead>
-                        <tr className="border-b border-white/[0.06] text-[#8A8F98] text-[10px] font-mono uppercase tracking-widest">
-                          <th className="pb-3">Title</th>
-                          <th className="pb-3">Category</th>
-                          <th className="pb-3">Date</th>
-                          <th className="pb-3 text-right">Amount</th>
-                          <th className="pb-3 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {list.map((entry) => {
-                          const typeConfigs = {
-                            SPENDING: { text: 'text-rose-400 bg-rose-500/10 border-rose-500/20', sign: '-' },
-                            LENDING: { text: 'text-blue-400 bg-blue-500/10 border-blue-500/20', sign: '-' },
-                            LOAN: { text: 'text-orange-400 bg-orange-500/10 border-orange-500/20', sign: '+' },
-                            ADVANCE: { text: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', sign: '+' },
-                            SAVINGS: { text: 'text-amber-400 bg-amber-500/10 border-amber-500/20', sign: '-' },
-                          };
-                          const conf = typeConfigs[entry.type] || { text: 'text-[#8A8F98] bg-white/5 border-white/10', sign: '' };
+              return (
+                <motion.div
+                  key={monthKey}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, delay: groupIdx * 0.04 }}
+                  className="space-y-2.5"
+                >
+                  {/* Month/Year Section Header with Batch Select Toggle */}
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleSelectGroup(list)}
+                        className="text-[#8A8F98] hover:text-white transition-colors cursor-pointer p-0.5"
+                        title={allMonthSelected ? "Deselect this month" : "Select all in this month"}
+                      >
+                        {allMonthSelected ? (
+                          <CheckSquare className="w-4 h-4 text-[#818cf8]" />
+                        ) : someMonthSelected ? (
+                          <MinusSquare className="w-4 h-4 text-[#818cf8]" />
+                        ) : (
+                          <Square className="w-4 h-4" />
+                        )}
+                      </button>
 
-                          return (
-                            <tr key={entry.id} className="hover:bg-white/[0.02] transition-colors group">
-                              <td className="py-3 pr-2">
-                                <div className="font-medium text-white group-hover:text-[#EDEDEF]">{entry.title}</div>
-                                {entry.description && (
-                                  <div className="text-[10px] text-[#8A8F98] mt-0.5 max-w-sm truncate">
-                                    {entry.description}
-                                  </div>
-                                )}
-                                {entry.type === 'LENDING' && (
-                                  <div className="text-[10px] mt-0.5">
-                                    {entry.unpaidAmount === 0 ? (
-                                      <span className="text-emerald-400 font-medium">✓ Fully Repaid</span>
-                                    ) : (
-                                      <span className="text-[#8A8F98]">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
-                                    )}
-                                  </div>
-                                )}
-                              </td>
-                              <td className="py-3 pr-2">
-                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono border uppercase tracking-wider ${conf.text}`}>
-                                  {entry.type}
-                                </span>
-                                {entry.useSalaryBalance && (
-                                  <span className="block text-[8px] text-[#8A8F98] mt-0.5 font-mono">
-                                    Deducted ({entry.salaryMonth}/{entry.salaryYear})
+                      <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> {monthKey}
+                      </h3>
+                      <span className="text-[10px] bg-white/[0.04] border border-white/[0.06] px-2 py-0.2 rounded-full text-[#8A8F98] font-mono">
+                        {list.length} {list.length === 1 ? 'entry' : 'entries'}
+                      </span>
+                    </div>
+
+                    <span className="text-[11px] font-mono text-[#8A8F98]">
+                      {list.filter(e => selectedIds.includes(e.id)).length > 0 && (
+                        <span className="text-[#818cf8] font-semibold">
+                          {list.filter(e => selectedIds.includes(e.id)).length} selected
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Ledger table */}
+                  <div className="glass-card p-4 sm:p-5 border border-white/[0.06] rounded-2xl overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs text-[#8A8F98]">
+                        <thead>
+                          <tr className="border-b border-white/[0.06] text-[#8A8F98] text-[10px] font-mono uppercase tracking-widest">
+                            <th className="pb-3 w-8 text-center">
+                              <span className="sr-only">Select</span>
+                            </th>
+                            <th className="pb-3">Title</th>
+                            <th className="pb-3">Category</th>
+                            <th className="pb-3">Date</th>
+                            <th className="pb-3 text-right">Amount</th>
+                            <th className="pb-3 text-center">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.04]">
+                          {list.map((entry) => {
+                            const isSelected = selectedIds.includes(entry.id);
+                            const typeConfigs = {
+                              SPENDING: { text: 'text-rose-400 bg-rose-500/10 border-rose-500/20', sign: '-' },
+                              LENDING: { text: 'text-blue-400 bg-blue-500/10 border-blue-500/20', sign: '-' },
+                              LOAN: { text: 'text-orange-400 bg-orange-500/10 border-orange-500/20', sign: '+' },
+                              ADVANCE: { text: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', sign: '+' },
+                              SAVINGS: { text: 'text-amber-400 bg-amber-500/10 border-amber-500/20', sign: '-' },
+                            };
+                            const conf = typeConfigs[entry.type] || { text: 'text-[#8A8F98] bg-white/5 border-white/10', sign: '' };
+
+                            return (
+                              <tr
+                                key={entry.id}
+                                className={`transition-colors group ${
+                                  isSelected
+                                    ? 'bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/15'
+                                    : 'hover:bg-white/[0.02]'
+                                }`}
+                              >
+                                <td className="py-3 pr-2 text-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => toggleSelectOne(entry.id)}
+                                    className="w-4 h-4 rounded border-white/20 bg-[#0a0a0c] text-[#5E6AD2] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#5E6AD2]"
+                                  />
+                                </td>
+                                <td className="py-3 pr-2">
+                                  <div className="font-medium text-white group-hover:text-[#EDEDEF]">{entry.title}</div>
+                                  {entry.description && (
+                                    <div className="text-[10px] text-[#8A8F98] mt-0.5 max-w-sm truncate">
+                                      {entry.description}
+                                    </div>
+                                  )}
+                                  {entry.type === 'LENDING' && (
+                                    <div className="text-[10px] mt-0.5">
+                                      {entry.unpaidAmount === 0 ? (
+                                        <span className="text-emerald-400 font-medium">✓ Fully Repaid</span>
+                                      ) : (
+                                        <span className="text-[#8A8F98]">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
+                                      )}
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="py-3 pr-2">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono border uppercase tracking-wider ${conf.text}`}>
+                                    {entry.type}
                                   </span>
-                                )}
-                              </td>
-                              <td className="py-3 pr-2 text-[11px] text-[#8A8F98] font-mono">
-                                {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-                              </td>
-                              <td className={`py-3 pr-2 text-right font-mono font-medium text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                                {conf.sign}{formatCurrency(entry.amount)}
-                              </td>
-                              <td className="py-3 text-center">
-                                <div className="flex items-center justify-center gap-1">
-                                  {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
+                                  {entry.useSalaryBalance && (
+                                    <span className="block text-[8px] text-[#8A8F98] mt-0.5 font-mono">
+                                      Deducted ({entry.salaryMonth}/{entry.salaryYear})
+                                    </span>
+                                  )}
+                                </td>
+                                <td className="py-3 pr-2 text-[11px] text-[#8A8F98] font-mono">
+                                  {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                                </td>
+                                <td className={`py-3 pr-2 text-right font-mono font-medium text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                  {conf.sign}{formatCurrency(entry.amount)}
+                                </td>
+                                <td className="py-3 text-center">
+                                  <div className="flex items-center justify-center gap-1">
+                                    {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
+                                      <button
+                                        onClick={() => {
+                                          setParentLending(entry);
+                                          setEntryModalOpen(true);
+                                        }}
+                                        title="Receive Repayment"
+                                        className="p-1.5 text-[#8A8F98] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                      </button>
+                                    )}
                                     <button
                                       onClick={() => {
-                                        setParentLending(entry);
+                                        setEntryToEdit(entry);
                                         setEntryModalOpen(true);
                                       }}
-                                      title="Receive Repayment"
-                                      className="p-1.5 text-[#8A8F98] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                                      className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors cursor-pointer"
                                     >
-                                      <Plus className="w-3.5 h-3.5" />
+                                      <Pencil className="w-3 h-3" />
                                     </button>
-                                  )}
-                                  <button
-                                    onClick={() => {
-                                      setEntryToEdit(entry);
-                                      setEntryModalOpen(true);
-                                    }}
-                                    className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors cursor-pointer"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteEntry(entry.id)}
-                                    className="p-1.5 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                    <button
+                                      onClick={() => handleDeleteEntry(entry.id)}
+                                      className="p-1.5 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </main>
+
+      {/* Floating Multi-Select Action Bar */}
+      <AnimatePresence>
+        {selectedIds.length > 0 && (
+          <motion.div
+            initial={{ y: 80, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: 80, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-2xl bg-[#0a0a0c]/95 backdrop-blur-2xl border border-white/15 shadow-[0_15px_50px_rgba(0,0,0,0.85)] p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-left"
+          >
+            {/* Left Selection Info */}
+            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+              <div className="w-8 h-8 rounded-xl bg-[#5E6AD2]/20 border border-[#5E6AD2]/40 text-[#8B95F6] flex items-center justify-center font-bold text-xs shrink-0">
+                {selectedIds.length}
+              </div>
+              <div>
+                <div className="text-xs font-semibold text-white">
+                  {selectedIds.length} {selectedIds.length === 1 ? 'transaction' : 'transactions'} selected
+                </div>
+                <div className="text-[11px] text-[#8A8F98] font-mono">
+                  Total: <strong className="text-emerald-400 font-bold">{formatCurrency(selectedTotalAmount)}</strong>
+                </div>
+              </div>
+
+              {/* Clear button on mobile */}
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="sm:hidden p-1.5 text-[#8A8F98] hover:text-white rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
+                title="Clear selection"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Right Action Buttons */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <button
+                type="button"
+                onClick={() => setSelectedIds([])}
+                className="hidden sm:inline-flex px-3 py-2 bg-white/5 hover:bg-white/10 text-[#8A8F98] hover:text-white rounded-xl text-xs font-medium transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeletingBatch}
+                onClick={handleDeleteSelected}
+                className="w-full sm:w-auto px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 hover:text-rose-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-lg shadow-rose-950/40"
+              >
+                {isDeletingBatch ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Deleting {selectedIds.length}...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete Selected ({selectedIds.length})</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* FOOTER */}
       <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">

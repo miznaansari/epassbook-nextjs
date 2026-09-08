@@ -593,7 +593,7 @@ export async function PUT(req) {
   }
 }
 
-// DELETE: Delete a financial entry belonging to the authenticated user
+// DELETE: Delete a financial entry or multiple entries belonging to the authenticated user
 export async function DELETE(req) {
   try {
     const user = await requireUser();
@@ -603,32 +603,86 @@ export async function DELETE(req) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+    const idsParam = searchParams.get('ids');
 
-    if (!id) {
-      return NextResponse.json({ error: 'Missing entry id' }, { status: 400 });
+    let idsToDelete = [];
+
+    if (idsParam) {
+      idsToDelete = idsParam
+        .split(',')
+        .map((val) => parseInt(val.trim(), 10))
+        .filter((num) => !isNaN(num));
+    } else if (id) {
+      const singleId = parseInt(id, 10);
+      if (!isNaN(singleId)) {
+        idsToDelete.push(singleId);
+      }
+    } else {
+      // Also support JSON body if passed { ids: [1, 2, 3] } or { id: 1 }
+      try {
+        const body = await req.json();
+        if (body.ids && Array.isArray(body.ids)) {
+          idsToDelete = body.ids
+            .map((val) => parseInt(val, 10))
+            .filter((num) => !isNaN(num));
+        } else if (body.id) {
+          const parsed = parseInt(body.id, 10);
+          if (!isNaN(parsed)) idsToDelete.push(parsed);
+        }
+      } catch (e) {
+        // Request body might be empty, ignore
+      }
     }
 
-    const entryId = parseInt(id);
+    if (idsToDelete.length === 0) {
+      return NextResponse.json({ error: 'Missing entry id or ids' }, { status: 400 });
+    }
 
-    // Verify ownership of the financial entry before deleting
-    const existingEntry = await db.financialEntry.findUnique({
-      where: { id: entryId },
+    // Verify ownership of the financial entries before deleting
+    const existingEntries = await db.financialEntry.findMany({
+      where: {
+        id: { in: idsToDelete },
+        userId: user.id,
+      },
+      select: { id: true },
     });
 
-    if (!existingEntry) {
-      return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
+    if (existingEntries.length === 0) {
+      return NextResponse.json(
+        { error: 'No matching entries found or forbidden' },
+        { status: 404 }
+      );
     }
 
-    if (existingEntry.userId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden: You do not have permission to delete this entry' }, { status: 403 });
-    }
+    const validIds = existingEntries.map((e) => e.id);
 
-    // Note: cascade delete handles removing SalaryDeductions automatically via foreign key settings
-    await db.financialEntry.delete({
-      where: { id: entryId },
+    // Delete child repayments, deductions, and entries inside a single database transaction
+    await db.$transaction(async (tx) => {
+      // 1. Delete child repayments for any lending entry being deleted
+      await tx.financialEntry.deleteMany({
+        where: {
+          parentEntryId: { in: validIds },
+          userId: user.id,
+        },
+      });
+
+      // 2. Delete linked salary deductions
+      await tx.salaryDeduction.deleteMany({
+        where: {
+          entryId: { in: validIds },
+        },
+      });
+
+      // 3. Delete the financial entries
+      await tx.financialEntry.deleteMany({
+        where: {
+          id: { in: validIds },
+          userId: user.id,
+        },
+      });
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, count: validIds.length });
   } catch (error) {
     console.error('Error in /api/entries DELETE:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

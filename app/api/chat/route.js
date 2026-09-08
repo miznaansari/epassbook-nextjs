@@ -47,7 +47,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { messages, sessionId, model: requestModel, imageUrl, image } = await req.json();
+    const { messages, sessionId, model: requestModel, imageUrls, imageUrl, image, images } = await req.json();
     const userId = user.id;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -78,19 +78,45 @@ export async function POST(req) {
       }
     }
 
-    // 2. Persist the latest User Message in the database
-    const lastUserMsg = messages[messages.length - 1];
-    let userMessageContent = (lastUserMsg.content || '').trim();
-    const activeImageUrl = imageUrl || (typeof image === 'string' ? image : (image?.url || null));
-    const hasImageAttachment = Boolean(activeImageUrl || image?.data);
-
-    if (!userMessageContent && hasImageAttachment) {
-      userMessageContent = "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval to create transactions.";
+    // 2. Resolve image URLs (up to 10 images)
+    let resolvedImageUrls = [];
+    if (Array.isArray(imageUrls)) {
+      resolvedImageUrls.push(...imageUrls);
+    } else if (imageUrl) {
+      resolvedImageUrls.push(imageUrl);
+    }
+    if (Array.isArray(images)) {
+      resolvedImageUrls.push(...images);
+    } else if (image?.url) {
+      resolvedImageUrls.push(image.url);
+    } else if (typeof image === 'string') {
+      resolvedImageUrls.push(image);
     }
 
-    // If image was attached, append markdown image preview representation for chat persistence
-    const dbContentToStore = activeImageUrl
-      ? (userMessageContent ? `${userMessageContent}\n\n![Receipt Attachment](${activeImageUrl})` : `![Receipt Attachment](${activeImageUrl})`)
+    // Deduplicate and enforce max 10 images limit
+    resolvedImageUrls = Array.from(new Set(resolvedImageUrls.filter(Boolean))).slice(0, 10);
+    const hasImageAttachment = resolvedImageUrls.length > 0 || Boolean(image?.data);
+
+    // Persist the latest User Message in the database
+    const lastUserMsg = messages[messages.length - 1];
+    let userMessageContent = (lastUserMsg.content || '').trim();
+
+    if (!userMessageContent && hasImageAttachment) {
+      userMessageContent = resolvedImageUrls.length > 1
+        ? `Please scan these ${resolvedImageUrls.length} receipt/bill images, consolidate all purchased items with prices across all receipts, and ask for my approval before creating transactions.`
+        : "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions.";
+    }
+
+    // If images were attached, append markdown image preview representations for chat persistence
+    let markdownImages = '';
+    if (resolvedImageUrls.length > 0) {
+      markdownImages = resolvedImageUrls
+        .map((url, idx) => `![Receipt Attachment ${idx + 1}](${url})`)
+        .join('\n\n');
+    }
+
+    const dbContentToStore = markdownImages
+      ? (userMessageContent ? `${userMessageContent}\n\n${markdownImages}` : markdownImages)
       : (image?.data
         ? (userMessageContent ? `${userMessageContent}\n\n[Attached Receipt Image]` : `[Attached Receipt Image]`)
         : userMessageContent);
@@ -107,7 +133,7 @@ export async function POST(req) {
     if (session.title === 'New Chat' || !session.title) {
       const truncatedTitle = userMessageContent.length > 35
         ? userMessageContent.substring(0, 32) + '...'
-        : (hasImageAttachment ? 'Receipt Analysis' : userMessageContent);
+        : (hasImageAttachment ? (resolvedImageUrls.length > 1 ? `${resolvedImageUrls.length} Receipts Analysis` : 'Receipt Analysis') : userMessageContent);
       await db.chatSession.update({
         where: { id: activeSessionId },
         data: { title: truncatedTitle },
@@ -177,8 +203,8 @@ DEFAULT MONTH DETECTION RULE:
 - The user's unique identifier is "${userId}".
 
 IMAGE & RECEIPT SCANNING / EXTRACTION WORKFLOW:
-When an image (e.g. receipt, shopping bill, grocery invoice, expense note) is provided by the user:
-1. Thoroughly analyze the image and extract all purchased items, individual costs/prices, discounts, vendor/store name, and transaction date.
+When one or multiple images (e.g. receipts, shopping bills, grocery invoices, up to 10 images) are provided by the user:
+1. Thoroughly analyze ALL provided images. If multiple images are provided, consolidate all purchased items across all receipts/pages, avoid duplicates, and calculate the unified total amount.
 2. Present a clear, neat Markdown table summarizing: Item Name, Price, Category, and Total.
 3. ALWAYS include a structured JSON block in your response formatted exactly as:
 \`\`\`json:transaction_proposal
@@ -189,8 +215,8 @@ When an image (e.g. receipt, shopping bill, grocery invoice, expense note) is pr
   ]
 }
 \`\`\`
-4. Explicitly ask for user confirmation/approval before creating the transactions (e.g., "Would you like me to record these transactions into your e-Passbook? You can click 'Approve & Create All' above or reply 'Yes' / 'Confirm'!").
-5. When the user confirms or gives approval (e.g., says "Yes", "Confirm", "Add them", "Approve"), invoke the "createMultipleTransactions" or "createTransaction" tool to permanently record them into the user's ledger!
+4. STRICT APPROVAL GUARD: DO NOT automatically execute "createTransaction" or "createMultipleTransactions" during initial image scanning or receipt analysis. Always output the markdown breakdown and the json:transaction_proposal block so the user can review and approve it.
+5. Only invoke "createMultipleTransactions" or "createTransaction" when the user explicitly provides approval in text (e.g. "Yes", "Confirm", "Add them", "Approve", or "Maine 200 ka petrol liya add kardo").
 
 DIRECT TRANSACTION CREATION:
 If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka petrol liya add kardo" or "Yes, create the extracted transactions"):
@@ -205,30 +231,40 @@ If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka 
       tools: geminiTools,
     });
 
-    // Prepare last message parts (multimodal if image provided via Cloudflare R2 or direct data)
+    // Prepare last message parts (multimodal with all resolved image attachments)
     const lastParts = [];
-    if (activeImageUrl) {
-      try {
-        const imgRes = await fetch(activeImageUrl);
-        if (!imgRes.ok) {
-          throw new Error(`Failed to fetch image from Cloudflare R2 CDN (${imgRes.status}): ${imgRes.statusText}`);
-        }
-        const arrayBuffer = await imgRes.arrayBuffer();
-        const base64Data = Buffer.from(arrayBuffer).toString('base64');
-        const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
 
-        lastParts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType,
-          },
-        });
-      } catch (fetchErr) {
-        console.error('Error fetching image from Cloudflare R2:', fetchErr);
-        throw new Error(`Could not load receipt image from Cloudflare R2: ${fetchErr.message}`);
+    if (resolvedImageUrls.length > 0) {
+      const fetchedParts = await Promise.all(
+        resolvedImageUrls.map(async (imgUrl, idx) => {
+          try {
+            const imgRes = await fetch(imgUrl);
+            if (!imgRes.ok) {
+              throw new Error(`Failed to fetch image ${idx + 1} from Cloudflare R2 CDN (${imgRes.status})`);
+            }
+            const arrayBuffer = await imgRes.arrayBuffer();
+            const base64Data = Buffer.from(arrayBuffer).toString('base64');
+            const mimeType = imgRes.headers.get('content-type') || 'image/jpeg';
+            return {
+              inlineData: {
+                data: base64Data,
+                mimeType,
+              },
+            };
+          } catch (fetchErr) {
+            console.error(`Error fetching image ${idx + 1} (${imgUrl}):`, fetchErr);
+            return null;
+          }
+        })
+      );
+
+      for (const part of fetchedParts) {
+        if (part) {
+          lastParts.push(part);
+        }
       }
     } else if (image && image.data) {
-      // Direct base64 fallback (without Sharp)
+      // Direct base64 fallback
       const cleanBase64 = typeof image.data === 'string'
         ? image.data.replace(/^data:[^;]+;base64,/, '').trim()
         : '';
@@ -241,6 +277,7 @@ If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka 
         });
       }
     }
+
     lastParts.push({ text: userMessageContent });
 
     let response = await chatSession.sendMessage(lastParts);

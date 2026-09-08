@@ -26,6 +26,7 @@ import {
   ChevronDown,
   Camera,
   Image as ImageIcon,
+  Images,
   Receipt,
   Check,
   CheckCheck,
@@ -37,15 +38,17 @@ import {
   VolumeX,
   Copy,
   Radio,
-  Activity
+  Activity,
+  RotateCcw,
+  Undo2
 } from 'lucide-react';
 
 // Interactive Transaction Proposal Card Component
 function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated }) {
   const [items, setItems] = useState(initialItems || []);
-  const [status, setStatus] = useState('pending'); // 'pending' | 'saving' | 'approved' | 'error'
+  const [status, setStatus] = useState('pending'); // 'pending' | 'saving' | 'approved' | 'rolling_back' | 'rolled_back' | 'error'
   const [errorMsg, setErrorMsg] = useState('');
-  const [createdCount, setCreatedCount] = useState(0);
+  const [createdTransactions, setCreatedTransactions] = useState([]);
 
   const currencySymbol = userCurrency === 'USD' ? '$' : '₹';
   const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -56,7 +59,7 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
     setErrorMsg('');
 
     try {
-      let count = 0;
+      const createdList = [];
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
@@ -81,7 +84,14 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         });
 
         if (res.ok) {
-          count++;
+          const entryData = await res.json();
+          createdList.push({
+            id: entryData.id,
+            title: entryData.title || item.title,
+            amount: parseFloat(entryData.amount) || amt,
+            type: entryData.type || item.type || 'SPENDING',
+            date: entryData.date || item.date || now.toISOString(),
+          });
         } else {
           let errText = 'Failed to create transaction.';
           try {
@@ -97,13 +107,43 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         }
       }
 
-      setCreatedCount(count);
+      setCreatedTransactions(createdList);
       setStatus('approved');
-      if (onCreated) onCreated(count, totalAmount);
+      if (onCreated) onCreated(createdList.length, totalAmount);
     } catch (err) {
       console.error('Error creating transactions:', err);
       setErrorMsg(err.message || 'Failed to create transactions.');
       setStatus('error');
+    }
+  };
+
+  // Undo / Rollback created transactions
+  const handleRollback = async () => {
+    if (createdTransactions.length === 0 || status === 'rolling_back') return;
+    if (!confirm(`Are you sure you want to rollback and delete these ${createdTransactions.length} recorded transactions from your ledger?`)) return;
+
+    setStatus('rolling_back');
+    setErrorMsg('');
+
+    try {
+      const idsToDelete = createdTransactions.map(t => t.id).filter(Boolean);
+      const res = await fetch('/api/entries', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsToDelete }),
+      });
+
+      if (res.ok) {
+        setStatus('rolled_back');
+        if (onCreated) onCreated(0, 0);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to rollback transactions.');
+      }
+    } catch (err) {
+      console.error('Error during rollback:', err);
+      setErrorMsg(err.message || 'Failed to rollback transactions.');
+      setStatus('approved'); // keep approved state if rollback fails
     }
   };
 
@@ -115,7 +155,7 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
     setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
   };
 
-  if (items.length === 0 && status !== 'approved') return null;
+  if (items.length === 0 && status !== 'approved' && status !== 'rolled_back') return null;
 
   return (
     <div className="my-4 p-4 rounded-xl bg-[#0a0a0c] border border-white/[0.08] shadow-linear-card backdrop-blur-xl text-left">
@@ -127,10 +167,26 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
           </div>
           <div className="min-w-0">
             <h4 className="text-xs font-semibold text-white tracking-wide truncate">
-              {status === 'approved' ? 'Transactions Recorded' : 'Receipt OCR Proposal'}
+              {status === 'approved'
+                ? 'Transactions Successfully Added'
+                : status === 'rolled_back'
+                  ? 'Transactions Rolled Back'
+                  : 'Receipt OCR Proposal'}
             </h4>
             <span className="text-[10px] text-slate-400 font-mono block">
-              {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
+              {status === 'approved' ? (
+                <span>
+                  {createdTransactions.length} recorded entries • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
+                </span>
+              ) : status === 'rolled_back' ? (
+                <span className="text-amber-400">
+                  {createdTransactions.length} entries removed from ledger
+                </span>
+              ) : (
+                <span>
+                  {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
+                </span>
+              )}
             </span>
           </div>
         </div>
@@ -138,6 +194,10 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         {status === 'approved' ? (
           <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0">
             <CheckCheck className="w-3 h-3" /> Recorded
+          </span>
+        ) : status === 'rolled_back' ? (
+          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0">
+            <RotateCcw className="w-3 h-3" /> Undone
           </span>
         ) : (
           <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md shrink-0">
@@ -153,40 +213,85 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         </div>
       )}
 
-      {/* Items list */}
-      <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
-        {items.map((item, idx) => (
-          <div key={idx} className="p-2.5 bg-[#050506] border border-white/[0.04] hover:border-white/[0.08] rounded-lg flex items-center justify-between gap-3 transition-all">
-            <div className="flex-1 min-w-0 flex items-center gap-2 font-mono">
-              <span className="w-4 h-4 rounded bg-white/[0.04] text-slate-400 text-[9px] font-bold flex items-center justify-center shrink-0">
-                {idx + 1}
-              </span>
-              <input
-                type="text"
-                disabled={status === 'approved' || status === 'saving'}
-                value={item.title}
-                onChange={(e) => handleUpdateItem(idx, 'title', e.target.value)}
-                placeholder="Item name"
-                className="bg-transparent border-b border-transparent focus:border-[#5E6AD2] text-xs font-sans text-white focus:outline-none w-full truncate disabled:opacity-80 font-medium"
-              />
-              <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#5E6AD2]/10 text-[#818cf8] border border-[#5E6AD2]/20 shrink-0">
-                {item.type || 'SPENDING'}
-              </span>
-            </div>
+      {/* Items List (Pending or Approved) */}
+      {status === 'rolled_back' ? (
+        <div className="my-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 text-left">
+          <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
+            <RotateCcw className="w-4 h-4" />
+            <span>All {createdTransactions.length} transactions have been successfully undone and deleted.</span>
+          </div>
+          <p className="text-[11px] text-slate-400 mt-1 font-mono">
+            Your e-Passbook balance and monthly deductions have been automatically restored.
+          </p>
+          <button
+            type="button"
+            onClick={() => setStatus('pending')}
+            className="mt-3 text-xs text-[#8B95F6] hover:text-[#6872D9] font-medium underline cursor-pointer"
+          >
+            Re-open proposal to edit or re-approve
+          </button>
+        </div>
+      ) : status === 'approved' ? (
+        /* Successfully Added List with Total Amount */
+        <div className="mt-3 space-y-2 max-h-72 overflow-y-auto pr-1">
+          <div className="p-2.5 bg-emerald-950/20 border border-emerald-500/20 rounded-lg flex items-center justify-between text-xs">
+            <span className="text-slate-300 font-medium">Grand Total Added</span>
+            <span className="font-mono font-bold text-emerald-400 text-sm">{currencySymbol}{totalAmount.toLocaleString()}</span>
+          </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
-                <span>{currencySymbol}</span>
+          {createdTransactions.map((tx, idx) => (
+            <div key={tx.id || idx} className="p-2.5 bg-[#050506] border border-emerald-500/10 rounded-lg flex items-center justify-between gap-3 font-mono">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="w-4 h-4 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-bold flex items-center justify-center shrink-0">
+                  <Check className="w-2.5 h-2.5" />
+                </span>
+                <span className="text-xs font-sans text-white truncate font-medium">
+                  {tx.title}
+                </span>
+                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#5E6AD2]/10 text-[#818cf8] border border-[#5E6AD2]/20 shrink-0">
+                  {tx.type}
+                </span>
+              </div>
+              <div className="text-xs font-bold text-emerald-400 shrink-0">
+                {currencySymbol}{tx.amount.toLocaleString()}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        /* Pre-approval Editable Items List */
+        <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
+          {items.map((item, idx) => (
+            <div key={idx} className="p-2.5 bg-[#050506] border border-white/[0.04] hover:border-white/[0.08] rounded-lg flex items-center justify-between gap-3 transition-all">
+              <div className="flex-1 min-w-0 flex items-center gap-2 font-mono">
+                <span className="w-4 h-4 rounded bg-white/[0.04] text-slate-400 text-[9px] font-bold flex items-center justify-center shrink-0">
+                  {idx + 1}
+                </span>
                 <input
-                  type="number"
-                  disabled={status === 'approved' || status === 'saving'}
-                  value={item.amount}
-                  onChange={(e) => handleUpdateItem(idx, 'amount', e.target.value)}
-                  className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none w-14 text-right disabled:opacity-80"
+                  type="text"
+                  disabled={status === 'saving'}
+                  value={item.title}
+                  onChange={(e) => handleUpdateItem(idx, 'title', e.target.value)}
+                  placeholder="Item name"
+                  className="bg-transparent border-b border-transparent focus:border-[#5E6AD2] text-xs font-sans text-white focus:outline-none w-full truncate disabled:opacity-80 font-medium"
                 />
+                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#5E6AD2]/10 text-[#818cf8] border border-[#5E6AD2]/20 shrink-0">
+                  {item.type || 'SPENDING'}
+                </span>
               </div>
 
-              {status !== 'approved' && (
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
+                  <span>{currencySymbol}</span>
+                  <input
+                    type="number"
+                    disabled={status === 'saving'}
+                    value={item.amount}
+                    onChange={(e) => handleUpdateItem(idx, 'amount', e.target.value)}
+                    className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none w-14 text-right disabled:opacity-80"
+                  />
+                </div>
+
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(idx)}
@@ -195,14 +300,14 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
-              )}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Action Footer */}
-      {status !== 'approved' ? (
+      {status === 'pending' || status === 'saving' || status === 'error' ? (
         <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-3">
           <span className="text-[10px] text-slate-400 font-mono">
             Deducts from active salary balance
@@ -226,14 +331,35 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
             )}
           </button>
         </div>
-      ) : (
-        <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-emerald-400 font-mono">
-          <span className="flex items-center gap-1.5">
-            <CheckCircle2 className="w-4 h-4" />
-            Recorded {createdCount} entries into ledger.
+      ) : status === 'approved' ? (
+        <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-3">
+          <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span>Recorded into e-Passbook</span>
           </span>
+
+          {/* Rollback / Undo Button */}
+          <button
+            type="button"
+            disabled={status === 'rolling_back'}
+            onClick={handleRollback}
+            className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+            title="Undo and delete newly created transactions"
+          >
+            {status === 'rolling_back' ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Rolling back...</span>
+              </>
+            ) : (
+              <>
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Undo / Rollback</span>
+              </>
+            )}
+          </button>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -534,8 +660,8 @@ export default function Assistant() {
   const audioChunksRef = useRef([]);
   const activeAudioPlayerRef = useRef(null);
 
-  // Image Upload / Receipt OCR State
-  const [attachedImage, setAttachedImage] = useState(null); // { data: base64, mimeType, name, previewUrl, originalSizeStr, compressedSizeStr, isCompressed }
+  // Multi-Image Upload / Receipt OCR State (supports up to 10 images)
+  const [attachedImages, setAttachedImages] = useState([]); // Array of { id, file, previewUrl, name, sizeStr, url, key, status: 'uploading'|'ready'|'error', errorMessage }
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
   const fileInputRef = useRef(null);
@@ -612,7 +738,7 @@ export default function Assistant() {
       setMessages([
         {
           role: 'assistant',
-          content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload a photo of your receipt/bill to extract items and log transactions directly into your passbook!"
+          content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
         }
       ]);
       return;
@@ -630,7 +756,7 @@ export default function Assistant() {
           setMessages([
             {
               role: 'assistant',
-              content: "Yo! 👋 Welcome back to this chat session. Ask me questions about your ledger or upload a receipt photo to scan and log transactions!"
+              content: "Yo! 👋 Welcome back to this chat session. Ask me questions about your ledger or upload receipt photos to scan and log transactions!"
             }
           ]);
         }
@@ -658,7 +784,7 @@ export default function Assistant() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isGenerating, isLoadingMessages, attachedImage]);
+  }, [messages, isGenerating, isLoadingMessages, attachedImages]);
 
   // Helper to format file sizes
   const formatFileSize = (bytes) => {
@@ -692,67 +818,94 @@ export default function Assistant() {
     return data;
   };
 
-  // Process and upload selected or pasted image to Cloudflare R2
-  const handleFileProcess = async (file, customName = null) => {
-    if (!file) return;
+  // Process and upload selected or pasted images to Cloudflare R2 (Max 10 images)
+  const handleFilesProcess = async (files, customName = null) => {
+    if (!files || files.length === 0) return;
 
-    const isImage = (file.type && file.type.startsWith('image/')) || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(file.name || '');
-    if (!isImage) {
-      setError('Please select a valid image file (PNG, JPG, WEBP, HEIC).');
+    const fileList = Array.isArray(files) ? files : Array.from(files);
+    const validFiles = fileList.filter((f) => {
+      const isImg = (f.type && f.type.startsWith('image/')) || /\.(jpe?g|png|webp|heic|heif|bmp|gif)$/i.test(f.name || '');
+      return isImg;
+    });
+
+    if (validFiles.length === 0) {
+      setError('Please select valid image files (PNG, JPG, WEBP, HEIC).');
       return;
     }
 
-    const fileName = customName || file.name || 'receipt.jpg';
-    let previewUrl = '';
-    try {
-      previewUrl = URL.createObjectURL(file);
-    } catch (e) {
-      console.warn('Could not create ObjectURL, preview will fallback:', e);
+    const currentCount = attachedImages.length;
+    const availableSlots = 10 - currentCount;
+
+    if (availableSlots <= 0) {
+      setError('Maximum 10 images limit reached. Please remove some images before adding more.');
+      return;
     }
 
-    setAttachedImage({
-      file,
-      previewUrl,
-      name: fileName,
-      sizeStr: formatFileSize(file.size),
-      url: null,
-      status: 'uploading',
+    const filesToProcess = validFiles.slice(0, availableSlots);
+    if (validFiles.length > availableSlots) {
+      setError(`Only ${availableSlots} more image(s) could be added (max 10 limit reached).`);
+    } else {
+      setError('');
+    }
+
+    const newItems = filesToProcess.map((file, idx) => {
+      const id = `img_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 7)}`;
+      const fileName = customName ? `${customName} ${currentCount + idx + 1}` : (file.name || `receipt_${currentCount + idx + 1}.jpg`);
+      let previewUrl = '';
+      try {
+        previewUrl = URL.createObjectURL(file);
+      } catch (e) {
+        console.warn('ObjectURL error:', e);
+      }
+
+      return {
+        id,
+        file,
+        previewUrl,
+        name: fileName,
+        sizeStr: formatFileSize(file.size),
+        url: null,
+        key: null,
+        status: 'uploading',
+      };
     });
-    setIsProcessingImage(true);
-    setError('');
 
-    try {
-      const uploadResult = await uploadFileToR2(file);
-      setAttachedImage(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          url: uploadResult.url,
-          key: uploadResult.key,
-          status: 'ready',
-        };
-      });
-    } catch (err) {
-      console.error('Error uploading to Cloudflare R2:', err);
-      setError(err.message || 'Failed to upload image to Cloudflare R2.');
-      setAttachedImage(prev => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          status: 'error',
-          errorMessage: err.message,
-        };
-      });
-    } finally {
-      setIsProcessingImage(false);
-    }
+    setAttachedImages(prev => [...prev, ...newItems]);
+    setIsProcessingImage(true);
+
+    // Upload files in parallel to Cloudflare R2
+    await Promise.all(
+      newItems.map(async (item) => {
+        try {
+          const uploadResult = await uploadFileToR2(item.file);
+          setAttachedImages(prev =>
+            prev.map(img =>
+              img.id === item.id
+                ? { ...img, url: uploadResult.url, key: uploadResult.key, status: 'ready' }
+                : img
+            )
+          );
+        } catch (err) {
+          console.error(`Error uploading ${item.name}:`, err);
+          setAttachedImages(prev =>
+            prev.map(img =>
+              img.id === item.id
+                ? { ...img, status: 'error', errorMessage: err.message }
+                : img
+            )
+          );
+        }
+      })
+    );
+
+    setIsProcessingImage(false);
   };
 
-  // Handle Image File Selection (Camera / File Picker)
+  // Handle Image File Selection (Camera / Multi-File Picker)
   const handleImageSelect = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await handleFileProcess(file);
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    await handleFilesProcess(files);
     e.target.value = '';
   };
 
@@ -760,7 +913,6 @@ export default function Assistant() {
   const attachCapturedPhoto = async (file, targetSessions = null) => {
     if (!file) return;
 
-    // Switch to first session if available
     const currentSessions = targetSessions || sessions;
     if (currentSessions && currentSessions.length > 0) {
       if (activeSessionId !== currentSessions[0].id) {
@@ -768,10 +920,7 @@ export default function Assistant() {
       }
     }
 
-    // Process and attach image (uploads to Cloudflare R2 and sets attachedImage preview)
-    await handleFileProcess(file, 'Camera Receipt Photo');
-
-    // Scroll smoothly to bottom so preview pill & Send button are prominently displayed
+    await handleFilesProcess([file], 'Camera Receipt Photo');
     setTimeout(() => {
       scrollToBottom();
     }, 150);
@@ -805,36 +954,75 @@ export default function Assistant() {
     };
   }, []);
 
-  // Handle Paste Event from Clipboard (Ctrl+V / Cmd+V)
+  // Handle Paste Event from Clipboard (Ctrl+V / Cmd+V with multiple images support)
   const handlePaste = async (e) => {
     const clipboardItems = e.clipboardData?.items;
     if (!clipboardItems) return;
 
+    const pastedFiles = [];
     for (let i = 0; i < clipboardItems.length; i++) {
       const item = clipboardItems[i];
-      if (item.type.indexOf('image') !== -1) {
+      if (item.type && item.type.indexOf('image') !== -1) {
         const file = item.getAsFile();
         if (file) {
-          await handleFileProcess(file, 'Pasted Receipt Image');
-          break;
+          pastedFiles.push(file);
         }
       }
     }
-  };
 
-  // Retry failed upload
-  const handleRetryUpload = async () => {
-    if (attachedImage?.file) {
-      await handleFileProcess(attachedImage.file, attachedImage.name);
+    if (pastedFiles.length > 0) {
+      await handleFilesProcess(pastedFiles, 'Pasted Receipt Image');
     }
   };
 
-  // Remove attached image
-  const handleRemoveAttachedImage = () => {
-    if (attachedImage?.previewUrl && attachedImage.previewUrl.startsWith('blob:')) {
-      try { URL.revokeObjectURL(attachedImage.previewUrl); } catch (e) {}
+  // Retry failed upload for specific image
+  const handleRetryUpload = async (id) => {
+    const target = attachedImages.find(img => img.id === id);
+    if (!target || !target.file) return;
+
+    setAttachedImages(prev =>
+      prev.map(img => (img.id === id ? { ...img, status: 'uploading', errorMessage: '' } : img))
+    );
+
+    try {
+      const uploadResult = await uploadFileToR2(target.file);
+      setAttachedImages(prev =>
+        prev.map(img =>
+          img.id === id
+            ? { ...img, url: uploadResult.url, key: uploadResult.key, status: 'ready' }
+            : img
+        )
+      );
+    } catch (err) {
+      setAttachedImages(prev =>
+        prev.map(img =>
+          img.id === id
+            ? { ...img, status: 'error', errorMessage: err.message }
+            : img
+        )
+      );
     }
-    setAttachedImage(null);
+  };
+
+  // Remove individual attached image
+  const handleRemoveAttachedImage = (id) => {
+    setAttachedImages(prev => {
+      const target = prev.find(img => img.id === id);
+      if (target?.previewUrl && target.previewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(target.previewUrl); } catch (e) {}
+      }
+      return prev.filter(img => img.id !== id);
+    });
+  };
+
+  // Clear all attached images
+  const handleClearAllImages = () => {
+    attachedImages.forEach(img => {
+      if (img.previewUrl && img.previewUrl.startsWith('blob:')) {
+        try { URL.revokeObjectURL(img.previewUrl); } catch (e) {}
+      }
+    });
+    setAttachedImages([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -882,7 +1070,7 @@ export default function Assistant() {
             setMessages([
               {
                 role: 'assistant',
-                content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload a photo of your receipt/bill to extract items and log transactions directly into your passbook!"
+                content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
               }
             ]);
           }
@@ -896,42 +1084,40 @@ export default function Assistant() {
     }
   };
 
-  // Handle message sending
-  const sendMessage = async (textToSend, customImage = null) => {
-    const imageToSend = customImage || attachedImage;
+  // Handle message sending with multi-image support
+  const sendMessage = async (textToSend, customImages = null) => {
+    const imagesToSend = customImages || attachedImages;
     const prompt = textToSend !== undefined ? textToSend : input;
 
-    if ((!prompt.trim() && !imageToSend) || isGenerating) return;
+    if ((!prompt.trim() && imagesToSend.length === 0) || isGenerating) return;
 
-    // If image is still uploading to Cloudflare R2, await completion or upload directly
-    let finalImageUrl = imageToSend?.url || null;
-    if (imageToSend && !finalImageUrl && imageToSend.file) {
-      setIsGenerating(true);
-      setError('');
-      try {
-        const upRes = await uploadFileToR2(imageToSend.file);
-        finalImageUrl = upRes.url;
-        setAttachedImage(prev => prev ? { ...prev, url: upRes.url, status: 'ready' } : null);
-      } catch (upErr) {
-        console.error('Upload failed before message dispatch:', upErr);
-        setError('Failed to upload image to Cloudflare R2 before sending: ' + upErr.message);
-        setIsGenerating(false);
-        return;
+    setIsGenerating(true);
+    setError('');
+
+    // Ensure all images are uploaded to Cloudflare R2
+    const resolvedUrls = [];
+    for (const img of imagesToSend) {
+      if (img.url) {
+        resolvedUrls.push(img.url);
+      } else if (img.file) {
+        try {
+          const upRes = await uploadFileToR2(img.file);
+          resolvedUrls.push(upRes.url);
+        } catch (upErr) {
+          console.error('Upload failed before message dispatch:', upErr);
+        }
       }
     }
 
-    setError('');
     setInput('');
-    const imageToClear = attachedImage;
-    setAttachedImage(null);
-    setIsGenerating(true);
+    setAttachedImages([]);
 
     let currentSessionId = activeSessionId;
 
     // 1. If no active session exists, automatically create one first!
     if (!currentSessionId) {
       try {
-        const sessionTitle = prompt.trim() || (imageToSend ? 'Receipt Scan' : 'New Chat');
+        const sessionTitle = prompt.trim() || (resolvedUrls.length > 0 ? (resolvedUrls.length > 1 ? `${resolvedUrls.length} Receipts Scan` : 'Receipt Scan') : 'New Chat');
         const res = await fetch('/api/chat/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -949,20 +1135,22 @@ export default function Assistant() {
         console.error(err);
         setError('Failed to establish a new chat session context.');
         setIsGenerating(false);
-        setAttachedImage(imageToClear);
+        setAttachedImages(imagesToSend);
         return;
       }
     }
 
     // 2. Append User Message to UI
-    const defaultMsg = imageToSend && !prompt.trim()
-      ? "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions."
+    const defaultMsg = imagesToSend.length > 0 && !prompt.trim()
+      ? (imagesToSend.length > 1
+          ? `Please scan these ${imagesToSend.length} receipt/bill images, extract and consolidate all purchased items with prices across all receipts, and ask for my approval before creating transactions.`
+          : "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions.")
       : prompt.trim();
 
     const userMessage = {
       role: 'user',
       content: defaultMsg,
-      imagePreview: finalImageUrl || imageToSend?.previewUrl || null,
+      imagePreviews: resolvedUrls.length > 0 ? resolvedUrls : imagesToSend.map(img => img.previewUrl).filter(Boolean),
     };
 
     const cleanMessages = messages.filter(m => m.id || !m.content.includes("Yo! 👋 I am your Antigravity Finance AI."));
@@ -974,7 +1162,7 @@ export default function Assistant() {
         messages: updatedMessages,
         sessionId: currentSessionId,
         model: selectedModel,
-        imageUrl: finalImageUrl || null,
+        imageUrls: resolvedUrls,
       };
 
       const res = await fetch('/api/chat', {
@@ -1693,25 +1881,57 @@ export default function Assistant() {
                             </span>
                             <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">{selectedModel}</span>
                           </div>
-                        )}
-
-                        {/* If user attached an image or it was loaded from DB */}
+                                {/* If user attached image(s) or loaded from DB */}
                         {(() => {
-                          const extractedImgMatch = !isAi && msg.content ? msg.content.match(/!\[(?:Receipt Attachment|Attached Receipt|Receipt)\]\((https?:\/\/[^\s)]+)\)/) : null;
-                          const imageSrc = msg.imagePreview || (extractedImgMatch ? extractedImgMatch[1] : null);
-                          const textContentToRender = extractedImgMatch ? msg.content.replace(extractedImgMatch[0], '').trim() : msg.content;
+                          let extractedImgUrls = [];
+                          if (!isAi) {
+                            if (Array.isArray(msg.imagePreviews) && msg.imagePreviews.length > 0) {
+                              extractedImgUrls = msg.imagePreviews;
+                            } else if (msg.imagePreview) {
+                              extractedImgUrls = [msg.imagePreview];
+                            } else if (msg.content) {
+                              const matches = [...msg.content.matchAll(/!\[(?:Receipt Attachment \d+|Receipt Attachment|Attached Receipt|Receipt)\]\((https?:\/\/[^\s)]+)\)/g)];
+                              extractedImgUrls = matches.map(m => m[1]);
+                            }
+                          }
+
+                          const textContentToRender = msg.content
+                            ? msg.content.replace(/!\[(?:Receipt Attachment \d+|Receipt Attachment|Attached Receipt|Receipt)\]\((https?:\/\/[^\s)]+)\)/g, '').trim()
+                            : '';
 
                           return (
                             <>
-                              {!isAi && imageSrc && (
+                              {!isAi && extractedImgUrls.length > 0 && (
                                 <div className="mb-3">
-                                  <img
-                                    src={imageSrc}
-                                    alt="Attached Receipt"
-                                    onClick={() => setLightboxImage(imageSrc)}
-                                    className="max-h-48 rounded-xl object-cover border border-white/20 shadow-md cursor-pointer hover:opacity-90 transition-opacity"
-                                  />
-                                  <span className="text-[10px] text-white/80 font-mono block mt-1">Receipt Attachment • Cloudflare R2 (Click to zoom)</span>
+                                  <div className={`grid gap-2 ${
+                                    extractedImgUrls.length === 1
+                                      ? 'grid-cols-1 max-w-sm'
+                                      : extractedImgUrls.length === 2
+                                        ? 'grid-cols-2'
+                                        : extractedImgUrls.length === 3
+                                          ? 'grid-cols-3'
+                                          : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+                                  }`}>
+                                    {extractedImgUrls.map((src, imgIdx) => (
+                                      <div
+                                        key={imgIdx}
+                                        onClick={() => setLightboxImage(src)}
+                                        className="relative group rounded-xl overflow-hidden border border-white/20 shadow-md cursor-pointer aspect-video bg-[#050506]"
+                                      >
+                                        <img
+                                          src={src}
+                                          alt={`Receipt ${imgIdx + 1}`}
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                        />
+                                        <span className="absolute bottom-1 right-1 bg-black/75 text-[9px] font-mono px-1.5 py-0.2 rounded text-white backdrop-blur-sm">
+                                          {imgIdx + 1}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <span className="text-[10px] text-white/80 font-mono block mt-1.5">
+                                    {extractedImgUrls.length} {extractedImgUrls.length === 1 ? 'Receipt Attachment' : 'Receipt Attachments'} • Cloudflare R2 (Click to zoom)
+                                  </span>
                                 </div>
                               )}
 
@@ -1809,99 +2029,146 @@ export default function Assistant() {
           {/* Pinned Input Container: Fixed on mobile right above bottom navbar, cleanly integrated at bottom on desktop */}
           <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#050506]/95 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/[0.06] md:shadow-none md:pt-3 space-y-2">
             
-            {/* Attached Image Preview Pill */}
-            {attachedImage && (
-              <div className={`flex items-center justify-between gap-3 p-2.5 px-3 rounded-2xl animate-fade-in text-left shadow-lg transition-all ${
-                attachedImage.status === 'error'
-                  ? 'bg-rose-950/60 border border-rose-500/40'
-                  : 'bg-[#0a0a0c] border border-white/[0.08]'
-              }`}>
-                <div className="flex items-center gap-3 min-w-0">
-                  <img
-                    src={attachedImage.previewUrl}
-                    alt="Receipt Preview"
-                    onClick={() => setLightboxImage(attachedImage.previewUrl)}
-                    className="w-11 h-11 rounded-xl object-cover border border-[#5E6AD2]/40 shadow-sm shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
-                  />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="text-xs font-semibold text-white truncate max-w-[150px] md:max-w-[220px] block">
-                        {attachedImage.name || 'Receipt Image'}
-                      </span>
-                      {attachedImage.sizeStr && (
-                        <span className="px-1.5 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#8B95F6] text-[9px] font-mono rounded-md shrink-0">
-                          {attachedImage.sizeStr}
-                        </span>
-                      )}
-                    </div>
-                    {attachedImage.status === 'uploading' ? (
-                      <span className="text-[10px] text-[#8B95F6] font-mono flex items-center gap-1.5 mt-0.5 animate-pulse">
-                        <Loader2 className="w-3 h-3 animate-spin text-[#8B95F6] shrink-0" />
-                        <span>Uploading to Cloudflare R2...</span>
-                      </span>
-                    ) : attachedImage.status === 'ready' ? (
-                      <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1 mt-0.5">
-                        <Check className="w-3 h-3 text-emerald-400 shrink-0" />
-                        <span>Cloudflare R2 Ready • Direct Gemini Vision</span>
-                      </span>
-                    ) : attachedImage.status === 'error' ? (
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-rose-300 font-mono flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
-                          <span>R2 Upload failed</span>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={handleRetryUpload}
-                          className="text-[10px] text-[#8B95F6] underline font-bold hover:text-[#6872D9] cursor-pointer"
-                        >
-                          Retry
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
+            {/* Multi-Image Attachment Preview Strip (up to 10 images) */}
+            {attachedImages.length > 0 && (
+              <div className="p-3 rounded-2xl bg-[#0a0a0c] border border-white/[0.08] shadow-lg animate-fade-in space-y-2.5 text-left">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-white font-semibold flex items-center gap-1.5">
+                    <Images className="w-4 h-4 text-[#8B95F6]" />
+                    <span>Attached Receipts ({attachedImages.length}/10)</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearAllImages}
+                    className="text-rose-400 hover:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
+                  >
+                    Clear All
+                  </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleRemoveAttachedImage}
-                  className="p-1.5 hover:bg-white/[0.06] text-slate-400 hover:text-rose-400 rounded-xl transition-all cursor-pointer shrink-0"
-                  title="Remove image"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
+                  {attachedImages.map((img, idx) => (
+                    <div
+                      key={img.id}
+                      className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border group bg-[#050506] transition-all ${
+                        img.status === 'error'
+                          ? 'border-rose-500/60 bg-rose-950/30'
+                          : 'border-white/10 hover:border-[#5E6AD2]/50'
+                      }`}
+                    >
+                      <img
+                        src={img.previewUrl}
+                        alt={img.name}
+                        onClick={() => setLightboxImage(img.previewUrl)}
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      />
+
+                      {/* Loading spinner */}
+                      {img.status === 'uploading' && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1">
+                          <Loader2 className="w-4 h-4 animate-spin text-[#8B95F6]" />
+                          <span className="text-[8px] font-mono text-slate-300">R2 Sync</span>
+                        </div>
+                      )}
+
+                      {/* Success Ready badge */}
+                      {img.status === 'ready' && (
+                        <div className="absolute bottom-1 right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
+                          <Check className="w-2.5 h-2.5" />
+                        </div>
+                      )}
+
+                      {/* Error badge and retry */}
+                      {img.status === 'error' && (
+                        <div
+                          onClick={() => handleRetryUpload(img.id)}
+                          className="absolute inset-0 bg-rose-950/85 flex flex-col items-center justify-center p-1 text-center cursor-pointer"
+                          title="Upload failed. Click to retry."
+                        >
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-400 mb-0.5" />
+                          <span className="text-[8px] text-rose-200 font-bold underline">Retry</span>
+                        </div>
+                      )}
+
+                      {/* Individual Remove Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveAttachedImage(img.id);
+                        }}
+                        className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-rose-500 text-slate-300 hover:text-white rounded-full transition-colors cursor-pointer shadow-md"
+                        title="Remove image"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+
+                      {/* Order Index */}
+                      <span className="absolute bottom-1 left-1 bg-black/70 text-[8px] font-mono px-1 rounded text-slate-300">
+                        {idx + 1}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Add more photo button if under 10 */}
+                  {attachedImages.length < 10 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="shrink-0 w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-[#5E6AD2] hover:bg-[#5E6AD2]/5 flex flex-col items-center justify-center gap-1 text-[#8A8F98] hover:text-white transition-all cursor-pointer"
+                      title="Add more images"
+                    >
+                      <Plus className="w-4 h-4 text-[#8B95F6]" />
+                      <span className="text-[9px] font-mono">Add Photo</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
             {/* Form Input Row */}
             <form onSubmit={handleFormSubmit} className="flex gap-2 items-center">
-              {/* Hidden File Input */}
+              {/* Hidden File Input (supports multiple files) */}
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 accept="image/*"
                 className="hidden"
                 onChange={handleImageSelect}
               />
 
-              {/* Camera / Image Upload Button */}
+              {/* Camera / Multi-Image Upload Button */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || isProcessingImage}
-                className={`p-3 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                className={`p-3 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer relative ${
                   isProcessingImage
                     ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
-                    : attachedImage
+                    : attachedImages.length > 0
                       ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-[#8B95F6] shadow-sm'
                       : 'bg-[#0a0a0c] hover:bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
                 }`}
-                title={isProcessingImage ? "Compressing image..." : "Attach receipt image or camera photo (or paste from clipboard)"}
+                title={
+                  isProcessingImage
+                    ? "Uploading image(s) to R2..."
+                    : attachedImages.length > 0
+                      ? `${attachedImages.length} image(s) attached. Click to add more (up to 10).`
+                      : "Attach receipt image(s) or camera photo (up to 10 images)"
+                }
               >
                 {isProcessingImage ? (
                   <Loader2 className="w-5 h-5 animate-spin text-[#8B95F6]" />
                 ) : (
-                  <Camera className="w-5 h-5" />
+                  <>
+                    <Camera className="w-5 h-5" />
+                    {attachedImages.length > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#5E6AD2] text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                        {attachedImages.length}
+                      </span>
+                    )}
+                  </>
                 )}
               </button>
 
@@ -1946,8 +2213,8 @@ export default function Assistant() {
                       ? "⚡ Sarvam AI Saaras v3 transcribing speech..."
                       : isGenerating
                         ? "Gemini is scanning ledger..."
-                        : attachedImage
-                          ? "Add optional notes or hit send..."
+                        : attachedImages.length > 0
+                          ? `Add notes for ${attachedImages.length} receipt${attachedImages.length === 1 ? '' : 's'} or hit send...`
                           : "Ask anything, speak (Sarvam Mic) or upload receipt..."
                 }
                 className={`flex-grow pl-4 pr-3 py-3 md:py-3.5 bg-[#050506] border rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all ${
@@ -1962,7 +2229,7 @@ export default function Assistant() {
 
               <button
                 type="submit"
-                disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && !attachedImage)}
+                disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && attachedImages.length === 0)}
                 className="btn-linear-primary p-3 md:p-3.5 rounded-xl disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0 flex items-center justify-center"
               >
                 <Send className="w-5 h-5" />
