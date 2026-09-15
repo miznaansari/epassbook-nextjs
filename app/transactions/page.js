@@ -277,7 +277,7 @@ export default function Transactions() {
 
           {/* Search, Type Filter, View Switcher & Batch Selection */}
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-            
+
             {/* Search Input */}
             <div className="relative flex-1 sm:w-56 min-w-[160px]">
               <input
@@ -295,11 +295,10 @@ export default function Transactions() {
               <button
                 type="button"
                 onClick={() => setGroupBy('date')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                  groupBy === 'date'
-                    ? 'bg-[#5E6AD2] text-white shadow-sm'
-                    : 'text-[#8A8F98] hover:text-white'
-                }`}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${groupBy === 'date'
+                  ? 'bg-[#5E6AD2] text-white shadow-sm'
+                  : 'text-[#8A8F98] hover:text-white'
+                  }`}
                 title="Group transactions date-wise"
               >
                 <CalendarDays className="w-3.5 h-3.5" />
@@ -309,11 +308,10 @@ export default function Transactions() {
               <button
                 type="button"
                 onClick={() => setGroupBy('month')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-                  groupBy === 'month'
-                    ? 'bg-[#5E6AD2] text-white shadow-sm'
-                    : 'text-[#8A8F98] hover:text-white'
-                }`}
+                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${groupBy === 'month'
+                  ? 'bg-[#5E6AD2] text-white shadow-sm'
+                  : 'text-[#8A8F98] hover:text-white'
+                  }`}
                 title="Group transactions month-wise"
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -342,11 +340,10 @@ export default function Transactions() {
               <button
                 type="button"
                 onClick={() => toggleSelectAllFiltered(filteredEntries)}
-                className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
-                  isAllFilteredSelected
-                    ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-white'
-                    : 'bg-[#0a0a0c] border-white/10 text-[#8A8F98] hover:text-white hover:border-white/20'
-                }`}
+                className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${isAllFilteredSelected
+                  ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-white'
+                  : 'bg-[#0a0a0c] border-white/10 text-[#8A8F98] hover:text-white hover:border-white/20'
+                  }`}
               >
                 {isAllFilteredSelected ? (
                   <>
@@ -437,12 +434,12 @@ export default function Transactions() {
 
                     <div className="flex items-center gap-3 text-[11px] font-mono text-[#8A8F98]">
                       {groupSpendTotal > 0 && (
-                        <span className="hidden sm:inline text-rose-400/80">
+                        <span className="nline text-rose-400/80">
                           Out: -{formatCurrency(groupSpendTotal)}
                         </span>
                       )}
                       {groupIncomeTotal > 0 && (
-                        <span className="hidden sm:inline text-emerald-400/80">
+                        <span className="inline text-emerald-400/80">
                           In: +{formatCurrency(groupIncomeTotal)}
                         </span>
                       )}
@@ -487,11 +484,10 @@ export default function Transactions() {
                             return (
                               <tr
                                 key={entry.id}
-                                className={`transition-colors group ${
-                                  isSelected
-                                    ? 'bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/15'
-                                    : 'hover:bg-white/[0.02]'
-                                }`}
+                                className={`transition-colors group ${isSelected
+                                  ? 'bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/15'
+                                  : 'hover:bg-white/[0.02]'
+                                  }`}
                               >
                                 <td className="py-3 pr-2 text-center">
                                   <input
