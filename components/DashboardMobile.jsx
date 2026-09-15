@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,6 +11,7 @@ import {
   PlusCircle,
   Trash2,
   TrendingUp,
+  TrendingDown,
   Wallet,
   History,
   AlertCircle,
@@ -23,7 +24,25 @@ import {
   Sparkles,
   Target,
   Pencil,
-  Flame
+  Flame,
+  ChevronDown,
+  ChevronUp,
+  Utensils,
+  Car,
+  Home,
+  ShoppingBag,
+  HeartPulse,
+  Film,
+  BookOpen,
+  PieChart,
+  ShieldCheck,
+  RefreshCw,
+  Bot,
+  Coins,
+  Layers,
+  BarChart3,
+  Banknote,
+  Landmark
 } from 'lucide-react';
 import Navbar from './Navbar';
 import SpotlightCard from './ui/SpotlightCard';
@@ -67,7 +86,7 @@ export default function DashboardMobile({
   formatCurrency,
   getPresetsList,
   monthsList,
-  // New States
+  // States
   entryToEdit,
   setEntryToEdit,
   salaryType,
@@ -75,443 +94,638 @@ export default function DashboardMobile({
   parentLending,
   setParentLending
 }) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [expandedDays, setExpandedDays] = useState({});
+  const [aiData, setAiData] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiThinkingStep, setAiThinkingStep] = useState(0);
+
+  const toggleDayExpansion = (dateKey) => {
+    setExpandedDays(prev => ({
+      ...prev,
+      [dateKey]: !prev[dateKey]
+    }));
+  };
+
+  const getDynamicQuickAddPresets = () => {
+    const defaultPresets = [
+      { label: 'Dinner', icon: '🍔', title: 'Dinner', amount: 250, type: 'SPENDING', desc: 'Dining / Food' },
+      { label: 'Coffee', icon: '☕', title: 'Coffee', amount: 50, type: 'SPENDING', desc: 'Daily caffeine run' },
+      { label: 'Cab/Fuel', icon: '🚗', title: 'Cab / Fuel', amount: 150, type: 'SPENDING', desc: 'Transport ride' },
+      { label: 'Groceries', icon: '🛒', title: 'Groceries', amount: 500, type: 'SPENDING', desc: 'Daily essentials' },
+      { label: 'SIP', icon: '📈', title: 'SIP Investment', amount: 1000, type: 'SAVINGS', desc: 'Invested savings / SIP' },
+      { label: 'Lent', icon: '💸', title: 'Lent to Friend', amount: 500, type: 'LENDING', desc: 'Lending receivable' },
+    ];
+
+    if (!data?.recentTransactions || data.recentTransactions.length === 0) {
+      return defaultPresets;
+    }
+
+    const seenKeys = new Set();
+    const dynamicPresets = [];
+
+    for (const t of data.recentTransactions) {
+      const title = (t.title || 'Untitled').trim();
+      const type = t.type || 'SPENDING';
+      const key = `${title.toLowerCase()}_${type}`;
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+
+        let icon = '💸';
+        const text = `${title} ${t.description || ''}`.toLowerCase();
+        if (type === 'SAVINGS' || /sip|invest|save|stock|fund/i.test(text)) icon = '📈';
+        else if (/coffee|starbucks|tea|chai|cafe/i.test(text)) icon = '☕';
+        else if (/dinner|lunch|breakfast|food|swiggy|zomato|burger|pizza|restaurant/i.test(text)) icon = '🍔';
+        else if (/uber|ola|cab|taxi|fuel|petrol|diesel|gas|auto/i.test(text)) icon = '🚗';
+        else if (/grocer|blinkit|zepto|instamart|supermarket|vegetable|milk/i.test(text)) icon = '🛒';
+        else if (/rent|flat|room|house|electricity|water|wifi|broadband/i.test(text)) icon = '🏠';
+        else if (/recharge|airtel|jio|netflix|spotify|subscription/i.test(text)) icon = '⚡';
+        else if (/amazon|flipkart|myntra|shop|clothes|shoes/i.test(text)) icon = '🛍️';
+        else if (/doctor|medicine|pharmacy|hospital|gym/i.test(text)) icon = '💊';
+        else if (/movie|cinema|game|party|drinks/i.test(text)) icon = '🍿';
+        else if (type === 'LENDING') icon = '🤝';
+        else if (type === 'LOAN') icon = '💳';
+        else if (type === 'ADVANCE') icon = '📥';
+
+        dynamicPresets.push({
+          label: title.length > 10 ? title.substring(0, 8) + '..' : title,
+          icon,
+          title,
+          amount: parseFloat(t.amount || 0),
+          type,
+          desc: t.description || `Recent ${type.toLowerCase()} entry`
+        });
+
+        if (dynamicPresets.length >= 6) break;
+      }
+    }
+
+    return dynamicPresets.length > 0 ? dynamicPresets : defaultPresets;
+  };
+
+  const fetchAiIntelligence = async () => {
+    setAiLoading(true);
+    setAiThinkingStep(0);
+    const stepInterval = setInterval(() => {
+      setAiThinkingStep(prev => (prev < 2 ? prev + 1 : prev));
+    }, 900);
+
+    try {
+      const res = await fetch('/api/dashboard/ai-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filter })
+      });
+      if (res.ok) {
+        const payload = await res.json();
+        setAiData(payload.intelligence);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      clearInterval(stepInterval);
+      setAiLoading(false);
+    }
+  };
+
+  const getCategoryIconComponent = (catName) => {
+    switch (catName) {
+      case 'Food & Dining': return <Utensils className="w-3.5 h-3.5 text-amber-500" />;
+      case 'Transport & Commute': return <Car className="w-3.5 h-3.5 text-blue-500" />;
+      case 'Housing & Utilities': return <Home className="w-3.5 h-3.5 text-purple-500" />;
+      case 'Shopping & Lifestyle': return <ShoppingBag className="w-3.5 h-3.5 text-pink-500" />;
+      case 'Subscriptions & Tech': return <Zap className="w-3.5 h-3.5 text-cyan-500" />;
+      case 'Health & Wellness': return <HeartPulse className="w-3.5 h-3.5 text-emerald-500" />;
+      case 'Entertainment & Leisure': return <Film className="w-3.5 h-3.5 text-rose-500" />;
+      case 'Investments & Savings': return <TrendingUp className="w-3.5 h-3.5 text-indigo-500" />;
+      case 'Education & Learning': return <BookOpen className="w-3.5 h-3.5 text-teal-500" />;
+      default: return <PieChart className="w-3.5 h-3.5 text-slate-400" />;
+    }
+  };
+
   return (
-    <div className="relative min-h-screen pb-32 sm:pb-8 bg-[#050506] text-[#EDEDEF]">
+    <div className="relative min-h-screen pb-28 bg-[var(--background-deep)] text-[var(--foreground)] overflow-x-hidden transition-colors duration-200">
       <Navbar />
 
-      <main className="px-4 py-4 relative z-10 space-y-4">
-        {/* Welcome Header & Cycle Info */}
-        <div className="glass-card p-4 space-y-2 border border-white/[0.06] rounded-xl">
+      <main className="px-3.5 py-4 relative z-10 space-y-4 overflow-x-hidden">
+        
+        {/* Header Card */}
+        <div className="bg-[var(--background-elevated)] border border-[var(--border-default)] p-4 rounded-2xl shadow-sm space-y-3">
           <div className="flex items-center justify-between">
-            <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] text-[8px] font-mono uppercase tracking-widest rounded">
-              v0.1.39 • Live
+            <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/25 text-indigo-500 dark:text-indigo-400 text-[9px] font-mono uppercase tracking-widest rounded-md font-semibold">
+              2050 Cockpit
             </span>
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[9px] text-[#8A8F98] font-mono uppercase tracking-wider">Synced</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] text-[var(--foreground-muted)] font-mono">Live Sync</span>
             </div>
           </div>
+
           <div>
-            <h1 className="text-lg font-semibold text-white tracking-tight">
-              Hello, {user?.displayName ? user.displayName.split(' ')[0] : 'User'}
+            <h1 className="text-lg font-bold tracking-tight text-[var(--foreground)]">
+              {user?.displayName ? user.displayName.split(' ')[0] : 'User'}&apos;s Finances
             </h1>
-            <p className="text-[10px] text-[#8A8F98] font-normal mt-0.5 flex items-center gap-1">
-              <Calendar className="w-3 h-3 text-[#818cf8]" />
-              Cycle:
-              {dataLoading ? (
-                <span className="inline-block w-20 h-2 bg-white/5 rounded animate-pulse" />
-              ) : data?.startDate ? (
-                <span className="text-[#EDEDEF] font-mono">
-                  {new Date(data.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  <span className="mx-1 text-[#8A8F98]">→</span>
-                  {new Date(data.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-              ) : (
-                <span className="text-[#8A8F98]">Not set</span>
-              )}
+            <p className="text-[11px] text-[var(--foreground-muted)] font-mono mt-0.5">
+              Cycle Day: {data?.cycleDate || 1} • {data?.startDate ? new Date(data.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''} - {data?.endDate ? new Date(data.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}
             </p>
           </div>
 
-          {/* Filters Select */}
-          <div className="pt-2 flex items-center justify-between border-t border-white/[0.04]">
-            <span className="text-[9px] font-mono uppercase tracking-wider text-[#8A8F98]">Period</span>
+          {/* Quick Filter & Actions */}
+          <div className="flex items-center gap-2 pt-1">
             <select
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              className="bg-[#0a0a0c] border border-white/10 rounded-lg px-2.5 py-1 text-[10px] text-white focus:outline-none focus:border-[#5E6AD2] cursor-pointer"
+              className="bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl px-2.5 py-1.5 text-xs text-[var(--foreground)] flex-1 font-medium"
             >
               <option value="current">Current Cycle</option>
               <option value="last">Last Cycle</option>
               <option value="last3">Last 3 Months</option>
               <option value="last6">Last 6 Months</option>
-              <option value="custom">Custom Range</option>
             </select>
+
+            <button
+              onClick={() => setSalaryModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" /> Inflow
+            </button>
+
+            <button
+              onClick={() => setEntryModalOpen(true)}
+              className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-indigo-600 text-white flex items-center gap-1 shadow-sm"
+            >
+              <PlusCircle className="w-3.5 h-3.5" /> Entry
+            </button>
           </div>
 
-          {filter === 'custom' && (
-            <div className="flex items-center gap-1.5 bg-[#0a0a0c] border border-white/[0.06] rounded-lg p-2 text-[10px]">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-transparent text-white focus:outline-none cursor-pointer w-full text-[10px]"
-              />
-              <span className="text-[#8A8F98]">to</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-transparent text-white focus:outline-none cursor-pointer w-full text-[10px]"
-              />
-            </div>
-          )}
+          {/* ⚡ Mobile Quick-Add Action Strip */}
+          <div className="pt-2 border-t border-[var(--border-default)] flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-mono font-bold text-amber-500 flex items-center gap-1 shrink-0">
+              <Zap className="w-3 h-3" /> Quick Add:
+            </span>
+            {getDynamicQuickAddPresets().map((preset, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setEntryToEdit({
+                    amount: preset.amount,
+                    type: preset.type,
+                    title: preset.title,
+                    description: `Quick added ${preset.title}`,
+                    useSalaryBalance: preset.type === 'SPENDING'
+                  });
+                  setEntryModalOpen(true);
+                }}
+                className="px-2 py-1 rounded-lg text-[11px] font-medium bg-[var(--background-base)] border border-[var(--border-default)] text-[var(--foreground)] flex items-center gap-1 shrink-0"
+              >
+                <span>{preset.icon}</span>
+                <span>{preset.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Sub Navigation Tabs */}
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-[var(--border-default)] pt-3 select-none">
+            {[
+              { id: 'overview', label: 'Overview', icon: BarChart3 },
+              { id: 'daily', label: 'Daily Log', icon: Calendar },
+              { id: 'categories', label: 'AI 50/30/20', icon: Layers, isAi: true },
+              { id: 'structure', label: 'Assets', icon: Coins },
+              { id: 'ai', label: 'Gemini AI', icon: Bot, isSparkle: true },
+            ].map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if ((tab.id === 'ai' || tab.id === 'categories') && !aiData && !aiLoading) {
+                      fetchAiIntelligence();
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-xl text-[11px] font-medium flex items-center gap-1.5 shrink-0 transition-all border ${
+                    isActive
+                      ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 border-indigo-500/30 font-semibold'
+                      : 'bg-transparent text-[var(--foreground-muted)] border-transparent'
+                  }`}
+                >
+                  <Icon className={`w-3 h-3 ${tab.isSparkle || tab.isAi ? 'text-purple-500' : ''}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Primary Available Capital Card */}
-        <SpotlightCard 
-          className="p-4 flex flex-col justify-between min-h-[160px]"
-          spotlightColor="rgba(94, 106, 210, 0.16)"
-        >
-          <div className="flex justify-between items-start">
-            <div>
-              <span className="text-[9px] font-mono uppercase tracking-widest text-[#8A8F98] flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]" /> Total Available
-              </span>
-              <div className="mt-1.5">
-                {dataLoading ? (
-                  <div className="w-32 h-7 bg-white/5 rounded animate-pulse" />
-                ) : (
-                  <h2 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight">
-                    {formatCurrency(data?.kpis?.currentBalance)}
-                  </h2>
-                )}
-                <span className="text-[8px] text-[#8A8F98] block mt-0.5">Liquid reserves + active cycle</span>
-              </div>
+        {/* TOP KPI ROW */}
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="p-3.5 bg-[var(--background-elevated)] border border-[var(--border-default)] rounded-2xl">
+            <span className="text-[9px] font-mono text-[var(--foreground-muted)] uppercase block">Inflow</span>
+            <div className="text-lg font-bold text-[var(--foreground)] font-mono mt-0.5">
+              {formatCurrency(data?.kpis?.salaryTotal || 0)}
             </div>
-            <span className="p-2 bg-white/[0.04] border border-white/[0.08] text-[#818cf8] rounded-lg">
-              <Wallet className="w-4 h-4" />
+            <span className="text-[9px] text-emerald-500 font-semibold font-mono flex items-center gap-0.5 mt-0.5">
+              <TrendingUp className="w-2.5 h-2.5" /> +14.2%
             </span>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-white/[0.04] flex justify-between items-center">
-            <div>
-              <span className="text-[8px] font-mono uppercase tracking-widest text-[#8A8F98] block">Salary Bal</span>
-              {dataLoading ? (
-                <div className="w-16 h-4 bg-white/5 rounded animate-pulse mt-0.5" />
-              ) : (
-                <p className="text-xs font-semibold text-emerald-400">{formatCurrency(data?.kpis?.salaryBalance)}</p>
-              )}
+          <div className="p-3.5 bg-[var(--background-elevated)] border border-[var(--border-default)] rounded-2xl">
+            <span className="text-[9px] font-mono text-[var(--foreground-muted)] uppercase block">Expenses</span>
+            <div className="text-lg font-bold text-rose-500 font-mono mt-0.5">
+              {formatCurrency(data?.kpis?.spending || 0)}
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setSalaryModalOpen(true)}
-                className="btn-linear-secondary px-2.5 py-1 text-[10px] text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/10 flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" /> Salary
-              </button>
-              <button
-                onClick={() => setEntryModalOpen(true)}
-                className="btn-linear-primary px-3 py-1 text-[10px] flex items-center gap-1 cursor-pointer"
-              >
-                <PlusCircle className="w-3 h-3" /> Entry
-              </button>
-            </div>
+            <span className="text-[9px] text-emerald-500 font-semibold font-mono flex items-center gap-0.5 mt-0.5">
+              <TrendingDown className="w-2.5 h-2.5" /> -6.2%
+            </span>
           </div>
-        </SpotlightCard>
 
-        {/* Dynamic Autofill Presets Scroll */}
-        {data?.recentTransactions && data.recentTransactions.length > 0 && (
-          <div className="glass-card p-3 flex flex-col gap-2 border border-white/[0.06] rounded-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1.5">
-                <Zap className="w-3 h-3 text-[#818cf8]" />
-                <span className="text-[10px] font-semibold text-white">Quick Presets</span>
+          <div className="p-3.5 bg-[var(--background-elevated)] border border-[var(--border-default)] rounded-2xl">
+            <span className="text-[9px] font-mono text-[var(--foreground-muted)] uppercase block">Active Balance</span>
+            <div className="text-lg font-bold text-emerald-500 font-mono mt-0.5">
+              {formatCurrency(data?.kpis?.salaryBalance || 0)}
+            </div>
+            <span className="text-[9px] text-[var(--foreground-muted)] font-mono">Liquid reserve</span>
+          </div>
+
+          <div className="p-3.5 bg-[var(--background-elevated)] border border-[var(--border-default)] rounded-2xl">
+            <span className="text-[9px] font-mono text-[var(--foreground-muted)] uppercase block">Savings & SIP</span>
+            <div className="text-lg font-bold text-purple-500 font-mono mt-0.5">
+              {formatCurrency(data?.kpis?.savings || 0)}
+            </div>
+            <span className="text-[9px] text-purple-500 font-mono font-semibold">+18.9%</span>
+          </div>
+        </div>
+
+        {/* TAB CONTENT: OVERVIEW */}
+        {activeTab === 'overview' && (
+          <div className="space-y-4">
+            
+            {/* Top Categories */}
+            <div className="bg-[var(--background-elevated)] border border-[var(--border-default)] p-4 rounded-2xl space-y-3">
+              <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center justify-between">
+                <span>Top Spending Categories</span>
+                <button onClick={() => setActiveTab('categories')} className="text-indigo-500 text-[10px]">View AI 50/30/20 &rarr;</button>
+              </h3>
+
+              <div className="space-y-2">
+                {(data?.spendingCategories || []).slice(0, 4).map((cat, idx) => (
+                  <div key={idx} className="p-2.5 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1 rounded bg-[var(--surface-active)]">{getCategoryIconComponent(cat.category)}</span>
+                        <span className="font-semibold text-[var(--foreground)]">{cat.category}</span>
+                      </div>
+                      <span className="font-mono font-bold text-[var(--foreground)]">{formatCurrency(cat.amount)}</span>
+                    </div>
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: 15 }).map((_, sIdx) => (
+                        <div
+                          key={sIdx}
+                          className={`h-1.5 flex-1 rounded-xs ${
+                            sIdx < Math.round((cat.percentage / 100) * 15) ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-800'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <button
-                onClick={() => setPresetsDrawerOpen(true)}
-                className="text-[9px] font-mono text-[#818cf8] hover:text-white cursor-pointer"
-              >
-                ALL
-              </button>
             </div>
 
-            <div
-              className="flex gap-1.5 overflow-x-auto py-0.5 scroll-smooth select-none max-w-full"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {getPresetsList().map((preset, idx) => (
+            {/* Asset Distribution */}
+            <div className="bg-[var(--background-elevated)] border border-[var(--border-default)] p-4 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-xs font-bold text-[var(--foreground)]">Asset Distribution (Net Worth)</h3>
+                  <span className="text-[10px] text-[var(--foreground-muted)] font-mono">Net Worth: {formatCurrency(data?.financialStructure?.totalAssetBase || 0)}</span>
+                </div>
+                <button onClick={() => setActiveTab('structure')} className="text-purple-500 text-[10px] font-semibold">Details &rarr;</button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-2.5 bg-[var(--background-base)] rounded-xl border border-[var(--border-default)]">
+                  <span className="text-[9px] font-mono text-indigo-500 uppercase block">Liquid Cash</span>
+                  <span className="text-xs font-bold font-mono text-[var(--foreground)] block mt-0.5">{formatCurrency(data?.financialStructure?.liquidCapital?.amount || 0)}</span>
+                  <span className="text-[9px] text-[var(--foreground-muted)]">In-Hand ({data?.financialStructure?.liquidCapital?.percentage || 0}%)</span>
+                </div>
+                <div className="p-2.5 bg-[var(--background-base)] rounded-xl border border-[var(--border-default)]">
+                  <span className="text-[9px] font-mono text-emerald-500 uppercase block">Savings Pots</span>
+                  <span className="text-xs font-bold font-mono text-[var(--foreground)] block mt-0.5">{formatCurrency(data?.financialStructure?.savingsPots?.amount || 0)}</span>
+                  <span className="text-[9px] text-[var(--foreground-muted)]">Pots ({data?.financialStructure?.savingsPots?.percentage || 0}%)</span>
+                </div>
+              </div>
+
+              <div className="h-6 w-full rounded-xl overflow-hidden flex gap-1 p-0.5 bg-[var(--background-base)] border border-[var(--border-default)]">
+                <div style={{ width: `${Math.max(10, data?.financialStructure?.liquidCapital?.percentage || 35)}%` }} className="bg-indigo-600 rounded-lg h-full flex items-center justify-center text-[8px] text-white font-mono font-bold">
+                  {data?.financialStructure?.liquidCapital?.percentage || 0}%
+                </div>
+                <div style={{ width: `${Math.max(10, data?.financialStructure?.savingsPots?.percentage || 25)}%` }} className="bg-emerald-500 rounded-lg h-full flex items-center justify-center text-[8px] text-white font-mono font-bold">
+                  {data?.financialStructure?.savingsPots?.percentage || 0}%
+                </div>
+                <div style={{ width: `${Math.max(10, data?.financialStructure?.stockEquity?.percentage || 20)}%` }} className="bg-purple-500 rounded-lg h-full flex items-center justify-center text-[8px] text-white font-mono font-bold">
+                  {data?.financialStructure?.stockEquity?.percentage || 0}%
+                </div>
+                <div style={{ width: `${Math.max(10, data?.financialStructure?.lendingReceivables?.percentage || 20)}%` }} className="bg-cyan-500 rounded-lg h-full flex items-center justify-center text-[8px] text-white font-mono font-bold">
+                  {data?.financialStructure?.lendingReceivables?.percentage || 0}%
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Transactions */}
+            <div className="bg-[var(--background-elevated)] border border-[var(--border-default)] p-4 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-[var(--foreground)]">Recent Activity</h3>
+                <Link href="/transactions" className="text-xs text-indigo-500 font-semibold">View All &rarr;</Link>
+              </div>
+
+              <div className="space-y-2">
+                {(data?.recentTransactions || []).slice(0, 6).map((tx) => (
+                  <div key={tx.id} className="flex items-center justify-between p-2.5 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="p-1 rounded bg-[var(--surface-active)] shrink-0">{getCategoryIconComponent(tx.category)}</span>
+                      <div className="min-w-0">
+                        <span className="font-semibold text-[var(--foreground)] truncate block">{tx.title}</span>
+                        <span className="text-[10px] text-[var(--foreground-muted)]">{new Date(tx.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                      </div>
+                    </div>
+                    <span className={`font-mono font-bold ${tx.type === 'SPENDING' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                      {tx.type === 'SPENDING' ? '-' : '+'}{formatCurrency(tx.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* TAB CONTENT: DAILY LOG */}
+        {activeTab === 'daily' && (
+          <div className="space-y-3">
+            {(data?.dailySpending || []).map((day) => {
+              const isExpanded = expandedDays[day.date];
+              const isZeroSpend = day.spending === 0;
+
+              return (
+                <div key={day.date} className="bg-[var(--background-elevated)] border border-[var(--border-default)] rounded-2xl p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-[var(--foreground)]">{day.displayDate}</span>
+                        {isZeroSpend ? (
+                          <span className="px-1.5 py-0.2 text-[8px] font-mono rounded bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">ZERO SPEND</span>
+                        ) : (
+                          <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{day.count} items</span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[var(--foreground-muted)] font-mono">{day.dayName}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className={`font-mono font-bold text-sm ${isZeroSpend ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {formatCurrency(day.spending)}
+                      </span>
+                      <button
+                        onClick={() => toggleDayExpansion(day.date)}
+                        className="p-1 rounded-lg bg-[var(--surface-active)] text-[var(--foreground)]"
+                      >
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
+                      {day.transactions.map((tx) => (
+                        <div key={tx.id} className="flex justify-between items-center text-[11px] p-2 bg-[var(--background-base)] rounded-xl border border-[var(--border-default)]">
+                          <span className="font-semibold text-[var(--foreground)] truncate max-w-[170px]">{tx.title}</span>
+                          <span className={`font-mono font-bold ${tx.type === 'SPENDING' ? 'text-rose-500' : 'text-emerald-500'}`}>
+                            {formatCurrency(tx.amount)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* TAB CONTENT: AI 50/30/20 CATEGORIES */}
+        {activeTab === 'categories' && (
+          <div className="space-y-4">
+            <div className="bg-[var(--background-elevated)] border border-purple-500/30 p-4 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-purple-500" /> AI 50/30/20 Grouping
+                </h3>
                 <button
-                  key={idx}
-                  onClick={() => {
-                    setEntryToEdit({
-                      amount: preset.amount,
-                      type: preset.type,
-                      title: preset.title,
-                      description: preset.desc || '',
-                      useSalaryBalance: preset.type === 'SPENDING'
-                    });
-                    setEntryModalOpen(true);
-                  }}
-                  className="px-2.5 py-1.5 bg-[#0a0a0c] border border-white/[0.06] text-[9px] font-medium rounded-lg text-[#EDEDEF] flex items-center gap-1.5 shrink-0 hover:bg-white/[0.04]"
+                  onClick={fetchAiIntelligence}
+                  disabled={aiLoading}
+                  className="px-2.5 py-1 text-[10px] font-semibold bg-purple-600 text-white rounded-lg flex items-center gap-1 shadow-sm"
                 >
-                  <span>{preset.label}</span>
-                  <span className="text-[8px] font-mono text-white bg-white/[0.06] px-1 py-0.2 rounded">{formatCurrency(preset.amount)}</span>
+                  <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
+                  {aiLoading ? 'Analyzing...' : 'Re-Run'}
                 </button>
-              ))}
+              </div>
+
+              {aiData?.needsWantsSavingsAI?.aiVerdict && (
+                <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[11px] text-[var(--foreground)]">
+                  {aiData.needsWantsSavingsAI.aiVerdict}
+                </div>
+              )}
+              
+              <div className="space-y-2.5">
+                <div className="p-3 bg-[var(--background-base)] border border-blue-500/30 rounded-xl space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-bold text-blue-500">Needs (50% Essentials)</span>
+                    <span className="font-mono font-bold">{formatCurrency(aiData?.needsWantsSavingsAI?.needs?.amount || data?.needsWantsSavings?.needs?.amount || 0)}</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.needs?.percentage || data?.needsWantsSavings?.needs?.percentage || 0)}%` }} className="h-full bg-blue-500 rounded-full" />
+                  </div>
+                  <span className="text-[10px] text-[var(--foreground-muted)] block">
+                    Actual: {aiData?.needsWantsSavingsAI?.needs?.percentage || data?.needsWantsSavings?.needs?.percentage || 0}% • {aiData?.needsWantsSavingsAI?.needs?.status || 'Target 50%'}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[var(--background-base)] border border-pink-500/30 rounded-xl space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-bold text-pink-500">Wants (30% Lifestyle)</span>
+                    <span className="font-mono font-bold">{formatCurrency(aiData?.needsWantsSavingsAI?.wants?.amount || data?.needsWantsSavings?.wants?.amount || 0)}</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.wants?.percentage || data?.needsWantsSavings?.wants?.percentage || 0)}%` }} className="h-full bg-pink-500 rounded-full" />
+                  </div>
+                  <span className="text-[10px] text-[var(--foreground-muted)] block">
+                    Actual: {aiData?.needsWantsSavingsAI?.wants?.percentage || data?.needsWantsSavings?.wants?.percentage || 0}% • {aiData?.needsWantsSavingsAI?.wants?.status || 'Target 30%'}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-[var(--background-base)] border border-emerald-500/30 rounded-xl space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="font-bold text-emerald-500">Savings (20% Growth)</span>
+                    <span className="font-mono font-bold">{formatCurrency(aiData?.needsWantsSavingsAI?.savings?.amount || data?.needsWantsSavings?.savings?.amount || 0)}</span>
+                  </div>
+                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.savings?.percentage || data?.needsWantsSavings?.savings?.percentage || 0)}%` }} className="h-full bg-emerald-500 rounded-full" />
+                  </div>
+                  <span className="text-[10px] text-[var(--foreground-muted)] block">
+                    Actual: {aiData?.needsWantsSavingsAI?.savings?.percentage || data?.needsWantsSavings?.savings?.percentage || 0}% • {aiData?.needsWantsSavingsAI?.savings?.status || 'Target 20%'}
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Spending Streaks Tracker */}
-        {!dataLoading && data?.streaks && (
-          <div className="glass-card p-3.5 flex flex-col gap-2.5 border border-white/[0.06] rounded-xl text-left">
-            <div className="flex items-center gap-1.5 border-b border-white/[0.04] pb-1.5">
-              <Flame className="w-3.5 h-3.5 text-amber-500" />
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#8A8F98]">Discipline Streaks</span>
+        {/* TAB CONTENT: STRUCTURE */}
+        {activeTab === 'structure' && (
+          <div className="bg-[var(--background-elevated)] border border-[var(--border-default)] p-4 rounded-2xl space-y-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold text-[var(--foreground)]">Asset Distribution (Net Worth)</h3>
+              <span className="text-[10px] font-mono text-purple-500 font-bold">{formatCurrency(data?.financialStructure?.totalAssetBase || 0)}</span>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <div className="p-2.5 bg-[#0a0a0c] border border-white/[0.06] rounded-lg flex flex-col justify-between">
-                <span className="text-[8px] font-mono text-amber-400 uppercase tracking-wider">Zero Spend</span>
-                <div className="mt-1">
-                  <span className="text-base font-semibold text-white">{data.streaks.level1} Days</span>
-                  <span className="block text-[7px] text-[#8A8F98]">0 expense days</span>
-                </div>
+              <div className="p-3 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl space-y-1">
+                <span className="text-[9px] font-mono text-indigo-500 uppercase block font-bold">1. Liquid In-Hand</span>
+                <span className="text-sm font-bold text-[var(--foreground)] font-mono block">{formatCurrency(data?.financialStructure?.liquidCapital?.amount || 0)}</span>
+                <span className="text-[9px] text-[var(--foreground-muted)] block">Readily available cash ({data?.financialStructure?.liquidCapital?.percentage || 0}%)</span>
               </div>
 
-              <div className="p-2.5 bg-[#0a0a0c] border border-white/[0.06] rounded-lg flex flex-col justify-between">
-                <span className="text-[8px] font-mono text-yellow-400 uppercase tracking-wider">Controlled</span>
-                <div className="mt-1">
-                  <span className="text-base font-semibold text-white">{data.streaks.level2} Days</span>
-                  <span className="block text-[7px] text-[#8A8F98]">Under {formatCurrency(data.streaks.level2Limit)}/d</span>
-                </div>
+              <div className="p-3 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl space-y-1">
+                <span className="text-[9px] font-mono text-emerald-500 uppercase block font-bold">2. Savings Pots</span>
+                <span className="text-sm font-bold text-[var(--foreground)] font-mono block">{formatCurrency(data?.financialStructure?.savingsPots?.amount || 0)}</span>
+                <span className="text-[9px] text-[var(--foreground-muted)] block">Goal pots & bank savings ({data?.financialStructure?.savingsPots?.percentage || 0}%)</span>
               </div>
+
+              <div className="p-3 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl space-y-1">
+                <span className="text-[9px] font-mono text-purple-500 uppercase block font-bold">3. Stock Holdings</span>
+                <span className="text-sm font-bold text-[var(--foreground)] font-mono block">{formatCurrency(data?.financialStructure?.stockEquity?.amount || 0)}</span>
+                <span className="text-[9px] text-[var(--foreground-muted)] block">Equities & mutual funds ({data?.financialStructure?.stockEquity?.percentage || 0}%)</span>
+              </div>
+
+              <div className="p-3 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl space-y-1">
+                <span className="text-[9px] font-mono text-cyan-500 uppercase block font-bold">4. Receivables</span>
+                <span className="text-sm font-bold text-[var(--foreground)] font-mono block">{formatCurrency(data?.financialStructure?.lendingReceivables?.amount || 0)}</span>
+                <span className="text-[9px] text-[var(--foreground-muted)] block">Money lent to others ({data?.financialStructure?.lendingReceivables?.percentage || 0}%)</span>
+              </div>
+            </div>
+
+            {/* Proportional Segmented Bar */}
+            <div className="h-6 w-full rounded-xl overflow-hidden flex gap-1 p-1 bg-[var(--background-base)] border border-[var(--border-default)]">
+              {(data?.financialStructure?.liquidCapital?.percentage || 0) > 0 && (
+                <div 
+                  style={{ width: `${data.financialStructure.liquidCapital.percentage}%` }} 
+                  className="bg-indigo-600 rounded-lg transition-all h-full flex items-center justify-center text-[9px] text-white font-mono font-semibold"
+                >
+                  {data.financialStructure.liquidCapital.percentage > 8 && `${data.financialStructure.liquidCapital.percentage}%`}
+                </div>
+              )}
+              {(data?.financialStructure?.savingsPots?.percentage || 0) > 0 && (
+                <div 
+                  style={{ width: `${data.financialStructure.savingsPots.percentage}%` }} 
+                  className="bg-emerald-500 rounded-lg transition-all h-full flex items-center justify-center text-[9px] text-white font-mono font-semibold"
+                >
+                  {data.financialStructure.savingsPots.percentage > 8 && `${data.financialStructure.savingsPots.percentage}%`}
+                </div>
+              )}
+              {(data?.financialStructure?.stockEquity?.percentage || 0) > 0 && (
+                <div 
+                  style={{ width: `${data.financialStructure.stockEquity.percentage}%` }} 
+                  className="bg-purple-500 rounded-lg transition-all h-full flex items-center justify-center text-[9px] text-white font-mono font-semibold"
+                >
+                  {data.financialStructure.stockEquity.percentage > 8 && `${data.financialStructure.stockEquity.percentage}%`}
+                </div>
+              )}
+              {(data?.financialStructure?.lendingReceivables?.percentage || 0) > 0 && (
+                <div 
+                  style={{ width: `${data.financialStructure.lendingReceivables.percentage}%` }} 
+                  className="bg-cyan-500 rounded-lg transition-all h-full flex items-center justify-center text-[9px] text-white font-mono font-semibold"
+                >
+                  {data.financialStructure.lendingReceivables.percentage > 8 && `${data.financialStructure.lendingReceivables.percentage}%`}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {/* Compact Grid of KPIs (2-columns) */}
-        <div className="grid grid-cols-2 gap-2.5">
-          {[
-            {
-              title: "Spending",
-              amount: formatCurrency(data?.kpis?.spending),
-              text: "text-rose-400",
-              desc: "Expenses"
-            },
-            {
-              title: "SIP / Wealth",
-              amount: formatCurrency(data?.kpis?.savings),
-              text: "text-amber-400",
-              desc: "Savings & SIPs"
-            },
-            {
-              title: "Lending",
-              amount: formatCurrency(data?.kpis?.lending),
-              text: "text-blue-400",
-              desc: "Receivable"
-            },
-            {
-              title: "Loan Debts",
-              amount: formatCurrency(data?.kpis?.loan),
-              text: "text-orange-400",
-              desc: "Active debts"
-            },
-            {
-              title: "Advances",
-              amount: formatCurrency(data?.kpis?.advance),
-              text: "text-cyan-400",
-              desc: "Advance logs"
-            }
-          ].map((card, idx) => (
-            <div
-              key={idx}
-              className="p-3 bg-[#0a0a0c]/80 border border-white/[0.06] rounded-xl text-left flex flex-col justify-between h-20"
-            >
-              <div className="flex justify-between items-start">
-                <span className="text-[#8A8F98] text-[9px] font-mono uppercase tracking-wider">{card.title}</span>
-                <span className={`w-1 h-1 rounded-full ${card.text.replace('text', 'bg')}`} />
-              </div>
-              <div className="mt-1">
-                {dataLoading ? (
-                  <div className="w-16 h-3 bg-white/5 rounded animate-pulse" />
-                ) : (
-                  <p className={`text-xs font-semibold tracking-tight ${card.text} truncate`}>{card.amount}</p>
-                )}
-                <span className="text-[7px] text-[#8A8F98] block mt-0.5 leading-none">{card.desc}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* E-Passbook Ledger Mobile Feed */}
-        <div className="glass-card p-4 space-y-3.5 border border-white/[0.06] rounded-xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xs font-semibold text-white flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5 text-[#818cf8]" /> Recent Transactions
-              </h2>
-              <span className="text-[8px] text-[#8A8F98] font-mono uppercase tracking-wider block mt-0.5">Audit log</span>
-            </div>
-            <Link
-              href="/transactions"
-              className="btn-linear-secondary px-2 py-0.5 text-[9px] flex items-center gap-0.5"
-            >
-              All <ArrowUpRight className="w-2.5 h-2.5" />
-            </Link>
-          </div>
-
-          {/* Search and Category Badges */}
-          <div className="space-y-2">
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-[#8A8F98] pointer-events-none">
-                <Search className="w-3 h-3" />
-              </span>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search ledger..."
-                className="w-full pl-7 pr-3 py-1.5 bg-[#0a0a0c] border border-white/10 rounded-lg text-[10px] text-white placeholder-[#8A8F98]/50 focus:outline-none focus:border-[#5E6AD2]"
-              />
-            </div>
-
-            <div
-              className="flex gap-1 overflow-x-auto select-none py-0.5"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {['ALL', 'SPENDING', 'SAVINGS', 'LENDING', 'LOAN', 'ADVANCE'].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setTypeFilter(tab)}
-                  className={`px-2 py-1 text-[8px] font-mono uppercase tracking-wider rounded-md transition-all border shrink-0 ${typeFilter === tab
-                    ? 'bg-white/[0.08] border-white/15 text-white'
-                    : 'bg-transparent border-transparent text-[#8A8F98]'
-                    }`}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Feed List Items */}
-          {dataLoading ? (
-            <div className="space-y-2">
-              {[1, 2, 3].map(n => (
-                <div key={n} className="h-12 bg-white/5 rounded-lg animate-pulse" />
-              ))}
-            </div>
-          ) : (() => {
-            const filteredTransactions = (data?.recentTransactions || []).filter(t => {
-              const title = t.title || 'Untitled';
-              const matchesSearch = title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                (t.description && t.description.toLowerCase().includes(searchTerm.toLowerCase()));
-              const matchesType = typeFilter === 'ALL' || t.type === typeFilter;
-              return matchesSearch && matchesType;
-            });
-
-            if (filteredTransactions.length === 0) {
-              return (
-                <div className="py-6 text-center text-[#8A8F98]">
-                  <Wallet className="w-5 h-5 mx-auto mb-1.5 opacity-30" />
-                  <p className="text-[10px]">No matching transactions.</p>
+        {/* TAB CONTENT: GEMINI AI */}
+        {activeTab === 'ai' && (
+          <div className="space-y-3">
+            <div className="p-4 bg-[var(--background-elevated)] border border-purple-500/30 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
+                  <span className="text-xs font-bold text-[var(--foreground)]">Gemini 2050 AI</span>
                 </div>
-              );
-            }
-
-            return (
-              <div className="space-y-2">
-                {filteredTransactions.map((entry) => {
-                  const colors = {
-                    SPENDING: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
-                    LENDING: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
-                    LOAN: 'text-orange-400 bg-orange-500/10 border-orange-500/20',
-                    ADVANCE: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
-                    SAVINGS: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
-                  };
-
-                  let AvatarIcon = ArrowUpRight;
-                  let avatarColor = 'bg-rose-500/10 text-rose-400';
-                  if (entry.type === 'SAVINGS') { AvatarIcon = Target; avatarColor = 'bg-amber-500/10 text-amber-400'; }
-                  else if (entry.type === 'LENDING') { AvatarIcon = ArrowRightLeft; avatarColor = 'bg-blue-500/10 text-blue-400'; }
-                  else if (entry.type === 'LOAN') { AvatarIcon = HelpCircle; avatarColor = 'bg-orange-500/10 text-orange-400'; }
-                  else if (entry.type === 'ADVANCE') { AvatarIcon = ArrowDownLeft; avatarColor = 'bg-cyan-500/10 text-cyan-400'; }
-
-                  const isOutflow = entry.type === 'SPENDING' || entry.type === 'LENDING';
-
-                  return (
-                    <div
-                      key={entry.id}
-                      className="bg-[#0a0a0c] border border-white/[0.04] p-2.5 rounded-xl flex items-center justify-between gap-2"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className={`p-1.5 rounded-lg border border-white/5 shrink-0 ${avatarColor}`}>
-                          <AvatarIcon className="w-3 h-3" />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <h4 className="text-[11px] font-medium text-white truncate">{entry.title}</h4>
-                            {Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || '')) && (
-                              <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[7px] font-semibold bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 shrink-0 font-mono" title="Added via AI">
-                                <Sparkles className="w-2 h-2 text-indigo-400" /> AI
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 mt-0.5 flex-wrap font-mono">
-                            <span className={`px-1 py-0.2 rounded text-[7px] border uppercase ${colors[entry.type]}`}>
-                              {entry.type}
-                            </span>
-                            <span className="text-[7.5px] text-[#8A8F98]">
-                              {new Date(entry.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className={`text-[11px] font-mono font-medium ${isOutflow ? 'text-rose-400' : 'text-emerald-400'}`}>
-                          {isOutflow ? '-' : '+'}{formatCurrency(entry.amount)}
-                        </span>
-                        {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
-                          <button
-                            onClick={() => {
-                              setParentLending(entry);
-                              setEntryModalOpen(true);
-                            }}
-                            className="p-1 text-[#8A8F98] hover:text-emerald-400 rounded cursor-pointer"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setEntryToEdit(entry);
-                            setEntryModalOpen(true);
-                          }}
-                          className="p-1 text-[#8A8F98] hover:text-white rounded cursor-pointer"
-                        >
-                          <Pencil className="w-2.5 h-2.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteEntry(entry.id)}
-                          className="p-1 text-[#8A8F98] hover:text-rose-400 rounded cursor-pointer"
-                        >
-                          <Trash2 className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                <button
+                  onClick={fetchAiIntelligence}
+                  disabled={aiLoading}
+                  className="px-2.5 py-1 text-[10px] font-semibold bg-purple-600 text-white rounded-lg flex items-center gap-1 shadow-sm"
+                >
+                  <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
+                  {aiLoading ? 'Thinking...' : 'Refresh'}
+                </button>
               </div>
-            );
-          })()}
-        </div>
 
-        {/* AI Insight Compact Mobile Card */}
-        <div className="glass-card p-4 space-y-2.5 border border-white/[0.06] rounded-xl">
-          <div className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#818cf8]" />
-            <h2 className="text-xs font-semibold text-white">AI Insights</h2>
+              {aiLoading && (
+                <div className="py-6 text-center space-y-2">
+                  <Bot className="w-8 h-8 text-purple-500 mx-auto animate-bounce" />
+                  <p className="text-[11px] text-purple-500 font-mono font-semibold">
+                    {aiThinkingStep === 0 && 'Clustering transaction vectors...'}
+                    {aiThinkingStep === 1 && 'Analyzing 50/30/20 runway...'}
+                    {aiThinkingStep === 2 && 'Generating 2050 wealth hacks...'}
+                  </p>
+                </div>
+              )}
+
+              {!aiLoading && aiData && (
+                <div className="space-y-3 pt-1">
+                  <p className="text-xs text-[var(--foreground)] leading-relaxed bg-purple-500/10 border border-purple-500/20 p-3 rounded-xl">
+                    {aiData.executiveSummary}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2.5 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl">
+                      <span className="text-[9px] font-mono text-[var(--foreground-muted)] uppercase block">Health Score</span>
+                      <span className="text-lg font-bold text-emerald-500 font-mono">{aiData.financialHealthScore || 85}/100</span>
+                    </div>
+
+                    <div className="p-2.5 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl">
+                      <span className="text-[9px] font-mono text-[var(--foreground-muted)] uppercase block">Daily Safe Budget</span>
+                      <span className="text-sm font-bold text-indigo-500 font-mono block mt-0.5">{formatCurrency(aiData.burnRateAnalysis?.dailySafeBudget || 0)}/d</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1">
+                    <span className="text-[11px] font-bold text-[var(--foreground)]">2050 Savings Strategies</span>
+                    {(aiData.savingsOpportunities || []).map((opp, idx) => (
+                      <div key={idx} className="p-2.5 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl text-xs space-y-1">
+                        <div className="flex justify-between font-bold">
+                          <span className="text-[var(--foreground)]">{opp.title}</span>
+                          <span className="text-emerald-500 font-mono">+{formatCurrency(opp.potentialMonthlySavings)}/mo</span>
+                        </div>
+                        <p className="text-[10px] text-[var(--foreground-muted)]">{opp.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <p className="text-[#8A8F98] text-[10px] leading-relaxed">
-            {data?.kpis?.spending > 0
-              ? `You spent ${formatCurrency(data?.kpis?.spending)} this cycle. Your salary balance is ${formatCurrency(data?.kpis?.salaryBalance)}.`
-              : "No spending logged this cycle yet. Record expenses to activate Gemini budget analytics."}
-          </p>
-          <Link
-            href="/assistant"
-            className="btn-linear-primary w-full py-2 text-[10px] text-center flex items-center justify-center gap-1"
-          >
-            <Sparkles className="w-3 h-3" /> Launch Assistant
-          </Link>
-        </div>
+        )}
+
       </main>
 
-      {/* MODAL 1: Add Salary Bottom Drawer */}
+      {/* Salary Modal */}
       <AnimatePresence>
         {salaryModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 overflow-hidden">
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-0 overflow-hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -519,101 +733,68 @@ export default function DashboardMobile({
               onClick={() => setSalaryModalOpen(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer z-0"
             />
-
             <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full bg-[#0a0a0c] border-t border-white/10 rounded-t-2xl p-5 relative max-h-[85vh] overflow-y-auto z-10"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="w-full bg-[var(--background-elevated)] border-t border-[var(--border-default)] rounded-t-3xl p-5 relative z-10 space-y-4"
             >
-              <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mb-4" />
-
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-semibold text-white flex items-center gap-1.5">
-                  <PiggyBank className="w-4 h-4 text-emerald-400" /> Log Inflow
-                </h3>
-                <button onClick={() => setSalaryModalOpen(false)} className="text-[#8A8F98] hover:text-white cursor-pointer">
-                  <X className="w-4 h-4" />
-                </button>
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-[var(--foreground)]">Log Capital Inflow</h3>
+                <button onClick={() => setSalaryModalOpen(false)}><X className="w-4 h-4 text-[var(--foreground-muted)]" /></button>
               </div>
 
-              <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#050506] border border-white/[0.06] rounded-lg mb-3">
+              <div className="grid grid-cols-2 gap-1 p-1 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl">
                 <button
                   type="button"
                   onClick={() => setSalaryType('SALARY')}
-                  className={`py-1.5 text-[10px] font-medium rounded-md transition-all cursor-pointer ${
-                    salaryType === 'SALARY'
-                      ? 'bg-white/[0.08] text-white border border-white/10'
-                      : 'text-[#8A8F98]'
-                  }`}
+                  className={`py-1.5 text-xs font-semibold rounded-lg ${salaryType === 'SALARY' ? 'bg-indigo-600 text-white' : 'text-[var(--foreground-muted)]'}`}
                 >
                   Salary
                 </button>
                 <button
                   type="button"
                   onClick={() => setSalaryType('BONUS')}
-                  className={`py-1.5 text-[10px] font-medium rounded-md transition-all cursor-pointer ${
-                    salaryType === 'BONUS'
-                      ? 'bg-white/[0.08] text-white border border-white/10'
-                      : 'text-[#8A8F98]'
-                  }`}
+                  className={`py-1.5 text-xs font-semibold rounded-lg ${salaryType === 'BONUS' ? 'bg-indigo-600 text-white' : 'text-[var(--foreground-muted)]'}`}
                 >
                   Bonus
                 </button>
               </div>
 
-              {salError && (
-                <p className="text-[10px] text-rose-400 mb-2">{salError}</p>
-              )}
-
               <form onSubmit={handleAddSalary} className="space-y-3">
-                <div>
-                  <label className="block text-[#8A8F98] text-[10px] font-medium mb-1">
-                    {salaryType === 'SALARY' ? 'Salary Amount' : 'Bonus Amount'}
-                  </label>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={salAmount}
+                  onChange={(e) => setSalAmount(e.target.value)}
+                  placeholder="Amount"
+                  className="w-full px-3.5 py-2.5 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl text-sm text-[var(--foreground)]"
+                />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={salMonth}
+                    onChange={(e) => setSalMonth(e.target.value)}
+                    className="w-full px-3 py-2 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--foreground)]"
+                  >
+                    {monthsList.map(m => <option key={m.value} value={m.value}>{m.name}</option>)}
+                  </select>
                   <input
                     type="number"
-                    inputMode="decimal"
-                    value={salAmount}
-                    onChange={(e) => setSalAmount(e.target.value)}
-                    placeholder="e.g. 5000"
-                    className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
+                    value={salYear}
+                    onChange={(e) => setSalYear(e.target.value)}
+                    className="w-full px-3 py-2 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl text-xs text-[var(--foreground)]"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[#8A8F98] text-[10px] font-medium mb-1">Month</label>
-                    <select
-                      value={salMonth}
-                      onChange={(e) => setSalMonth(e.target.value)}
-                      className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] cursor-pointer"
-                    >
-                      {monthsList.map(m => (
-                        <option key={m.value} value={m.value}>{m.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[#8A8F98] text-[10px] font-medium mb-1">Year</label>
-                    <input
-                      type="number"
-                      value={salYear}
-                      onChange={(e) => setSalYear(e.target.value)}
-                      className="w-full px-3 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
-                    />
-                  </div>
-                </div>
+                {salError && <p className="text-xs text-rose-500">{salError}</p>}
 
                 <button
                   type="submit"
                   disabled={salLoading}
-                  className="btn-linear-primary w-full py-2.5 text-xs flex items-center justify-center cursor-pointer"
+                  className="w-full py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-semibold"
                 >
-                  {salLoading ? (
-                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : salaryType === 'SALARY' ? "Save Salary" : "Save Bonus"}
+                  {salLoading ? 'Saving...' : 'Save Inflow'}
                 </button>
               </form>
             </motion.div>
@@ -621,10 +802,10 @@ export default function DashboardMobile({
         )}
       </AnimatePresence>
 
-      {/* MODAL 2: Presets Bottom Drawer */}
+      {/* Presets Drawer */}
       <AnimatePresence>
         {presetsDrawerOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 overflow-hidden">
+          <div className="fixed inset-0 z-50 flex items-end justify-center p-0 overflow-hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -632,27 +813,19 @@ export default function DashboardMobile({
               onClick={() => setPresetsDrawerOpen(false)}
               className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer z-0"
             />
-
             <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full bg-[#0a0a0c] border-t border-white/10 rounded-t-2xl p-5 relative max-h-[80vh] overflow-y-auto z-10"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              className="w-full bg-[var(--background-elevated)] border-t border-[var(--border-default)] rounded-t-3xl p-5 relative z-10 space-y-3 max-h-[80vh] overflow-y-auto"
             >
-              <div className="w-10 h-1 bg-white/15 rounded-full mx-auto mb-4" />
-
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xs font-semibold text-white flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-[#818cf8]" /> Autofill Presets
-                </h3>
-                <button onClick={() => setPresetsDrawerOpen(false)} className="text-[#8A8F98] hover:text-white cursor-pointer">
-                  <X className="w-4 h-4" />
-                </button>
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold text-[var(--foreground)]">Quick Presets</h3>
+                <button onClick={() => setPresetsDrawerOpen(false)}><X className="w-4 h-4 text-[var(--foreground-muted)]" /></button>
               </div>
 
-              <div className="grid grid-cols-1 gap-2">
-                {getPresetsList().map((preset, idx) => (
+              <div className="space-y-2">
+                {quickPresets.map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -661,21 +834,19 @@ export default function DashboardMobile({
                         amount: preset.amount,
                         type: preset.type,
                         title: preset.title,
-                        description: preset.desc || '',
+                        description: `Quick added ${preset.title}`,
                         useSalaryBalance: preset.type === 'SPENDING'
                       });
                       setPresetsDrawerOpen(false);
                       setEntryModalOpen(true);
                     }}
-                    className="p-3 bg-[#050506] border border-white/[0.06] rounded-lg text-left flex items-center justify-between gap-2 cursor-pointer hover:bg-white/[0.03]"
+                    className="w-full p-3 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl flex items-center justify-between text-left"
                   >
-                    <div className="min-w-0">
-                      <span className="block text-xs font-medium text-white truncate">{preset.title}</span>
-                      <span className="block text-[8px] font-mono text-[#8A8F98] uppercase tracking-wider">{preset.type}</span>
+                    <div>
+                      <span className="text-xs font-bold text-[var(--foreground)] block">{preset.title}</span>
+                      <span className="text-[10px] text-[var(--foreground-muted)]">{preset.type}</span>
                     </div>
-                    <span className="text-xs font-mono font-medium text-white px-2 py-0.5 bg-white/[0.05] rounded border border-white/[0.06]">
-                      {formatCurrency(preset.amount)}
-                    </span>
+                    <span className="font-mono font-bold text-xs text-[var(--foreground)]">{formatCurrency(preset.amount)}</span>
                   </button>
                 ))}
               </div>
@@ -684,10 +855,10 @@ export default function DashboardMobile({
         )}
       </AnimatePresence>
 
-      {/* MODAL 3: Salary Celebration Overlay */}
+      {/* Celebration Modal */}
       <AnimatePresence>
         {salaryCelebrationOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 overflow-hidden">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 overflow-hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -695,23 +866,21 @@ export default function DashboardMobile({
               onClick={() => setSalaryCelebrationOpen(false)}
               className="absolute inset-0 bg-black/85 backdrop-blur-md cursor-pointer z-0"
             />
-
             <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
+              initial={{ opacity: 0, scale: 0.94 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.92 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="w-full max-w-xs bg-[#0a0a0c] border border-emerald-500/30 rounded-2xl p-5 text-center z-10 shadow-2xl"
+              exit={{ opacity: 0, scale: 0.94 }}
+              className="w-full max-w-xs bg-[var(--background-elevated)] border border-emerald-500/30 rounded-2xl p-5 text-center z-10 shadow-2xl space-y-3"
             >
-              <div className="w-12 h-12 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
                 <PiggyBank className="w-6 h-6" />
               </div>
-              <h2 className="text-sm font-semibold text-white">Salary Logged!</h2>
-              <p className="text-emerald-400 text-[10px] font-mono mt-0.5">Cycle balance updated.</p>
+              <h2 className="text-base font-bold text-[var(--foreground)]">Capital Logged!</h2>
+              <p className="text-xs text-emerald-500 font-mono">Inflow added to active cycle balance.</p>
               <button
                 type="button"
                 onClick={() => setSalaryCelebrationOpen(false)}
-                className="btn-linear-primary w-full py-2 text-xs mt-4 cursor-pointer"
+                className="w-full py-2 text-xs font-semibold bg-indigo-600 text-white rounded-xl"
               >
                 Done
               </button>

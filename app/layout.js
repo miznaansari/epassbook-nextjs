@@ -78,9 +78,9 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-[#050506] text-[#EDEDEF] relative selection:bg-[#5E6AD2]/30 selection:text-white transition-colors duration-200">
+      <body className="min-h-screen flex flex-col bg-[var(--background-base)] text-[var(--foreground)] relative selection:bg-[#5E6AD2]/30 selection:text-white transition-colors duration-200">
         {/* Layer 1: Base Depth Gradient */}
-        <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,#0e0e14_0%,#050506_50%,#020203_100%)] dark:block light-base-gradient pointer-events-none z-0" />
+        <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,#0e0e14_0%,#050506_50%,#020203_100%)] light-base-gradient pointer-events-none z-0" />
 
         {/* Layer 2: Subtle Technical Grid Overlay */}
         <div className="fixed inset-0 bg-grid-pattern opacity-40 dark:opacity-40 light:opacity-20 pointer-events-none z-0" />

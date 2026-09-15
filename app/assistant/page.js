@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useTheme } from '@/context/ThemeContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPendingCameraPhoto } from '@/lib/cameraBridge';
@@ -42,7 +43,9 @@ import {
   RotateCcw,
   Undo2,
   Coins,
-  Wallet
+  Wallet,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 // Interactive Transaction Proposal Card Component
@@ -104,7 +107,7 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
             try {
               const raw = await res.text();
               if (raw) errText = raw.slice(0, 100);
-            } catch (e2) {}
+            } catch (e2) { }
           }
           throw new Error(errText);
         }
@@ -161,33 +164,33 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
   if (items.length === 0 && status !== 'approved' && status !== 'rolled_back') return null;
 
   return (
-    <div className="my-4 p-4 rounded-xl bg-[#0a0a0c] border border-white/[0.08] shadow-linear-card backdrop-blur-xl text-left">
+    <div className="my-4 p-4 rounded-xl bg-slate-50/90 dark:bg-[var(--background-elevated)] border border-slate-200/90 dark:border-[var(--border-default)] shadow-sm backdrop-blur-xl text-left">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] gap-2">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-200/90 dark:border-[var(--border-default)] gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 flex items-center justify-center text-[#5E6AD2] shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
             <Receipt className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <h4 className="text-xs font-semibold text-white tracking-wide truncate">
+            <h4 className="text-xs font-semibold text-slate-900 dark:text-[var(--foreground)] tracking-wide truncate">
               {status === 'approved'
                 ? 'Transactions Successfully Added'
                 : status === 'rolled_back'
                   ? 'Transactions Rolled Back'
                   : 'Receipt OCR Proposal'}
             </h4>
-            <span className="text-[10px] text-slate-400 font-mono block">
+            <span className="text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-mono block">
               {status === 'approved' ? (
                 <span>
-                  {createdTransactions.length} recorded entries • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
+                  {createdTransactions.length} recorded entries • Total: <strong className="text-emerald-500 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
                 </span>
               ) : status === 'rolled_back' ? (
-                <span className="text-amber-400">
+                <span className="text-amber-500">
                   {createdTransactions.length} entries removed from ledger
                 </span>
               ) : (
                 <span>
-                  {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-400 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
+                  {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-500 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
                 </span>
               )}
             </span>
@@ -195,22 +198,22 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         </div>
 
         {status === 'approved' ? (
-          <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0">
+          <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0 font-semibold">
             <CheckCheck className="w-3 h-3" /> Recorded
           </span>
         ) : status === 'rolled_back' ? (
-          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0">
+          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0 font-semibold">
             <RotateCcw className="w-3 h-3" /> Undone
           </span>
         ) : (
-          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md shrink-0">
+          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md shrink-0 font-semibold">
             Pending Approval
           </span>
         )}
       </div>
 
       {errorMsg && (
-        <div className="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-lg text-xs font-medium flex items-center gap-2">
+        <div className="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-xs font-medium flex items-center gap-2">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span>{errorMsg}</span>
         </div>
@@ -219,17 +222,17 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
       {/* Items List (Pending or Approved) */}
       {status === 'rolled_back' ? (
         <div className="my-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 text-left">
-          <div className="flex items-center gap-2 text-amber-300 text-xs font-semibold">
+          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-300 text-xs font-semibold">
             <RotateCcw className="w-4 h-4" />
             <span>All {createdTransactions.length} transactions have been successfully undone and deleted.</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-1 font-mono">
+          <p className="text-[11px] text-slate-500 dark:text-[var(--foreground-muted)] mt-1 font-mono">
             Your e-Passbook balance and monthly deductions have been automatically restored.
           </p>
           <button
             type="button"
             onClick={() => setStatus('pending')}
-            className="mt-3 text-xs text-[#8B95F6] hover:text-[#6872D9] font-medium underline cursor-pointer"
+            className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
           >
             Re-open proposal to edit or re-approve
           </button>
@@ -237,25 +240,25 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
       ) : status === 'approved' ? (
         /* Successfully Added List with Total Amount */
         <div className="mt-3 space-y-2 max-h-72 overflow-y-auto pr-1">
-          <div className="p-2.5 bg-emerald-950/20 border border-emerald-500/20 rounded-lg flex items-center justify-between text-xs">
-            <span className="text-slate-300 font-medium">Grand Total Added</span>
-            <span className="font-mono font-bold text-emerald-400 text-sm">{currencySymbol}{totalAmount.toLocaleString()}</span>
+          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between text-xs">
+            <span className="text-slate-800 dark:text-[var(--foreground)] font-medium">Grand Total Added</span>
+            <span className="font-mono font-bold text-emerald-500 text-sm">{currencySymbol}{totalAmount.toLocaleString()}</span>
           </div>
 
           {createdTransactions.map((tx, idx) => (
-            <div key={tx.id || idx} className="p-2.5 bg-[#050506] border border-emerald-500/10 rounded-lg flex items-center justify-between gap-3 font-mono">
+            <div key={tx.id || idx} className="p-2.5 bg-white dark:bg-[var(--background-base)] border border-emerald-500/15 rounded-lg flex items-center justify-between gap-3 font-mono">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="w-4 h-4 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-bold flex items-center justify-center shrink-0">
+                <span className="w-4 h-4 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-bold flex items-center justify-center shrink-0">
                   <Check className="w-2.5 h-2.5" />
                 </span>
-                <span className="text-xs font-sans text-white truncate font-medium">
+                <span className="text-xs font-sans text-slate-800 dark:text-[var(--foreground)] truncate font-medium">
                   {tx.title}
                 </span>
-                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#5E6AD2]/10 text-[#818cf8] border border-[#5E6AD2]/20 shrink-0">
+                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0 font-semibold">
                   {tx.type}
                 </span>
               </div>
-              <div className="text-xs font-bold text-emerald-400 shrink-0">
+              <div className="text-xs font-bold text-emerald-500 shrink-0">
                 {currencySymbol}{tx.amount.toLocaleString()}
               </div>
             </div>
@@ -265,9 +268,9 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
         /* Pre-approval Editable Items List */
         <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
           {items.map((item, idx) => (
-            <div key={idx} className="p-2.5 bg-[#050506] border border-white/[0.04] hover:border-white/[0.08] rounded-lg flex items-center justify-between gap-3 transition-all">
+            <div key={idx} className="p-2.5 bg-white dark:bg-[var(--background-base)] border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-500/30 rounded-lg flex items-center justify-between gap-3 transition-all">
               <div className="flex-1 min-w-0 flex items-center gap-2 font-mono">
-                <span className="w-4 h-4 rounded bg-white/[0.04] text-slate-400 text-[9px] font-bold flex items-center justify-center shrink-0">
+                <span className="w-4 h-4 rounded bg-slate-100 dark:bg-[var(--surface-active)] text-slate-500 dark:text-[var(--foreground-muted)] text-[9px] font-bold flex items-center justify-center shrink-0">
                   {idx + 1}
                 </span>
                 <input
@@ -276,29 +279,29 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
                   value={item.title}
                   onChange={(e) => handleUpdateItem(idx, 'title', e.target.value)}
                   placeholder="Item name"
-                  className="bg-transparent border-b border-transparent focus:border-[#5E6AD2] text-xs font-sans text-white focus:outline-none w-full truncate disabled:opacity-80 font-medium"
+                  className="bg-transparent border-b border-transparent focus:border-indigo-500 text-xs font-sans text-slate-900 dark:text-[var(--foreground)] placeholder-slate-400 dark:placeholder-[var(--foreground-muted)] focus:outline-none w-full truncate disabled:opacity-80 font-medium"
                 />
-                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-[#5E6AD2]/10 text-[#818cf8] border border-[#5E6AD2]/20 shrink-0">
+                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0 font-semibold">
                   {item.type || 'SPENDING'}
                 </span>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
+                <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
                   <span>{currencySymbol}</span>
                   <input
                     type="number"
                     disabled={status === 'saving'}
                     value={item.amount}
                     onChange={(e) => handleUpdateItem(idx, 'amount', e.target.value)}
-                    className="bg-transparent text-xs font-bold text-emerald-400 focus:outline-none w-14 text-right disabled:opacity-80"
+                    className="bg-transparent text-xs font-bold text-emerald-500 focus:outline-none w-14 text-right disabled:opacity-80"
                   />
                 </div>
 
                 <button
                   type="button"
                   onClick={() => handleRemoveItem(idx)}
-                  className="p-1 text-slate-500 hover:text-rose-400 rounded hover:bg-rose-500/10 transition-colors cursor-pointer"
+                  className="p-1 text-slate-400 dark:text-[var(--foreground-muted)] hover:text-rose-500 rounded hover:bg-rose-500/10 transition-colors cursor-pointer"
                   title="Remove item"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -311,15 +314,15 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
 
       {/* Action Footer */}
       {status === 'pending' || status === 'saving' || status === 'error' ? (
-        <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-3">
-          <span className="text-[10px] text-slate-400 font-mono">
+        <div className="mt-3.5 pt-3 border-t border-slate-200/90 dark:border-[var(--border-default)] flex items-center justify-between gap-3">
+          <span className="text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-mono">
             Deducts from active salary balance
           </span>
           <button
             type="button"
             disabled={status === 'saving' || items.length === 0}
             onClick={handleCreateAll}
-            className="btn-linear-primary text-xs px-3.5 py-1.5 flex items-center justify-center gap-1.5 disabled:opacity-50"
+            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
           >
             {status === 'saving' ? (
               <>
@@ -335,9 +338,9 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
           </button>
         </div>
       ) : status === 'approved' ? (
-        <div className="mt-3.5 pt-3 border-t border-white/[0.06] flex items-center justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-emerald-400 font-mono">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+        <div className="mt-3.5 pt-3 border-t border-slate-200/90 dark:border-[var(--border-default)] flex items-center justify-between gap-3">
+          <span className="flex items-center gap-1.5 text-xs text-emerald-500 font-mono font-semibold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
             <span>Recorded into e-Passbook</span>
           </span>
 
@@ -346,7 +349,7 @@ function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated
             type="button"
             disabled={status === 'rolling_back'}
             onClick={handleRollback}
-            className="px-3 py-1.5 bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+            className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
             title="Undo and delete newly created transactions"
           >
             {status === 'rolling_back' ? (
@@ -399,7 +402,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
       if (part.startsWith('**') && part.endsWith('**')) {
         const boldText = part.slice(2, -2);
         return (
-          <strong key={idx} className="font-extrabold text-white bg-white/5 px-1 py-0.5 rounded">
+          <strong key={idx} className="font-extrabold text-slate-900 dark:text-[var(--foreground)] bg-slate-200/80 dark:bg-[var(--surface-active)] px-1 py-0.5 rounded">
             {boldText}
           </strong>
         );
@@ -407,7 +410,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
       if (part.startsWith('`') && part.endsWith('`')) {
         const codeText = part.slice(1, -1);
         return (
-          <code key={idx} className="font-mono text-[#8B95F6] bg-[#5E6AD2]/10 px-1.5 py-0.5 rounded border border-[#5E6AD2]/20 text-xs">
+          <code key={idx} className="font-mono text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/20 text-xs font-semibold">
             {codeText}
           </code>
         );
@@ -419,10 +422,10 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
   const renderCellContent = (cell) => {
     const trimmed = cell.trim();
     if (trimmed.startsWith('+')) {
-      return <span className="text-emerald-400 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
+      return <span className="text-emerald-500 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
     }
     if (trimmed.startsWith('-') && !trimmed.startsWith('---')) {
-      return <span className="text-rose-400 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
+      return <span className="text-rose-500 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
     }
     return renderTextWithFormatting(cell);
   };
@@ -438,7 +441,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
       const text = paragraphText.join('\n').trim();
       if (text) {
         elements.push(
-          <p key={`p-${key}`} className="whitespace-pre-line break-words mb-3 last:mb-0 leading-relaxed text-slate-300">
+          <p key={`p-${key}`} className="whitespace-pre-line break-words mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-[var(--foreground)]">
             {renderTextWithFormatting(text)}
           </p>
         );
@@ -450,22 +453,22 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
   const flushTable = (key) => {
     if (currentTable) {
       elements.push(
-        <div key={`table-wrapper-${key}`} className="my-4 overflow-x-auto rounded-xl border border-white/[0.06] bg-[#050506]/90 shadow-sm">
+        <div key={`table-wrapper-${key}`} className="my-4 overflow-x-auto rounded-xl border border-slate-200/90 dark:border-[var(--border-default)] bg-white dark:bg-[var(--background-elevated)] shadow-xs">
           <table className="w-full border-collapse text-left text-xs md:text-sm">
             <thead>
-              <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+              <tr className="border-b border-slate-200/90 dark:border-[var(--border-default)] bg-slate-50 dark:bg-[var(--surface-hover)]">
                 {currentTable.headers.map((h, hIdx) => (
-                  <th key={hIdx} className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider text-slate-400 font-bold">
+                  <th key={hIdx} className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider text-slate-600 dark:text-[var(--foreground-muted)] font-bold">
                     {renderTextWithFormatting(h)}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.04]">
+            <tbody className="divide-y divide-slate-200/80 dark:divide-[var(--border-default)]">
               {currentTable.rows.map((row, rIdx) => (
-                <tr key={rIdx} className="hover:bg-white/[0.02] transition-colors">
+                <tr key={rIdx} className="hover:bg-slate-50 dark:hover:bg-[var(--surface-hover)] transition-colors">
                   {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-4 py-2.5 text-slate-300">
+                    <td key={cIdx} className="px-4 py-2.5 text-slate-900 dark:text-[var(--foreground)]">
                       {renderCellContent(cell)}
                     </td>
                   ))}
@@ -483,7 +486,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
     if (currentList) {
       if (currentList.type === 'ul') {
         elements.push(
-          <ul key={`ul-${key}`} className={`list-disc list-inside space-y-1.5 my-3 pl-2 leading-relaxed ${isAi ? 'text-slate-300' : 'text-white'}`}>
+          <ul key={`ul-${key}`} className="list-disc list-inside space-y-1.5 my-3 pl-2 leading-relaxed text-slate-800 dark:text-[var(--foreground)]">
             {currentList.items.map((item, itemIdx) => (
               <li key={itemIdx}>
                 {renderTextWithFormatting(item)}
@@ -493,7 +496,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
         );
       } else {
         elements.push(
-          <ol key={`ol-${key}`} className={`list-decimal list-inside space-y-1.5 my-3 pl-2 leading-relaxed ${isAi ? 'text-slate-300' : 'text-white'}`}>
+          <ol key={`ol-${key}`} className="list-decimal list-inside space-y-1.5 my-3 pl-2 leading-relaxed text-slate-800 dark:text-[var(--foreground)]">
             {currentList.items.map((item, itemIdx) => (
               <li key={itemIdx}>
                 {renderTextWithFormatting(item)}
@@ -577,7 +580,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
     // 4. Horizontal Rule
     else if (trimmed === '---' || trimmed === '***') {
       flushAll(i);
-      elements.push(<hr key={`hr-${i}`} className="my-4 border-white/10" />);
+      elements.push(<hr key={`hr-${i}`} className="my-4 border-slate-200/90 dark:border-[var(--border-default)]" />);
     }
     // 5. Normal text / empty line
     else {
@@ -610,6 +613,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
 
 export default function Assistant() {
   const { user, loading } = useAuth();
+  const { theme, resolvedTheme, toggleTheme } = useTheme();
   const router = useRouter();
 
   const AVAILABLE_MODELS = [
@@ -743,7 +747,7 @@ export default function Assistant() {
       setMessages([
         {
           role: 'assistant',
-          content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
+          content: "Yo! 👋 I am your Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
         }
       ]);
       return;
@@ -815,7 +819,7 @@ export default function Assistant() {
       try {
         const errData = await res.json();
         errMsg = errData.error || errMsg;
-      } catch (e) {}
+      } catch (e) { }
       throw new Error(errMsg);
     }
 
@@ -1014,7 +1018,7 @@ export default function Assistant() {
     setAttachedImages(prev => {
       const target = prev.find(img => img.id === id);
       if (target?.previewUrl && target.previewUrl.startsWith('blob:')) {
-        try { URL.revokeObjectURL(target.previewUrl); } catch (e) {}
+        try { URL.revokeObjectURL(target.previewUrl); } catch (e) { }
       }
       return prev.filter(img => img.id !== id);
     });
@@ -1024,7 +1028,7 @@ export default function Assistant() {
   const handleClearAllImages = () => {
     attachedImages.forEach(img => {
       if (img.previewUrl && img.previewUrl.startsWith('blob:')) {
-        try { URL.revokeObjectURL(img.previewUrl); } catch (e) {}
+        try { URL.revokeObjectURL(img.previewUrl); } catch (e) { }
       }
     });
     setAttachedImages([]);
@@ -1075,7 +1079,7 @@ export default function Assistant() {
             setMessages([
               {
                 role: 'assistant',
-                content: "Yo! 👋 I am your Antigravity Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
+                content: "Yo! 👋 I am your Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
               }
             ]);
           }
@@ -1148,8 +1152,8 @@ export default function Assistant() {
     // 2. Append User Message to UI
     const defaultMsg = imagesToSend.length > 0 && !prompt.trim()
       ? (imagesToSend.length > 1
-          ? `Please scan these ${imagesToSend.length} receipt/bill images, extract and consolidate all purchased items with prices across all receipts, and ask for my approval before creating transactions.`
-          : "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions.")
+        ? `Please scan these ${imagesToSend.length} receipt/bill images, extract and consolidate all purchased items with prices across all receipts, and ask for my approval before creating transactions.`
+        : "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions.")
       : prompt.trim();
 
     const userMessage = {
@@ -1158,7 +1162,7 @@ export default function Assistant() {
       imagePreviews: resolvedUrls.length > 0 ? resolvedUrls : imagesToSend.map(img => img.previewUrl).filter(Boolean),
     };
 
-    const cleanMessages = messages.filter(m => m.id || !m.content.includes("Yo! 👋 I am your Antigravity Finance AI."));
+    const cleanMessages = messages.filter(m => m.id || !m.content.includes("Yo! 👋 I am your Finance AI."));
     const updatedMessages = [...cleanMessages, userMessage];
     setMessages(updatedMessages);
 
@@ -1185,7 +1189,7 @@ export default function Assistant() {
           try {
             const rawText = await res.text();
             if (rawText) errorMsg = rawText.slice(0, 120);
-          } catch (e2) {}
+          } catch (e2) { }
         }
         throw new Error(errorMsg);
       }
@@ -1231,10 +1235,10 @@ export default function Assistant() {
     if (isListening) {
       // User is stopping recording
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try { mediaRecorderRef.current.stop(); } catch (e) {}
+        try { mediaRecorderRef.current.stop(); } catch (e) { }
       }
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch (e) {}
+        try { recognitionRef.current.stop(); } catch (e) { }
       }
       setIsListening(false);
       return;
@@ -1275,7 +1279,7 @@ export default function Assistant() {
         mediaRecorder.onstop = async () => {
           // Stop all mic tracks
           stream.getTracks().forEach(track => {
-            try { track.stop(); } catch (e) {}
+            try { track.stop(); } catch (e) { }
           });
 
           if (audioChunksRef.current.length === 0) return;
@@ -1330,7 +1334,7 @@ export default function Assistant() {
       try {
         recognition.lang = 'hi-IN'; // Multi-lingual (Hindi & Indian English)
       } catch (e) {
-        try { recognition.lang = 'en-US'; } catch (e2) {}
+        try { recognition.lang = 'en-US'; } catch (e2) { }
       }
       recognition.continuous = false;
       recognition.interimResults = true;
@@ -1489,75 +1493,90 @@ export default function Assistant() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[var(--background-deep)]">
+        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-background app-sidebar-offset">
+    <div className="relative min-h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-[var(--background-deep)] text-slate-900 dark:text-[var(--foreground)] app-sidebar-offset transition-colors duration-200">
       <Navbar />
 
       {/* Decorative Ambient Orbs */}
-      <div className="absolute top-20 left-1/4 w-96 h-96 bg-[#5E6AD2]/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-[#06B6D4]/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* AI Assistant Dedicated Page Header Bar - Positioned right below Top Navbar */}
-      <div className="w-full border-b border-white/[0.06] bg-[#050506]/85 backdrop-blur-2xl shrink-0 z-30 shadow-sm">
+      <div className="w-full border-b border-slate-200/80 dark:border-[var(--border-default)] bg-white/90 dark:bg-[var(--background-elevated)]/90 backdrop-blur-2xl shrink-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-2.5 md:py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             {/* Sidebar toggle button */}
             <button
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 hover:bg-white/[0.04] border border-white/[0.08] hover:border-[#5E6AD2]/30 text-slate-400 hover:text-white rounded-xl transition-all cursor-pointer shrink-0"
+              className="p-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-[var(--surface)] dark:hover:bg-[var(--surface-hover)] border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-500/30 text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer shrink-0"
               title={isSidebarOpen ? "Hide Chat Logs" : "Show Chat Logs"}
             >
               {isSidebarOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Menu className="w-4 h-4 md:w-5 md:h-5" />}
             </button>
 
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="p-2 bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 rounded-xl text-[#6872D9] shadow-sm shadow-[#5E6AD2]/10 shrink-0 flex items-center justify-center">
+              <span className="p-2 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-xs shrink-0 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
               </span>
               <div className="min-w-0 text-left">
-                <h1 className="text-sm md:text-lg font-bold text-white tracking-tight truncate flex items-center gap-2">
+                <h1 className="text-sm md:text-lg font-bold text-slate-900 dark:text-[var(--foreground)] tracking-tight truncate flex items-center gap-2">
                   <span>AI Assistant</span>
-                  <span className="hidden sm:inline text-xs font-medium text-slate-500">• Vision & Finance</span>
+                  <span className="hidden sm:inline text-xs font-medium text-slate-500 dark:text-[var(--foreground-muted)]">• Vision & Finance</span>
                 </h1>
-                <p className="text-slate-500 text-[10px] md:text-xs truncate hidden xs:block sm:block">
+                <p className="text-slate-500 dark:text-[var(--foreground-muted)] text-[10px] md:text-xs truncate hidden xs:block sm:block">
                   Receipt OCR extraction & real-time ledger intelligence.
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Syncing Indicators & Model Selector */}
+          {/* Syncing Indicators, Model Selector & Theme Switcher */}
           <div className="flex items-center gap-2 shrink-0">
+            {/* Dark / Light Mode Toggle Button */}
+            {/* <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-[var(--surface)] dark:hover:bg-[var(--surface-hover)] border border-slate-200/90 dark:border-[var(--border-default)] text-slate-700 hover:text-slate-900 dark:text-[var(--foreground-muted)] dark:hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center active:scale-95"
+              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+              aria-label="Toggle Theme"
+            >
+              {resolvedTheme === 'dark' ? (
+                <Moon className="w-4 h-4 text-indigo-400" />
+              ) : (
+                <Sun className="w-4 h-4 text-amber-500" />
+              )}
+            </button> */}
+
             <div className="relative flex items-center">
               <select
                 value={selectedModel}
                 onChange={(e) => handleModelChange(e.target.value)}
-                className="appearance-none bg-[#0a0a0c] hover:bg-[#121216] border border-white/[0.08] hover:border-white/20 text-[10px] md:text-xs font-mono uppercase tracking-wider text-slate-300 hover:text-white rounded-xl py-1.5 md:py-2 pl-3 pr-8 md:pr-9 focus:outline-none focus:border-[#5E6AD2]/50 transition-all cursor-pointer shadow-sm"
+                className="appearance-none bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-500/40 text-[10px] md:text-xs font-mono uppercase tracking-wider text-slate-800 dark:text-[var(--foreground)] rounded-xl py-1.5 md:py-2 pl-3 pr-8 md:pr-9 focus:outline-none focus:border-indigo-500 transition-all cursor-pointer shadow-xs"
               >
                 {AVAILABLE_MODELS.map((model) => (
-                  <option key={model.id} value={model.id} className="bg-[#0a0a0c] text-slate-300 font-mono text-xs">
+                  <option key={model.id} value={model.id} className="bg-white dark:bg-[var(--background-elevated)] text-slate-900 dark:text-[var(--foreground)] font-mono text-xs">
                     {model.name}
                   </option>
                 ))}
               </select>
-              <div className="pointer-events-none absolute right-2.5 md:right-3 flex items-center text-[#8B95F6]">
+              <div className="pointer-events-none absolute right-2.5 md:right-3 flex items-center text-indigo-500 dark:text-indigo-400">
                 <ChevronDown className="w-3.5 h-3.5" />
               </div>
             </div>
 
-            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#8B95F6] rounded-xl text-[10px] font-mono tracking-wider">
-              <Sparkles className="w-3.5 h-3.5 text-[#6872D9]" />
+            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-mono tracking-wider font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
               Sarvam AI Audio
             </span>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-[10px] font-mono tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-mono tracking-wider font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Ledger Linked
             </span>
           </div>
@@ -1575,7 +1594,7 @@ export default function Assistant() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="absolute inset-0 bg-black/70 backdrop-blur-md cursor-pointer"
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
             />
 
             {/* Slide-out Drawer Panel */}
@@ -1585,16 +1604,16 @@ export default function Assistant() {
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[320px] bg-[#0a0a0c]/98 backdrop-blur-2xl border-r border-white/[0.06] shadow-[20px_0_50px_rgba(0,0,0,0.9)] flex flex-col justify-between p-4 z-10"
+              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[320px] bg-white/98 dark:bg-[var(--background-elevated)] backdrop-blur-2xl border-r border-slate-200/80 dark:border-[var(--border-default)] shadow-2xl flex flex-col justify-between p-4 z-10 text-slate-900 dark:text-[var(--foreground)]"
               style={{
                 paddingTop: 'max(16px, env(safe-area-inset-top, 0px))',
                 paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))',
               }}
             >
               {/* Header inside Mobile Drawer */}
-              <div className="flex items-center justify-between gap-3 pb-4 border-b border-white/[0.06] shrink-0">
-                <div className="flex items-center gap-2 font-bold text-white">
-                  <span className="p-1.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 rounded-lg text-[#6872D9]">
+              <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-200/80 dark:border-[var(--border-default)] shrink-0">
+                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-[var(--foreground)]">
+                  <span className="p-1.5 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-indigo-600 dark:text-indigo-400">
                     <Sparkles className="w-4 h-4" />
                   </span>
                   <span className="text-sm">Chat History & Logs</span>
@@ -1602,7 +1621,7 @@ export default function Assistant() {
 
                 <button
                   onClick={() => setIsSidebarOpen(false)}
-                  className="p-1.5 hover:bg-white/[0.06] rounded-xl text-slate-400 hover:text-white transition-all cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] rounded-xl text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)] transition-all cursor-pointer"
                   title="Close Drawer"
                 >
                   <X className="w-5 h-5" />
@@ -1615,7 +1634,7 @@ export default function Assistant() {
                   handleCreateSession();
                   setIsSidebarOpen(false);
                 }}
-                className="btn-linear-primary w-full py-2.5 px-4 my-3 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl shrink-0 active:scale-98"
+                className="w-full py-2.5 px-4 my-3 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer active:scale-98 transition-all"
               >
                 <Plus className="w-4 h-4" /> New Chat Session
               </button>
@@ -1623,12 +1642,12 @@ export default function Assistant() {
               {/* Scrollable list of sessions */}
               <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin my-1">
                 {isLoadingSessions ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 text-xs font-mono">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#6872D9]" />
+                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 dark:text-[var(--foreground-muted)] text-xs font-mono">
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
                     <span>Syncing past logs...</span>
                   </div>
                 ) : sessions.length === 0 ? (
-                  <div className="text-center py-10 px-4 text-xs text-slate-500">
+                  <div className="text-center py-10 px-4 text-xs text-slate-500 dark:text-[var(--foreground-muted)]">
                     No active sessions. Start a new session or upload a receipt to chat!
                   </div>
                 ) : (
@@ -1641,14 +1660,13 @@ export default function Assistant() {
                           setActiveSessionId(s.id);
                           setIsSidebarOpen(false);
                         }}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${
-                          isActive
-                            ? 'bg-[#5E6AD2]/15 border-[#5E6AD2]/40 text-white shadow-sm shadow-[#5E6AD2]/10'
-                            : 'bg-[#050506]/60 hover:bg-white/[0.03] border-white/[0.04] text-slate-400 hover:text-white'
-                        }`}
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${isActive
+                            ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
+                            : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
+                          }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-8">
-                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#8B95F6]' : 'text-slate-500'}`} />
+                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-[var(--foreground-muted)]'}`} />
                           <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
                         </div>
 
@@ -1658,7 +1676,7 @@ export default function Assistant() {
                             e.stopPropagation();
                             handleDeleteSession(e, s.id);
                           }}
-                          className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
+                          className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-400 dark:text-[var(--foreground-muted)] hover:text-rose-500 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
                           title="Delete Session"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1670,9 +1688,9 @@ export default function Assistant() {
               </div>
 
               {/* Mobile Drawer Bottom Info */}
-              <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-[10px] text-slate-500 font-mono shrink-0">
+              <div className="pt-3 border-t border-slate-200/80 dark:border-[var(--border-default)] flex items-center justify-between text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-mono shrink-0">
                 <span>{sessions.length} Saved Sessions</span>
-                <span className="text-[#8B95F6] font-bold uppercase">{selectedModel}</span>
+                <span className="text-indigo-600 dark:text-indigo-400 font-bold uppercase">{selectedModel}</span>
               </div>
             </motion.aside>
           </div>
@@ -1692,19 +1710,19 @@ export default function Assistant() {
               animate={{ width: 288, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="bg-[#0a0a0c]/80 backdrop-blur-xl border border-white/[0.06] rounded-2xl flex flex-col p-4 shrink-0 overflow-hidden h-full shadow-linear-card"
+              className="bg-white/95 dark:bg-[var(--background-elevated)] backdrop-blur-xl border border-slate-200/80 dark:border-[var(--border-default)] rounded-2xl flex flex-col p-4 shrink-0 overflow-hidden h-full shadow-xs"
             >
               {/* Header with New Chat Button */}
               <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
-                <span className="text-sm font-semibold text-white flex items-center gap-2">
-                  <History className="w-4 h-4 text-[#8B95F6]" /> Chat Logs
+                <span className="text-sm font-semibold text-slate-900 dark:text-[var(--foreground)] flex items-center gap-2">
+                  <History className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Chat Logs
                 </span>
               </div>
 
               {/* Create new chat session button */}
               <button
                 onClick={handleCreateSession}
-                className="btn-linear-primary w-full py-2.5 px-4 mb-4 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl shrink-0 active:scale-98"
+                className="w-full py-2.5 px-4 mb-4 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer active:scale-98 transition-all"
               >
                 <Plus className="w-4 h-4" /> New Session
               </button>
@@ -1712,12 +1730,12 @@ export default function Assistant() {
               {/* Scrollable list of sessions */}
               <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin">
                 {isLoadingSessions ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-500 text-xs font-mono">
-                    <Loader2 className="w-5 h-5 animate-spin text-[#6872D9]" />
+                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-500 dark:text-[var(--foreground-muted)] text-xs font-mono">
+                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
                     <span>Syncing past logs...</span>
                   </div>
                 ) : sessions.length === 0 ? (
-                  <div className="text-center py-8 px-4 text-xs text-slate-500">
+                  <div className="text-center py-8 px-4 text-xs text-slate-500 dark:text-[var(--foreground-muted)]">
                     No active sessions. Send a message or upload a receipt to start!
                   </div>
                 ) : (
@@ -1727,21 +1745,20 @@ export default function Assistant() {
                       <div
                         key={s.id}
                         onClick={() => setActiveSessionId(s.id)}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${
-                          isActive
-                            ? 'bg-[#5E6AD2]/15 border-[#5E6AD2]/40 text-white shadow-sm shadow-[#5E6AD2]/10'
-                            : 'bg-[#050506]/40 hover:bg-white/[0.03] border-white/[0.04] text-slate-400 hover:text-white'
-                        }`}
+                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${isActive
+                            ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
+                            : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
+                          }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-6">
-                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#8B95F6]' : 'text-slate-500'}`} />
+                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-[var(--foreground-muted)]'}`} />
                           <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
                         </div>
 
                         {/* In-place Delete Button */}
                         <button
                           onClick={(e) => handleDeleteSession(e, s.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-500 hover:text-rose-400 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2"
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 dark:text-[var(--foreground-muted)] hover:text-rose-500 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2"
                           title="Delete Session"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -1758,12 +1775,12 @@ export default function Assistant() {
         {/* MAIN CHAT CONSOLE */}
         <motion.main
           layout
-          className="flex-grow md:bg-[#0a0a0c]/60 md:backdrop-blur-xl md:border md:border-white/[0.06] md:rounded-2xl p-3 md:p-6 flex flex-col justify-between overflow-hidden relative h-full shadow-linear-card"
+          className="flex-grow md:bg-white/95 dark:md:bg-[var(--background-elevated)] md:backdrop-blur-xl md:border md:border-slate-200/80 dark:md:border-[var(--border-default)] md:rounded-2xl p-3 md:p-6 flex flex-col justify-between overflow-hidden relative h-full shadow-xs"
         >
 
           {/* Error Banner with Retry */}
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left mb-2">
+            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left mb-2">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
@@ -1785,7 +1802,7 @@ export default function Assistant() {
                     sendMessage();
                   }
                 }}
-                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-300 rounded-lg text-[10px] font-mono tracking-wider uppercase transition-all shrink-0 cursor-pointer"
+                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-600 dark:text-rose-300 rounded-lg text-[10px] font-mono tracking-wider uppercase transition-all shrink-0 cursor-pointer"
               >
                 Retry Dispatch
               </button>
@@ -1796,25 +1813,25 @@ export default function Assistant() {
           <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 pb-44 md:pb-4 scrollbar-thin scroll-smooth min-h-0">
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-[#6872D9]" />
-                <span className="text-slate-500 text-sm font-medium">Loading conversation...</span>
+                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+                <span className="text-slate-500 dark:text-[var(--foreground-muted)] text-sm font-medium">Loading conversation...</span>
               </div>
             ) : messages.length === 0 ? (
               /* Premium Onboarding / Empty State */
               <div className="flex-grow flex flex-col justify-center items-center py-8 text-center max-w-xl mx-auto gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 text-[#6872D9] flex items-center justify-center shadow-lg shadow-[#5E6AD2]/10">
+                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-500/10">
                   <Sparkles className="w-8 h-8" />
                 </div>
                 <div className="flex flex-col gap-2 px-4">
-                  <h3 className="text-white text-lg font-bold tracking-tight">AI Vision & Personal Finance Assistant</h3>
-                  <p className="text-slate-400 text-xs leading-relaxed">
+                  <h3 className="text-slate-900 dark:text-[var(--foreground)] text-lg font-bold tracking-tight">AI Vision & Personal Finance Assistant</h3>
+                  <p className="text-slate-500 dark:text-[var(--foreground-muted)] text-xs leading-relaxed">
                     Upload receipt/bill photos to automatically extract item prices, or ask questions to audit your balances, salary deductions, and active lending logs.
                   </p>
                 </div>
 
                 {/* Suggestions Tags */}
                 <div className="w-full flex flex-col gap-2 mt-4 px-2">
-                  <span className="text-slate-500 text-[10px] font-mono uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
+                  <span className="text-slate-500 dark:text-[var(--foreground-muted)] text-[10px] font-mono uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {suggestions.map((s, idx) => {
                       const Icon = s.icon;
@@ -1828,9 +1845,9 @@ export default function Assistant() {
                               sendMessage(s.text);
                             }
                           }}
-                          className="flex items-center gap-3 px-4 py-3 bg-[#050506]/80 hover:bg-[#5E6AD2]/5 border border-white/[0.06] hover:border-[#5E6AD2]/30 text-slate-300 hover:text-white rounded-xl text-xs font-medium text-left transition-all cursor-pointer group"
+                          className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-[var(--background-base)] hover:bg-indigo-50/80 dark:hover:bg-indigo-500/10 border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-300 dark:hover:border-indigo-500/30 text-slate-800 dark:text-[var(--foreground)] rounded-xl text-xs font-medium text-left transition-all cursor-pointer group shadow-2xs"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/10 group-hover:bg-[#5E6AD2]/20 text-[#8B95F6] flex items-center justify-center shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 group-hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
                             <Icon className="w-4 h-4" />
                           </div>
                           <span>{s.text}</span>
@@ -1853,38 +1870,36 @@ export default function Assistant() {
                       className={`flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left ${isAi ? 'justify-start items-start' : 'justify-end items-end md:items-start'}`}
                     >
                       {isAi && (
-                        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm transition-all ${
-                          isStreamingCurrent
-                            ? 'bg-[#5E6AD2]/25 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
-                            : 'bg-[#5E6AD2]/10 border-[#5E6AD2]/25 text-[#6872D9]'
-                        }`}>
+                        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-xs transition-all ${isStreamingCurrent
+                            ? 'bg-indigo-500/25 border-indigo-500 text-indigo-600 dark:text-indigo-400 animate-pulse'
+                            : 'bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400'
+                          }`}>
                           <Bot className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
                       )}
 
                       {!isAi && (
-                        <div className="md:hidden w-8 h-8 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center shrink-0">
+                        <div className="md:hidden w-8 h-8 rounded-xl bg-slate-200 dark:bg-[var(--surface-active)] border border-slate-300 dark:border-[var(--border-default)] text-slate-600 dark:text-[var(--foreground-muted)] flex items-center justify-center shrink-0">
                           <UserIcon className="w-4 h-4" />
                         </div>
                       )}
 
-                      <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-sm transition-all ${
-                        isAi
+                      <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-xs transition-all ${isAi
                           ? isStreamingCurrent
-                            ? 'bg-[#0a0a0c] border border-[#5E6AD2]/40 text-slate-200 font-normal shadow-lg shadow-[#5E6AD2]/10'
-                            : 'bg-[#0a0a0c] border border-white/[0.06] text-slate-200 font-normal'
-                          : 'bg-[#5E6AD2] text-white font-medium shadow-sm shadow-[#5E6AD2]/20'
+                            ? 'bg-white dark:bg-[var(--background-base)] border border-indigo-400 dark:border-indigo-500/40 text-slate-900 dark:text-[var(--foreground)] font-normal shadow-lg shadow-indigo-500/10'
+                            : 'bg-slate-100/90 dark:bg-[var(--background-base)] border border-slate-200/80 dark:border-[var(--border-default)] text-slate-900 dark:text-[var(--foreground)] font-normal shadow-2xs'
+                          : 'bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-600/20'
                         }`}>
 
                         {/* Live Streaming Gemini Transcript Banner */}
                         {isStreamingCurrent && (
-                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#5E6AD2]/20 text-[10px] font-mono text-[#8B95F6]">
+                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-indigo-500/20 text-[10px] font-mono text-indigo-500">
                             <span className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                              <Radio className="w-3.5 h-3.5 text-[#8B95F6] animate-pulse" />
+                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                              <Radio className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
                               <span>Live Gemini Streaming...</span>
                             </span>
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-mono">{selectedModel}</span>
+                            <span className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-[var(--foreground-muted)] font-mono">{selectedModel}</span>
                           </div>
                         )}
 
@@ -1910,20 +1925,19 @@ export default function Assistant() {
                             <>
                               {!isAi && extractedImgUrls.length > 0 && (
                                 <div className="mb-3">
-                                  <div className={`grid gap-2 ${
-                                    extractedImgUrls.length === 1
+                                  <div className={`grid gap-2 ${extractedImgUrls.length === 1
                                       ? 'grid-cols-1 max-w-sm'
                                       : extractedImgUrls.length === 2
                                         ? 'grid-cols-2'
                                         : extractedImgUrls.length === 3
                                           ? 'grid-cols-3'
                                           : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
-                                  }`}>
+                                    }`}>
                                     {extractedImgUrls.map((src, imgIdx) => (
                                       <div
                                         key={imgIdx}
                                         onClick={() => setLightboxImage(src)}
-                                        className="relative group rounded-xl overflow-hidden border border-white/20 shadow-md cursor-pointer aspect-video bg-[#050506]"
+                                        className="relative group rounded-xl overflow-hidden border border-white/20 shadow-md cursor-pointer aspect-video bg-black/20"
                                       >
                                         <img
                                           src={src}
@@ -1944,10 +1958,10 @@ export default function Assistant() {
 
                               <div className="break-words">
                                 {formatMessageContent(textContentToRender, isAi, user?.currency, () => loadSessions(false))}
-                                
+
                                 {/* Live typing cursor during streaming */}
                                 {isStreamingCurrent && (
-                                  <span className="inline-block w-2 h-4 bg-[#8B95F6] animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(94,106,210,0.8)]"></span>
+                                  <span className="inline-block w-2 h-4 bg-indigo-500 animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(99,102,241,0.8)]"></span>
                                 )}
                               </div>
                             </>
@@ -1956,9 +1970,9 @@ export default function Assistant() {
 
                         {/* Completed AI Transcript Actions */}
                         {isAi && msg.content && !isStreamingCurrent && (
-                          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-white/[0.06] text-[10px] text-slate-400 font-medium">
-                            <span className="flex items-center gap-1.5 text-slate-500 text-[9px] uppercase font-mono tracking-wider">
-                              <Sparkles className="w-3 h-3 text-[#6872D9]" />
+                          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-200/80 dark:border-[var(--border-default)] text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-medium">
+                            <span className="flex items-center gap-1.5 text-slate-500 dark:text-[var(--foreground-muted)] text-[9px] uppercase font-mono tracking-wider">
+                              <Sparkles className="w-3 h-3 text-indigo-500" />
                               <span>Gemini Response</span>
                             </span>
                             <div className="flex items-center gap-1.5">
@@ -1967,13 +1981,12 @@ export default function Assistant() {
                                 type="button"
                                 onClick={() => handleSpeak(msg.content, idx)}
                                 disabled={audioLoadingMsgIdx === idx}
-                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                                  speakingMsgIdx === idx
-                                    ? 'bg-[#5E6AD2]/25 text-[#8B95F6] animate-pulse'
+                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${speakingMsgIdx === idx
+                                    ? 'bg-indigo-500/25 text-indigo-600 dark:text-indigo-400 animate-pulse'
                                     : audioLoadingMsgIdx === idx
-                                      ? 'bg-[#5E6AD2]/15 text-[#8B95F6]'
-                                      : 'hover:bg-white/[0.06] text-slate-400 hover:text-white'
-                                }`}
+                                      ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                                      : 'hover:bg-slate-200/70 dark:hover:bg-[var(--surface-hover)] text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
+                                  }`}
                                 title={
                                   audioLoadingMsgIdx === idx
                                     ? "Synthesizing Sarvam AI voice..."
@@ -1983,7 +1996,7 @@ export default function Assistant() {
                                 }
                               >
                                 {audioLoadingMsgIdx === idx ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B95F6]" />
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
                                 ) : speakingMsgIdx === idx ? (
                                   <VolumeX className="w-3.5 h-3.5" />
                                 ) : (
@@ -1995,10 +2008,10 @@ export default function Assistant() {
                               <button
                                 type="button"
                                 onClick={() => handleCopyTranscript(msg.content, idx)}
-                                className="p-1.5 hover:bg-white/[0.06] rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                                className="p-1.5 hover:bg-slate-200/70 dark:hover:bg-[var(--surface-hover)] rounded-lg text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)] transition-colors cursor-pointer"
                                 title="Copy full transcript"
                               >
-                                {copiedMsgIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                                {copiedMsgIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                               </button>
                             </div>
                           </div>
@@ -2006,7 +2019,7 @@ export default function Assistant() {
                       </div>
 
                       {!isAi && (
-                        <div className="hidden md:flex w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 text-slate-300 flex items-center justify-center shrink-0">
+                        <div className="hidden md:flex w-9 h-9 rounded-xl bg-slate-200 dark:bg-[var(--surface-active)] border border-slate-300 dark:border-[var(--border-default)] text-slate-600 dark:text-[var(--foreground-muted)] flex items-center justify-center shrink-0">
                           <UserIcon className="w-5 h-5" />
                         </div>
                       )}
@@ -2016,13 +2029,13 @@ export default function Assistant() {
 
                 {isGenerating && !messages[messages.length - 1]?.content && (
                   <div className="flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left justify-start items-start animate-fade-in">
-                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#6872D9] flex items-center justify-center shrink-0 animate-pulse">
+                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 animate-pulse">
                       <Bot className="w-4 h-4 md:w-5 md:h-5" />
                     </div>
-                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-[#0a0a0c] border border-[#5E6AD2]/20 text-slate-300 text-xs font-mono flex items-center gap-2.5 shadow-md">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[#8B95F6]" />
+                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-white dark:bg-[var(--background-base)] border border-indigo-300 dark:border-indigo-500/20 text-slate-800 dark:text-[var(--foreground)] text-xs font-mono flex items-center gap-2.5 shadow-xs">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
                       <span className="flex items-center gap-1.5">
-                        <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
+                        <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
                         <span>Analyzing Vision & Ledger Data...</span>
                       </span>
                     </div>
@@ -2033,21 +2046,21 @@ export default function Assistant() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Pinned Input Container: Fixed on mobile right above bottom navbar, cleanly integrated at bottom on desktop */}
-          <div className="fixed bottom-[calc(max(14px,calc(env(safe-area-inset-bottom,0px)+8px))+64px)] left-0 right-0 z-40 px-3 py-2.5 bg-[#050506]/95 backdrop-blur-2xl border-t border-white/[0.06] shadow-[0_-10px_35px_rgba(0,0,0,0.8)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:px-0 md:py-0 md:bg-transparent md:backdrop-blur-none md:border-t md:border-white/[0.06] md:shadow-none md:pt-3 space-y-2">
-            
+          {/* Unified Floating AI Chat Input Capsule - Sits cleanly above floating bottom dock on mobile, and at base on desktop */}
+          <div className="fixed left-3 right-3 max-w-[420px] md:max-w-none mx-auto z-40 bottom-[calc(max(10px,calc(env(safe-area-inset-bottom,0px)+6px))+62px)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:pt-3 space-y-2">
+
             {/* Multi-Image Attachment Preview Strip (up to 10 images) */}
             {attachedImages.length > 0 && (
-              <div className="p-3 rounded-2xl bg-[#0a0a0c] border border-white/[0.08] shadow-lg animate-fade-in space-y-2.5 text-left">
+              <div className="p-3 rounded-2xl bg-white/95 dark:bg-[#07070a]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-white/[0.12] shadow-xl dark:shadow-[0_16px_40px_rgba(0,0,0,0.85)] animate-fade-in space-y-2 text-left">
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-white font-semibold flex items-center gap-1.5">
-                    <Images className="w-4 h-4 text-[#8B95F6]" />
+                  <span className="text-slate-900 dark:text-white font-semibold flex items-center gap-1.5">
+                    <Images className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                     <span>Attached Receipts ({attachedImages.length}/10)</span>
                   </span>
                   <button
                     type="button"
                     onClick={handleClearAllImages}
-                    className="text-rose-400 hover:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
+                    className="text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
                   >
                     Clear All
                   </button>
@@ -2057,11 +2070,10 @@ export default function Assistant() {
                   {attachedImages.map((img, idx) => (
                     <div
                       key={img.id}
-                      className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border group bg-[#050506] transition-all ${
-                        img.status === 'error'
-                          ? 'border-rose-500/60 bg-rose-950/30'
-                          : 'border-white/10 hover:border-[#5E6AD2]/50'
-                      }`}
+                      className={`relative shrink-0 w-18 h-18 rounded-xl overflow-hidden border group bg-slate-50 dark:bg-black/40 transition-all ${img.status === 'error'
+                          ? 'border-rose-500/60 bg-rose-500/10'
+                          : 'border-slate-200 dark:border-white/10 hover:border-indigo-500/50'
+                        }`}
                     >
                       <img
                         src={img.previewUrl}
@@ -2073,8 +2085,8 @@ export default function Assistant() {
                       {/* Loading spinner */}
                       {img.status === 'uploading' && (
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1">
-                          <Loader2 className="w-4 h-4 animate-spin text-[#8B95F6]" />
-                          <span className="text-[8px] font-mono text-slate-300">R2 Sync</span>
+                          <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+                          <span className="text-[8px] font-mono text-white">R2 Sync</span>
                         </div>
                       )}
 
@@ -2089,11 +2101,11 @@ export default function Assistant() {
                       {img.status === 'error' && (
                         <div
                           onClick={() => handleRetryUpload(img.id)}
-                          className="absolute inset-0 bg-rose-950/85 flex flex-col items-center justify-center p-1 text-center cursor-pointer"
+                          className="absolute inset-0 bg-rose-100/90 dark:bg-rose-950/85 flex flex-col items-center justify-center p-1 text-center cursor-pointer"
                           title="Upload failed. Click to retry."
                         >
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-400 mb-0.5" />
-                          <span className="text-[8px] text-rose-200 font-bold underline">Retry</span>
+                          <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 mb-0.5" />
+                          <span className="text-[8px] text-rose-700 dark:text-rose-200 font-bold underline">Retry</span>
                         </div>
                       )}
 
@@ -2104,14 +2116,14 @@ export default function Assistant() {
                           e.stopPropagation();
                           handleRemoveAttachedImage(img.id);
                         }}
-                        className="absolute top-1 right-1 p-1 bg-black/80 hover:bg-rose-500 text-slate-300 hover:text-white rounded-full transition-colors cursor-pointer shadow-md"
+                        className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-rose-500 text-white rounded-full transition-colors cursor-pointer shadow-md"
                         title="Remove image"
                       >
                         <X className="w-3 h-3" />
                       </button>
 
                       {/* Order Index */}
-                      <span className="absolute bottom-1 left-1 bg-black/70 text-[8px] font-mono px-1 rounded text-slate-300">
+                      <span className="absolute bottom-1 left-1 bg-black/70 text-[8px] font-mono px-1 rounded text-white">
                         {idx + 1}
                       </span>
                     </div>
@@ -2122,10 +2134,10 @@ export default function Assistant() {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="shrink-0 w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-[#5E6AD2] hover:bg-[#5E6AD2]/5 flex flex-col items-center justify-center gap-1 text-[#8A8F98] hover:text-white transition-all cursor-pointer"
+                      className="shrink-0 w-18 h-18 rounded-xl border border-dashed border-slate-300 dark:border-white/15 hover:border-indigo-500 hover:bg-indigo-500/5 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
                       title="Add more images"
                     >
-                      <Plus className="w-4 h-4 text-[#8B95F6]" />
+                      <Plus className="w-4 h-4 text-indigo-500" />
                       <span className="text-[9px] font-mono">Add Photo</span>
                     </button>
                   )}
@@ -2133,8 +2145,16 @@ export default function Assistant() {
               </div>
             )}
 
-            {/* Form Input Row */}
-            <form onSubmit={handleFormSubmit} className="flex gap-2 items-center">
+            {/* Unified Single Input Capsule Bar */}
+            <form
+              onSubmit={handleFormSubmit}
+              className={`relative floating-bottom-dock rounded-full p-1.5 pl-2 flex items-center gap-1.5 transition-all duration-200 ${isListening
+                  ? 'border-rose-500 ring-2 ring-rose-500/30 shadow-rose-500/10'
+                  : isTranscribingAudio
+                    ? 'border-indigo-500 ring-2 ring-indigo-500/30 shadow-indigo-500/10'
+                    : 'focus-within:border-[#5E6AD2]/70 focus-within:ring-2 focus-within:ring-[#5E6AD2]/20'
+                }`}
+            >
               {/* Hidden File Input (supports multiple files) */}
               <input
                 ref={fileInputRef}
@@ -2150,13 +2170,12 @@ export default function Assistant() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || isProcessingImage}
-                className={`p-3 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer relative ${
-                  isProcessingImage
-                    ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
+                className={`relative p-2 md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isProcessingImage
+                    ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
                     : attachedImages.length > 0
-                      ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-[#8B95F6] shadow-sm'
-                      : 'bg-[#0a0a0c] hover:bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
+                      ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                      : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                  }`}
                 title={
                   isProcessingImage
                     ? "Uploading image(s) to R2..."
@@ -2166,12 +2185,12 @@ export default function Assistant() {
                 }
               >
                 {isProcessingImage ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-[#8B95F6]" />
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-indigo-600 dark:text-indigo-400" />
                 ) : (
                   <>
-                    <Camera className="w-5 h-5" />
+                    <Camera className="w-4 h-4 md:w-5 md:h-5" />
                     {attachedImages.length > 0 && (
-                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-[#5E6AD2] text-white text-[9px] font-bold flex items-center justify-center shadow-sm">
+                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
                         {attachedImages.length}
                       </span>
                     )}
@@ -2184,13 +2203,12 @@ export default function Assistant() {
                 type="button"
                 onClick={toggleSpeechRecognition}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
-                className={`p-3 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
-                  isListening
-                    ? 'bg-rose-500/25 border-rose-500 text-rose-300 animate-pulse shadow-md shadow-rose-900/50'
+                className={`p-2 md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isListening
+                    ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
                     : isTranscribingAudio
-                      ? 'bg-[#5E6AD2]/25 border-[#5E6AD2] text-[#8B95F6] animate-pulse'
-                      : 'bg-[#0a0a0c] hover:bg-white/[0.04] border-white/[0.08] text-slate-400 hover:text-white'
-                }`}
+                      ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
+                      : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                  }`}
                 title={
                   isListening
                     ? "Recording audio... (Click to transcribe with Sarvam AI)"
@@ -2200,14 +2218,15 @@ export default function Assistant() {
                 }
               >
                 {isTranscribingAudio ? (
-                  <Loader2 className="w-5 h-5 animate-spin text-[#8B95F6]" />
+                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-indigo-600 dark:text-indigo-400" />
                 ) : isListening ? (
-                  <MicOff className="w-5 h-5" />
+                  <MicOff className="w-4 h-4 md:w-5 md:h-5" />
                 ) : (
-                  <Mic className="w-5 h-5" />
+                  <Mic className="w-4 h-4 md:w-5 md:h-5" />
                 )}
               </button>
 
+              {/* Text Input */}
               <input
                 type="text"
                 value={input}
@@ -2215,31 +2234,30 @@ export default function Assistant() {
                 onPaste={handlePaste}
                 placeholder={
                   isListening
-                    ? "🎙️ Recording speech (Click mic again to transcribe)..."
+                    ? "🎙️ Listening... (Tap mic to transcribe)"
                     : isTranscribingAudio
-                      ? "⚡ Sarvam AI Saaras v3 transcribing speech..."
+                      ? "⚡ Sarvam AI transcribing speech..."
                       : isGenerating
                         ? "Gemini is scanning ledger..."
                         : attachedImages.length > 0
-                          ? `Add notes for ${attachedImages.length} receipt${attachedImages.length === 1 ? '' : 's'} or hit send...`
-                          : "Ask anything, speak (Sarvam Mic) or upload receipt..."
+                          ? `Add note for ${attachedImages.length} receipt${attachedImages.length === 1 ? '' : 's'}...`
+                          : "Ask anything, speak or upload receipt..."
                 }
-                className={`flex-grow pl-4 pr-3 py-3 md:py-3.5 bg-[#050506] border rounded-xl text-white placeholder-slate-500 text-sm focus:outline-none transition-all ${
-                  isListening
-                    ? 'border-rose-500/50 ring-1 ring-rose-500/30'
-                    : isTranscribingAudio
-                      ? 'border-[#5E6AD2]/50 ring-1 ring-[#5E6AD2]/30'
-                      : 'border-white/[0.08] focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/30'
-                }`}
+                className="flex-grow bg-transparent border-0 px-2 py-2 md:py-2.5 text-xs md:text-sm text-slate-900 dark:text-[#EDEDEF] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-0 font-normal"
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
               />
 
+              {/* Send Action Button */}
               <button
                 type="submit"
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && attachedImages.length === 0)}
-                className="btn-linear-primary p-3 md:p-3.5 rounded-xl disabled:opacity-40 disabled:pointer-events-none cursor-pointer shrink-0 flex items-center justify-center"
+                className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${input.trim() || attachedImages.length > 0
+                    ? 'bg-gradient-to-tr from-[#5E6AD2] via-[#7056E0] to-[#5E6AD2] text-white shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer hover:brightness-110'
+                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  }`}
+                title="Send message"
               >
-                <Send className="w-5 h-5" />
+                <Send className="w-4 h-4 md:w-4.5 md:h-4.5" />
               </button>
             </form>
           </div>
@@ -2253,7 +2271,7 @@ export default function Assistant() {
           onClick={() => setLightboxImage(null)}
           className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer"
         >
-          <div className="relative max-w-3xl max-h-[90vh] bg-[#0a0a0c] border border-white/[0.08] rounded-2xl p-2 shadow-2xl">
+          <div className="relative max-w-3xl max-h-[90vh] bg-white dark:bg-[var(--background-elevated)] border border-slate-200 dark:border-[var(--border-default)] rounded-2xl p-2 shadow-2xl">
             <img
               src={lightboxImage}
               alt="Receipt Zoom"
@@ -2261,7 +2279,7 @@ export default function Assistant() {
             />
             <button
               onClick={() => setLightboxImage(null)}
-              className="absolute top-4 right-4 p-2 bg-[#050506] text-white rounded-full hover:bg-rose-500 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-[var(--background-base)] text-slate-800 dark:text-[var(--foreground)] rounded-full hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -2270,8 +2288,8 @@ export default function Assistant() {
       )}
 
       {/* FOOTER */}
-      <footer className="hidden md:block border-t border-white/[0.06] py-4 shrink-0 z-10 bg-[#050506]/50 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 text-slate-500 text-[10px] text-center font-mono uppercase tracking-wider">
+      <footer className="hidden md:block border-t border-slate-200/80 dark:border-[var(--border-default)] py-4 shrink-0 z-10 bg-white/60 dark:bg-[var(--background-elevated)]/60 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-6 text-slate-500 dark:text-[var(--foreground-muted)] text-[10px] text-center font-mono uppercase tracking-wider">
           Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Multimodal Receipt OCR, Database Tools & Ledger Sync.
         </div>
       </footer>

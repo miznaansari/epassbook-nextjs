@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   /* Linear / Modern Design System Tokens - Dark (Default) */
   --background-deep: #020203;
