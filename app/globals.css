@@ -356,6 +356,17 @@ html.light .glass-nav {
 }
 
 /* Gen-Z Floating Capsule Bottom Dock */
+.floating-bottom-dock-container {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+  will-change: transform, opacity;
+}
+
+html[data-keyboard-open="true"] .floating-bottom-dock-container {
+  transform: translate3d(0, 110px, 0) !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 .floating-bottom-dock {
   background-color: rgba(7, 7, 10, 0.92);
   backdrop-filter: blur(24px);

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useSidebar } from '@/context/SidebarContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useKeyboard } from '@/context/KeyboardContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { setPendingCameraPhoto } from '@/lib/cameraBridge';
 import { 
@@ -45,6 +46,7 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const { isCollapsed, toggleSidebar, mounted } = useSidebar();
   const { theme, resolvedTheme, toggleTheme, setTheme } = useTheme();
+  const { isKeyboardOpen } = useKeyboard();
   const pathname = usePathname();
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -578,13 +580,20 @@ export default function Navbar() {
       {/* 4. GEN-Z / ALPHA FLOATING CAPSULE DOCK (< md)                             */}
       {/* ========================================================================= */}
       <div 
-        className="fixed left-3 right-3 max-w-[420px] mx-auto z-50 md:hidden"
+        className={`fixed left-3 right-3 max-w-[420px] mx-auto z-50 md:hidden floating-bottom-dock-container transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          isKeyboardOpen 
+            ? 'translate-y-28 opacity-0 pointer-events-none' 
+            : 'translate-y-0 opacity-100 pointer-events-auto'
+        }`}
         style={{ 
           bottom: 'max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px))',
-          transform: 'translate3d(0, 0, 0)',
-          WebkitTransform: 'translate3d(0, 0, 0)',
-          willChange: 'transform',
+          transform: isKeyboardOpen ? 'translate3d(0, 100px, 0)' : 'translate3d(0, 0, 0)',
+          WebkitTransform: isKeyboardOpen ? 'translate3d(0, 100px, 0)' : 'translate3d(0, 0, 0)',
+          opacity: isKeyboardOpen ? 0 : 1,
+          pointerEvents: isKeyboardOpen ? 'none' : 'auto',
+          willChange: 'transform, opacity',
         }}
+        aria-hidden={isKeyboardOpen}
       >
         <nav 
           className="relative floating-bottom-dock rounded-full p-1.5 flex items-center justify-between transition-all duration-200"

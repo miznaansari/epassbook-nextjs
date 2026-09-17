@@ -4,6 +4,7 @@ import NextTopLoader from "nextjs-toploader";
 import { AuthProvider } from "@/context/AuthContext";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { KeyboardProvider } from "@/context/KeyboardContext";
 import PWARegistration from "@/components/PWARegistration";
 import OneSignalProvider from "@/components/providers/OneSignalProvider";
 import IOSOnboardingBanner from "@/components/IOSOnboardingBanner";
@@ -127,11 +128,13 @@ export default function RootLayout({ children }) {
           <ThemeProvider>
             <AuthProvider>
               <SidebarProvider>
-                <PWARegistration />
-                <OneSignalProvider />
-                <IOSOnboardingBanner />
-                <NotificationScheduler />
-                {children}
+                <KeyboardProvider>
+                  <PWARegistration />
+                  <OneSignalProvider />
+                  <IOSOnboardingBanner />
+                  <NotificationScheduler />
+                  {children}
+                </KeyboardProvider>
               </SidebarProvider>
             </AuthProvider>
           </ThemeProvider>

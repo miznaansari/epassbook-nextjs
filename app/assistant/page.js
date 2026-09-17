@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
+import { useKeyboard } from '@/context/KeyboardContext';
 import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getPendingCameraPhoto } from '@/lib/cameraBridge';
@@ -614,6 +615,7 @@ const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCre
 export default function Assistant() {
   const { user, loading } = useAuth();
   const { theme, resolvedTheme, toggleTheme } = useTheme();
+  const { isKeyboardOpen } = useKeyboard();
   const router = useRouter();
 
   const AVAILABLE_MODELS = [
@@ -794,6 +796,16 @@ export default function Assistant() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isGenerating, isLoadingMessages, attachedImages]);
+
+  // Scroll to bottom when mobile virtual keyboard opens
+  useEffect(() => {
+    if (isKeyboardOpen) {
+      const timer = setTimeout(() => {
+        scrollToBottom();
+      }, 120);
+      return () => clearTimeout(timer);
+    }
+  }, [isKeyboardOpen]);
 
   // Helper to format file sizes
   const formatFileSize = (bytes) => {
@@ -1810,7 +1822,7 @@ export default function Assistant() {
           )}
 
           {/* CHAT VIEWPORT scroll container */}
-          <div className="flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 pb-44 md:pb-4 scrollbar-thin scroll-smooth min-h-0">
+          <div className={`flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 ${isKeyboardOpen ? 'pb-28' : 'pb-44'} md:pb-4 scrollbar-thin scroll-smooth min-h-0`}>
             {isLoadingMessages ? (
               <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
@@ -2047,7 +2059,13 @@ export default function Assistant() {
           </div>
 
           {/* Unified Floating AI Chat Input Capsule - Sits cleanly above floating bottom dock on mobile, and at base on desktop */}
-          <div className="fixed left-3 right-3 max-w-[420px] md:max-w-none mx-auto z-40 bottom-[calc(max(10px,calc(env(safe-area-inset-bottom,0px)+6px))+62px)] md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:pt-3 space-y-2">
+          <div 
+            className={`fixed left-3 right-3 max-w-[420px] md:max-w-none mx-auto z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:pt-3 space-y-2 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              isKeyboardOpen 
+                ? 'bottom-[max(8px,calc(env(safe-area-inset-bottom,0px)+4px))]' 
+                : 'bottom-[calc(max(10px,calc(env(safe-area-inset-bottom,0px)+6px))+62px)]'
+            }`}
+          >
 
             {/* Multi-Image Attachment Preview Strip (up to 10 images) */}
             {attachedImages.length > 0 && (
