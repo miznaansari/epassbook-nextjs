@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import Navbar from './Navbar';
 import SpotlightCard from './ui/SpotlightCard';
+import AiQuickAddInput from './AiQuickAddInput';
 
 export default function DashboardMobile({
   user,
@@ -259,30 +260,21 @@ export default function DashboardMobile({
             </button>
           </div>
 
-          {/* ⚡ Mobile Quick-Add Action Strip */}
-          <div className="pt-2 border-t border-[var(--border-default)] flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-mono font-bold text-amber-500 flex items-center gap-1 shrink-0">
-              <Zap className="w-3 h-3" /> Quick Add:
-            </span>
-            {getDynamicQuickAddPresets().map((preset, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  setEntryToEdit({
-                    amount: preset.amount,
-                    type: preset.type,
-                    title: preset.title,
-                    description: `Quick added ${preset.title}`,
-                    useSalaryBalance: preset.type === 'SPENDING'
-                  });
-                  setEntryModalOpen(true);
-                }}
-                className="px-2 py-1 rounded-lg text-[11px] font-medium bg-[var(--background-base)] border border-[var(--border-default)] text-[var(--foreground)] flex items-center gap-1 shrink-0"
-              >
-                <span>{preset.icon}</span>
-                <span>{preset.label}</span>
-              </button>
-            ))}
+          {/* 🔮 AI-POWERED NATURAL LANGUAGE QUICK-ADD & PRESETS */}
+          <div className="pt-2 border-t border-[var(--border-default)]">
+            <AiQuickAddInput
+              onPrefill={(parsedTx) => {
+                setEntryToEdit(parsedTx);
+                setEntryModalOpen(true);
+              }}
+              dynamicPresets={getDynamicQuickAddPresets()}
+              formatCurrency={formatCurrency}
+              onOpenCustomModal={() => {
+                setEntryToEdit(null);
+                setEntryModalOpen(true);
+              }}
+              isCompact={true}
+            />
           </div>
 
           {/* Sub Navigation Tabs */}
@@ -825,7 +817,7 @@ export default function DashboardMobile({
               </div>
 
               <div className="space-y-2">
-                {quickPresets.map((preset, idx) => (
+                {getDynamicQuickAddPresets().map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"

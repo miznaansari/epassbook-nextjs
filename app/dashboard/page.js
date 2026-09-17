@@ -8,6 +8,7 @@ import { useTheme } from '@/context/ThemeContext';
 import DashboardMobile from '@/components/DashboardMobile';
 import Navbar from '@/components/Navbar';
 import TransactionModal from '@/components/TransactionModal';
+import AiQuickAddInput from '@/components/AiQuickAddInput';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -566,43 +567,19 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* ⚡ PROMINENT QUICK-ADD 1-TAP ACTION STRIP (Generated from latest transactions) */}
-          <div className="bg-[var(--background-base)] border border-[var(--border-default)] p-3 rounded-xl flex flex-wrap items-center justify-between gap-2.5">
-            <div className="flex items-center gap-2">
-              <Zap className="w-4 h-4 text-amber-500" />
-              <span className="text-xs font-bold text-[var(--foreground)]">Quick 1-Tap Add:</span>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              {getDynamicQuickAddPresets().map((preset, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    setEntryToEdit({
-                      amount: preset.amount,
-                      type: preset.type,
-                      title: preset.title,
-                      description: `Quick added ${preset.title}`,
-                      useSalaryBalance: preset.type === 'SPENDING'
-                    });
-                    setEntryModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium bg-[var(--background-elevated)] hover:border-indigo-500/50 border border-[var(--border-default)] text-[var(--foreground)] hover:text-indigo-500 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                >
-                  <span>{preset.icon}</span>
-                  <span>{preset.label}</span>
-                  <span className="text-[10px] font-mono text-[var(--foreground-muted)]">{formatCurrency(preset.amount)}</span>
-                </button>
-              ))}
-
-              <button
-                onClick={() => setEntryModalOpen(true)}
-                className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 flex items-center gap-1 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" /> Custom
-              </button>
-            </div>
-          </div>
+          {/* 🔮 AI-POWERED NATURAL LANGUAGE QUICK-ADD & DYNAMIC PRESETS */}
+          <AiQuickAddInput
+            onPrefill={(parsedTx) => {
+              setEntryToEdit(parsedTx);
+              setEntryModalOpen(true);
+            }}
+            dynamicPresets={getDynamicQuickAddPresets()}
+            formatCurrency={formatCurrency}
+            onOpenCustomModal={() => {
+              setEntryToEdit(null);
+              setEntryModalOpen(true);
+            }}
+          />
 
           {/* Pill Navigation Tabs (Clean Wrapping without horizontal overflow) */}
           <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-default)] pt-4 select-none">
@@ -1975,7 +1952,7 @@ export default function Dashboard() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-4">
-                {quickPresets.map((preset, idx) => (
+                {getDynamicQuickAddPresets().map((preset, idx) => (
                   <button
                     key={idx}
                     type="button"

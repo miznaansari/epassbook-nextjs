@@ -244,7 +244,7 @@ export default function TransactionModal({
         }
       }
 
-      const method = entryToEdit ? 'PUT' : 'POST';
+      const method = (entryToEdit && entryToEdit.id) ? 'PUT' : 'POST';
       const res = await fetch('/api/entries', {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -412,8 +412,18 @@ export default function TransactionModal({
                 {/* Header */}
                 <div className="flex justify-between items-center pb-3 border-b border-white/[0.06] mb-4">
                   <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-[#818cf8]" />
-                    {parentLending ? 'Receive Repayment' : entryToEdit ? 'Edit Transaction' : 'Log Transaction'}
+                    {entryToEdit?.isAiPrefilled ? (
+                      <Sparkles className="w-4 h-4 text-indigo-400 animate-pulse" />
+                    ) : (
+                      <Coins className="w-4 h-4 text-[#818cf8]" />
+                    )}
+                    {parentLending 
+                      ? 'Receive Repayment' 
+                      : (entryToEdit && entryToEdit.id) 
+                        ? 'Edit Transaction' 
+                        : entryToEdit?.isAiPrefilled 
+                          ? 'AI Prefilled Transaction' 
+                          : 'Log Transaction'}
                   </h3>
                   <button
                     onClick={onClose}
@@ -425,6 +435,20 @@ export default function TransactionModal({
 
                 {/* Form */}
                 <form onSubmit={(e) => handleSubmit(e)} className="space-y-3.5">
+                  {entryToEdit?.isAiPrefilled && (
+                    <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-indigo-500/15 via-purple-500/15 to-pink-500/10 border border-indigo-500/25 text-indigo-400 rounded-xl text-xs">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400 animate-pulse shrink-0" />
+                        <span className="text-[11px] font-medium text-slate-200">
+                          Prefilled with AI. Review &amp; click save!
+                        </span>
+                      </div>
+                      <span className="text-[9px] font-mono uppercase bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded">
+                        Auto-parsed
+                      </span>
+                    </div>
+                  )}
+
                   {error && (
                     <div className="flex items-center gap-2 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-lg text-xs">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
