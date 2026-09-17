@@ -49,6 +49,7 @@ model User {
   notificationCampaigns NotificationCampaign[]
   sips               Sip[]
   apiKeys            ApiKey[]
+  aiBudgetClassifications AiBudgetClassification[]
 
   @@index([createdAt])
 }
@@ -272,5 +273,23 @@ model ApiKey {
 
   @@index([userId])
   @@index([key])
+}
+
+model AiBudgetClassification {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filter            String   @default("current") // "current" | "last"
+  cycleMonth        Int
+  cycleYear         Int
+  summaryData       String   @db.LongText        // Full AI response JSON
+  customPromptNotes String?  @db.Text            // User override notes / prompts
+  refreshCount      Int      @default(0)         // Daily count of refreshes used
+  lastRefreshedDate String                       // YYYY-MM-DD
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([userId, filter, cycleMonth, cycleYear])
+  @@index([userId, lastRefreshedDate])
 }
 

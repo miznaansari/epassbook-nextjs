@@ -42,11 +42,14 @@ import {
   Layers,
   BarChart3,
   Banknote,
-  Landmark
+  Landmark,
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import Navbar from './Navbar';
 import SpotlightCard from './ui/SpotlightCard';
 import AiQuickAddInput from './AiQuickAddInput';
+import Ai503020PromptInput from './Ai503020PromptInput';
 
 export default function DashboardMobile({
   user,
@@ -93,13 +96,25 @@ export default function DashboardMobile({
   salaryType,
   setSalaryType,
   parentLending,
-  setParentLending
+  setParentLending,
+  // AI Intelligence Props
+  aiData: propAiData,
+  aiLoading: propAiLoading,
+  aiThinkingStep: propAiThinkingStep,
+  aiRemainingRefreshes = 5,
+  aiCustomPromptNotes = '',
+  aiQuotaError = '',
+  fetchAiIntelligence: propFetchAiIntelligence
 }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [expandedDays, setExpandedDays] = useState({});
-  const [aiData, setAiData] = useState(null);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiThinkingStep, setAiThinkingStep] = useState(0);
+  const [localAiData, setLocalAiData] = useState(null);
+  const [localAiLoading, setLocalAiLoading] = useState(false);
+  const [localAiThinkingStep, setLocalAiThinkingStep] = useState(0);
+
+  const aiData = propAiData !== undefined ? propAiData : localAiData;
+  const aiLoading = propAiLoading !== undefined ? propAiLoading : localAiLoading;
+  const aiThinkingStep = propAiThinkingStep !== undefined ? propAiThinkingStep : localAiThinkingStep;
 
   const toggleDayExpansion = (dateKey) => {
     setExpandedDays(prev => ({
@@ -165,28 +180,31 @@ export default function DashboardMobile({
     return dynamicPresets.length > 0 ? dynamicPresets : defaultPresets;
   };
 
-  const fetchAiIntelligence = async () => {
-    setAiLoading(true);
-    setAiThinkingStep(0);
+  const fetchAiIntelligence = async (forceRefresh = false, userPrompt = '') => {
+    if (propFetchAiIntelligence) {
+      return propFetchAiIntelligence(forceRefresh, userPrompt);
+    }
+    setLocalAiLoading(true);
+    setLocalAiThinkingStep(0);
     const stepInterval = setInterval(() => {
-      setAiThinkingStep(prev => (prev < 2 ? prev + 1 : prev));
+      setLocalAiThinkingStep(prev => (prev < 2 ? prev + 1 : prev));
     }, 900);
 
     try {
       const res = await fetch('/api/dashboard/ai-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filter })
+        body: JSON.stringify({ filter, forceRefresh, userPrompt })
       });
       if (res.ok) {
         const payload = await res.json();
-        setAiData(payload.intelligence);
+        setLocalAiData(payload.intelligence);
       }
     } catch (err) {
       console.error(err);
     } finally {
       clearInterval(stepInterval);
-      setAiLoading(false);
+      setLocalAiLoading(false);
     }
   };
 
@@ -509,66 +527,329 @@ export default function DashboardMobile({
         {/* TAB CONTENT: AI 50/30/20 CATEGORIES */}
         {activeTab === 'categories' && (
           <div className="space-y-4">
-            <div className="bg-[var(--background-elevated)] border border-purple-500/30 p-4 rounded-2xl space-y-3">
+            
+            {/* 50/30/20 Header & Quota Card */}
+            <div className="bg-[var(--background-elevated)] border border-purple-500/30 p-4 rounded-2xl space-y-3.5 shadow-sm">
               <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-500" /> AI 50/30/20 Grouping
-                </h3>
-                <button
-                  onClick={fetchAiIntelligence}
-                  disabled={aiLoading}
-                  className="px-2.5 py-1 text-[10px] font-semibold bg-purple-600 text-white rounded-lg flex items-center gap-1 shadow-sm"
-                >
-                  <RefreshCw className={`w-3 h-3 ${aiLoading ? 'animate-spin' : ''}`} />
-                  {aiLoading ? 'Analyzing...' : 'Re-Run'}
-                </button>
+                <div>
+                  <h3 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-purple-500" /> Pure AI 50/30/20 Budgeting
+                  </h3>
+                  <p className="text-[10px] text-[var(--foreground-muted)] font-mono mt-0.5">
+                    100% AI Classified • Zero keyword assumptions
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {/* Daily Quota Counter Badge */}
+                  <div className="px-2.5 py-1 rounded-xl bg-purple-500/10 border border-purple-500/25 text-[10px] font-mono text-purple-500 font-bold flex items-center gap-1">
+                    <Sparkles className="w-3 h-3 animate-pulse" />
+                    <span>{aiRemainingRefreshes ?? 5}/5 left today</span>
+                  </div>
+
+                  <button
+                    onClick={() => fetchAiIntelligence(true)}
+                    disabled={aiLoading}
+                    className="p-1.5 rounded-xl bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all disabled:opacity-50"
+                    title="Force AI Re-evaluation"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
               </div>
 
-              {aiData?.needsWantsSavingsAI?.aiVerdict && (
-                <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-[11px] text-[var(--foreground)]">
-                  {aiData.needsWantsSavingsAI.aiVerdict}
+              {/* 🔮 AI Natural Language Refinement Input */}
+              <Ai503020PromptInput
+                onApplyPrompt={(userPrompt) => fetchAiIntelligence(true, userPrompt)}
+                loading={aiLoading}
+                remainingRefreshes={aiRemainingRefreshes}
+                isCompact={true}
+              />
+
+              {/* Quota Error Notification */}
+              {aiQuotaError && (
+                <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center gap-2 text-amber-600 dark:text-amber-400 text-xs">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span className="font-mono text-[11px] leading-tight">{aiQuotaError}</span>
                 </div>
               )}
-              
-              <div className="space-y-2.5">
-                <div className="p-3 bg-[var(--background-base)] border border-blue-500/30 rounded-xl space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-bold text-blue-500">Needs (50% Essentials)</span>
-                    <span className="font-mono font-bold">{formatCurrency(aiData?.needsWantsSavingsAI?.needs?.amount || data?.needsWantsSavings?.needs?.amount || 0)}</span>
-                  </div>
-                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.needs?.percentage || data?.needsWantsSavings?.needs?.percentage || 0)}%` }} className="h-full bg-blue-500 rounded-full" />
-                  </div>
-                  <span className="text-[10px] text-[var(--foreground-muted)] block">
-                    Actual: {aiData?.needsWantsSavingsAI?.needs?.percentage || data?.needsWantsSavings?.needs?.percentage || 0}% • {aiData?.needsWantsSavingsAI?.needs?.status || 'Target 50%'}
-                  </span>
-                </div>
 
-                <div className="p-3 bg-[var(--background-base)] border border-pink-500/30 rounded-xl space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-bold text-pink-500">Wants (30% Lifestyle)</span>
-                    <span className="font-mono font-bold">{formatCurrency(aiData?.needsWantsSavingsAI?.wants?.amount || data?.needsWantsSavings?.wants?.amount || 0)}</span>
+              {/* Active User Custom Override Indicator */}
+              {aiCustomPromptNotes && (
+                <div className="flex items-center justify-between p-2 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-xs">
+                  <div className="flex items-center gap-1.5 truncate mr-2">
+                    <span className="text-[10px] font-mono uppercase font-bold text-indigo-500">Customized:</span>
+                    <span className="text-[11px] text-[var(--foreground)] truncate italic">&ldquo;{aiCustomPromptNotes}&rdquo;</span>
                   </div>
-                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.wants?.percentage || data?.needsWantsSavings?.wants?.percentage || 0)}%` }} className="h-full bg-pink-500 rounded-full" />
-                  </div>
-                  <span className="text-[10px] text-[var(--foreground-muted)] block">
-                    Actual: {aiData?.needsWantsSavingsAI?.wants?.percentage || data?.needsWantsSavings?.wants?.percentage || 0}% • {aiData?.needsWantsSavingsAI?.wants?.status || 'Target 30%'}
-                  </span>
+                  <button
+                    onClick={() => fetchAiIntelligence(true, 'RESET_TO_DEFAULT')}
+                    disabled={aiLoading}
+                    className="text-[10px] font-mono text-indigo-500 hover:underline shrink-0 font-semibold"
+                  >
+                    Reset Standard
+                  </button>
                 </div>
+              )}
 
-                <div className="p-3 bg-[var(--background-base)] border border-emerald-500/30 rounded-xl space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="font-bold text-emerald-500">Savings (20% Growth)</span>
-                    <span className="font-mono font-bold">{formatCurrency(aiData?.needsWantsSavingsAI?.savings?.amount || data?.needsWantsSavings?.savings?.amount || 0)}</span>
+              {/* AI Overall Verdict */}
+              {aiData?.needsWantsSavingsAI?.aiVerdict && (
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl space-y-1">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-purple-600 dark:text-purple-400 uppercase tracking-wider">
+                    <CheckCircle2 className="w-3 h-3" /> Gemini AI Verdict
                   </div>
-                  <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                    <div style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.savings?.percentage || data?.needsWantsSavings?.savings?.percentage || 0)}%` }} className="h-full bg-emerald-500 rounded-full" />
-                  </div>
-                  <span className="text-[10px] text-[var(--foreground-muted)] block">
-                    Actual: {aiData?.needsWantsSavingsAI?.savings?.percentage || data?.needsWantsSavings?.savings?.percentage || 0}% • {aiData?.needsWantsSavingsAI?.savings?.status || 'Target 20%'}
-                  </span>
+                  <p className="text-xs text-[var(--foreground)] leading-relaxed">
+                    {aiData.needsWantsSavingsAI.aiVerdict}
+                  </p>
                 </div>
+              )}
+
+              {/* Full Shimmering Skeleton Loader */}
+              {aiLoading && !aiData ? (
+                <div className="space-y-3 pt-2 animate-pulse">
+                  <div className="p-3.5 bg-[var(--background-base)] border border-blue-500/20 rounded-xl space-y-2">
+                    <div className="h-4 w-28 bg-blue-500/20 rounded" />
+                    <div className="h-6 w-32 bg-slate-200 dark:bg-white/10 rounded" />
+                    <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full" />
+                  </div>
+                  <div className="p-3.5 bg-[var(--background-base)] border border-pink-500/20 rounded-xl space-y-2">
+                    <div className="h-4 w-28 bg-pink-500/20 rounded" />
+                    <div className="h-6 w-32 bg-slate-200 dark:bg-white/10 rounded" />
+                    <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full" />
+                  </div>
+                  <div className="p-3.5 bg-[var(--background-base)] border border-emerald-500/20 rounded-xl space-y-2">
+                    <div className="h-4 w-28 bg-emerald-500/20 rounded" />
+                    <div className="h-6 w-32 bg-slate-200 dark:bg-white/10 rounded" />
+                    <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full" />
+                  </div>
+                </div>
+              ) : (
+                /* 3 AI Classified Buckets Cards */
+                <div className="space-y-3 pt-1">
+                  
+                  {/* NEEDS (50%) */}
+                  <div className="p-3.5 bg-[var(--background-base)] border border-blue-500/30 rounded-xl space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-blue-500 uppercase tracking-wider font-mono flex items-center gap-1">
+                        <Home className="w-3.5 h-3.5" /> Needs (50% Target)
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                        {aiData?.needsWantsSavingsAI?.needs?.status || 'Optimal'}
+                      </span>
+                    </div>
+                    
+                    <div className="text-xl font-bold text-[var(--foreground)] font-mono">
+                      {formatCurrency(aiData?.needsWantsSavingsAI?.needs?.amount || 0)}
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                        <span>Actual Allocation</span>
+                        <span>{aiData?.needsWantsSavingsAI?.needs?.percentage || 0}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.needs?.percentage || 0)}%` }} 
+                          className="h-full bg-blue-500 rounded-full transition-all duration-300" 
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[var(--foreground-muted)] italic leading-tight">
+                      {aiData?.needsWantsSavingsAI?.needs?.advice || "Essential non-negotiable living costs (Rent, Groceries, Utilities, Health, Fuel)."}
+                    </p>
+
+                    {/* Classified Transactions List */}
+                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold text-[var(--foreground-muted)] uppercase">
+                        Classified Items ({aiData?.needsWantsSavingsAI?.needs?.items?.length || 0}):
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5 scrollbar-thin">
+                        {(aiData?.needsWantsSavingsAI?.needs?.items || []).length === 0 ? (
+                          <div className="text-[10px] text-slate-400 font-mono text-center py-2">
+                            No transactions in Needs bucket.
+                          </div>
+                        ) : (
+                          aiData.needsWantsSavingsAI.needs.items.map((item, i) => (
+                            <div key={item.id || i} className="p-2 bg-[var(--background-elevated)] border border-blue-500/15 rounded-lg space-y-0.5">
+                              <div className="flex justify-between items-center text-xs gap-1.5">
+                                <span className="font-medium text-[var(--foreground)] truncate">{item.title}</span>
+                                <span className="font-mono font-bold text-blue-500 shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[var(--foreground-muted)] font-mono">
+                                <span>{item.date || 'Cycle'} • {item.category || 'Essential'}</span>
+                                {item.reason && (
+                                  <span className="text-blue-600 dark:text-blue-400 truncate max-w-[120px]" title={item.reason}>
+                                    {item.reason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* WANTS (30%) */}
+                  <div className="p-3.5 bg-[var(--background-base)] border border-pink-500/30 rounded-xl space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-pink-500 uppercase tracking-wider font-mono flex items-center gap-1">
+                        <ShoppingBag className="w-3.5 h-3.5" /> Wants (30% Target)
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                        {aiData?.needsWantsSavingsAI?.wants?.status || 'Optimal'}
+                      </span>
+                    </div>
+                    
+                    <div className="text-xl font-bold text-[var(--foreground)] font-mono">
+                      {formatCurrency(aiData?.needsWantsSavingsAI?.wants?.amount || 0)}
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                        <span>Actual Allocation</span>
+                        <span>{aiData?.needsWantsSavingsAI?.wants?.percentage || 0}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.wants?.percentage || 0)}%` }} 
+                          className="h-full bg-pink-500 rounded-full transition-all duration-300" 
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[var(--foreground-muted)] italic leading-tight">
+                      {aiData?.needsWantsSavingsAI?.wants?.advice || "Discretionary lifestyle choices (Dining out, Entertainment, Shopping, Subscriptions)."}
+                    </p>
+
+                    {/* Classified Transactions List */}
+                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold text-[var(--foreground-muted)] uppercase">
+                        Classified Items ({aiData?.needsWantsSavingsAI?.wants?.items?.length || 0}):
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5 scrollbar-thin">
+                        {(aiData?.needsWantsSavingsAI?.wants?.items || []).length === 0 ? (
+                          <div className="text-[10px] text-slate-400 font-mono text-center py-2">
+                            No transactions in Wants bucket.
+                          </div>
+                        ) : (
+                          aiData.needsWantsSavingsAI.wants.items.map((item, i) => (
+                            <div key={item.id || i} className="p-2 bg-[var(--background-elevated)] border border-pink-500/15 rounded-lg space-y-0.5">
+                              <div className="flex justify-between items-center text-xs gap-1.5">
+                                <span className="font-medium text-[var(--foreground)] truncate">{item.title}</span>
+                                <span className="font-mono font-bold text-pink-500 shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[var(--foreground-muted)] font-mono">
+                                <span>{item.date || 'Cycle'} • {item.category || 'Lifestyle'}</span>
+                                {item.reason && (
+                                  <span className="text-pink-600 dark:text-pink-400 truncate max-w-[120px]" title={item.reason}>
+                                    {item.reason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SAVINGS (20%) */}
+                  <div className="p-3.5 bg-[var(--background-base)] border border-emerald-500/30 rounded-xl space-y-2.5">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider font-mono flex items-center gap-1">
+                        <Target className="w-3.5 h-3.5" /> Savings (20% Target)
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        {aiData?.needsWantsSavingsAI?.savings?.status || 'Supercharged'}
+                      </span>
+                    </div>
+                    
+                    <div className="text-xl font-bold text-[var(--foreground)] font-mono">
+                      {formatCurrency(aiData?.needsWantsSavingsAI?.savings?.amount || 0)}
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                        <span>Actual Allocation</span>
+                        <span>{aiData?.needsWantsSavingsAI?.savings?.percentage || 0}%</span>
+                      </div>
+                      <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div 
+                          style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.savings?.percentage || 0)}%` }} 
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-300" 
+                        />
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-[var(--foreground-muted)] italic leading-tight">
+                      {aiData?.needsWantsSavingsAI?.savings?.advice || "Wealth compounding (SIPs, Stocks, Savings pots, Emergency reserves)."}
+                    </p>
+
+                    {/* Classified Transactions List */}
+                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
+                      <div className="text-[9px] font-mono font-bold text-[var(--foreground-muted)] uppercase">
+                        Classified Items ({aiData?.needsWantsSavingsAI?.savings?.items?.length || 0}):
+                      </div>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5 scrollbar-thin">
+                        {(aiData?.needsWantsSavingsAI?.savings?.items || []).length === 0 ? (
+                          <div className="text-[10px] text-slate-400 font-mono text-center py-2">
+                            No transactions in Savings bucket.
+                          </div>
+                        ) : (
+                          aiData.needsWantsSavingsAI.savings.items.map((item, i) => (
+                            <div key={item.id || i} className="p-2 bg-[var(--background-elevated)] border border-emerald-500/15 rounded-lg space-y-0.5">
+                              <div className="flex justify-between items-center text-xs gap-1.5">
+                                <span className="font-medium text-[var(--foreground)] truncate">{item.title}</span>
+                                <span className="font-mono font-bold text-emerald-500 shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[var(--foreground-muted)] font-mono">
+                                <span>{item.date || 'Cycle'} • {item.category || 'Investment'}</span>
+                                {item.reason && (
+                                  <span className="text-emerald-600 dark:text-emerald-400 truncate max-w-[120px]" title={item.reason}>
+                                    {item.reason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+
+            {/* Expense Categories Breakdown */}
+            <div className="bg-[var(--background-elevated)] border border-[var(--border-default)] p-4 rounded-2xl space-y-3 shadow-sm">
+              <h3 className="text-xs font-bold text-[var(--foreground)]">
+                All Expense Categories Breakdown
+              </h3>
+              <div className="space-y-2">
+                {(data?.spendingCategories || []).map((cat, idx) => (
+                  <div key={idx} className="p-3 bg-[var(--background-base)] border border-[var(--border-default)] rounded-xl space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-[var(--surface-active)]">
+                          {getCategoryIconComponent(cat.category)}
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--foreground)]">{cat.category}</span>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-[var(--foreground)]">{formatCurrency(cat.amount)}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                        <span>{cat.count} transactions</span>
+                        <span>{cat.percentage}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div style={{ width: `${cat.percentage}%` }} className="h-full bg-indigo-500 rounded-full" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

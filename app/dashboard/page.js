@@ -9,6 +9,7 @@ import DashboardMobile from '@/components/DashboardMobile';
 import Navbar from '@/components/Navbar';
 import TransactionModal from '@/components/TransactionModal';
 import AiQuickAddInput from '@/components/AiQuickAddInput';
+import Ai503020PromptInput from '@/components/Ai503020PromptInput';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -84,6 +85,9 @@ export default function Dashboard() {
   const [aiData, setAiData] = useState(cachedAiIntelligence);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiThinkingStep, setAiThinkingStep] = useState(0);
+  const [aiRemainingRefreshes, setAiRemainingRefreshes] = useState(5);
+  const [aiCustomPromptNotes, setAiCustomPromptNotes] = useState('');
+  const [aiQuotaError, setAiQuotaError] = useState('');
 
   // Client-side Ledger Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -158,9 +162,10 @@ export default function Dashboard() {
   };
 
   // Fetch AI 2050 Intelligence & 50/30/20 Grouping
-  const fetchAiIntelligence = async () => {
+  const fetchAiIntelligence = async (forceRefresh = false, userPrompt = '') => {
     if (!user) return;
     setAiLoading(true);
+    setAiQuotaError('');
     setAiThinkingStep(0);
 
     const stepInterval = setInterval(() => {
@@ -171,13 +176,24 @@ export default function Dashboard() {
       const res = await fetch('/api/dashboard/ai-summary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filter })
+        body: JSON.stringify({ filter, forceRefresh, userPrompt })
       });
 
-      if (res.ok) {
-        const payload = await res.json();
+      const payload = await res.json();
+      if (res.ok && payload.intelligence) {
         setAiData(payload.intelligence);
+        if (payload.remainingRefreshes !== undefined) {
+          setAiRemainingRefreshes(payload.remainingRefreshes);
+        }
+        if (payload.customPromptNotes) {
+          setAiCustomPromptNotes(payload.customPromptNotes);
+        }
         cachedAiIntelligence = payload.intelligence;
+      } else if (res.status === 429) {
+        setAiQuotaError(payload.error || 'Daily AI 50/30/20 refresh limit of 5 reached. Quota resets tomorrow.');
+        if (payload.remainingRefreshes !== undefined) {
+          setAiRemainingRefreshes(payload.remainingRefreshes);
+        }
       }
     } catch (err) {
       console.error('Error fetching AI intelligence:', err);
@@ -190,6 +206,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchAiIntelligence(false); // Immediately load cached DB AI summary
     }
   }, [user, filter]);
 
@@ -410,6 +427,13 @@ export default function Dashboard() {
           setSalaryType={setSalaryType}
           parentLending={parentLending}
           setParentLending={setParentLending}
+          aiData={aiData}
+          aiLoading={aiLoading}
+          aiThinkingStep={aiThinkingStep}
+          aiRemainingRefreshes={aiRemainingRefreshes}
+          aiCustomPromptNotes={aiCustomPromptNotes}
+          aiQuotaError={aiQuotaError}
+          fetchAiIntelligence={fetchAiIntelligence}
         />
         <TransactionModal
           isOpen={entryModalOpen}
@@ -1325,172 +1349,312 @@ export default function Dashboard() {
         {activeTab === 'categories' && (
           <div className="space-y-6">
             
-            {/* AI 50/30/20 Grouping Header */}
+            {/* AI 50/30/20 Grouping Header & Interactive Refinement Capsule */}
             <div className="bg-[var(--background-elevated)] border border-purple-500/30 p-5 sm:p-6 rounded-2xl shadow-sm space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border-default)] pb-4">
-                <div>
-                  <h2 className="text-base font-bold tracking-tight text-[var(--foreground)] flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-purple-500" /> AI-Powered 50 / 30 / 20 Budget Grouping (Gemini Engine)
-                  </h2>
-                  <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
-                    AI dynamically clusters every transaction into Essential Needs (50%), Lifestyle Wants (30%), and Compounding Savings (20%)
-                  </p>
-                </div>
+              
+              {/* Interactive AI Refinement Prompt Bar (Like Quick Add) */}
+              <Ai503020PromptInput
+                onSubmitPrompt={(userPrompt) => fetchAiIntelligence(true, userPrompt)}
+                onDirectRefresh={() => fetchAiIntelligence(true)}
+                isLoading={aiLoading}
+                remainingRefreshes={aiRemainingRefreshes}
+                maxDailyRefreshes={5}
+              />
 
-                <button
-                  onClick={fetchAiIntelligence}
-                  disabled={aiLoading}
-                  className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-md shadow-purple-600/20 flex items-center gap-2 transition-all cursor-pointer shrink-0"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${aiLoading ? 'animate-spin' : ''}`} />
-                  {aiLoading ? 'AI Grouping...' : 'Re-Run AI Grouping'}
-                </button>
-              </div>
+              {/* Quota Error Alert */}
+              {aiQuotaError && (
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs flex items-center justify-between gap-2.5 animate-fade-in">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{aiQuotaError}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAiQuotaError('')}
+                    className="text-rose-500 hover:text-rose-600 p-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {/* Active AI Custom Rule Badge */}
+              {aiCustomPromptNotes && (
+                <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center justify-between text-xs text-[var(--foreground)]">
+                  <div className="flex items-center gap-2 truncate mr-3">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                    <span className="text-[11px] text-[var(--foreground-muted)] truncate">
+                      Active User Prompt Override: <strong className="text-purple-600 dark:text-purple-400 font-medium">&ldquo;{aiCustomPromptNotes}&rdquo;</strong>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fetchAiIntelligence(true, 'RESET_TO_DEFAULT')}
+                    disabled={aiLoading}
+                    className="text-[11px] font-mono text-purple-600 dark:text-purple-400 hover:underline font-semibold shrink-0 cursor-pointer disabled:opacity-50"
+                  >
+                    Reset to Standard
+                  </button>
+                </div>
+              )}
 
               {/* AI Verdict Banner */}
               {aiData?.needsWantsSavingsAI?.aiVerdict && (
-                <div className="p-3.5 bg-purple-500/10 border border-purple-500/20 rounded-xl text-xs text-[var(--foreground)] flex items-center gap-2.5">
+                <div className="p-3.5 bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent border border-purple-500/20 rounded-xl text-xs text-[var(--foreground)] flex items-center gap-2.5">
                   <Bot className="w-4 h-4 text-purple-500 shrink-0" />
                   <span><strong>AI Verdict:</strong> {aiData.needsWantsSavingsAI.aiVerdict}</span>
                 </div>
               )}
 
-              {/* 3 Interactive Buckets Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* NEEDS (50%) */}
-                <div className="p-4 bg-[var(--background-base)] border border-blue-500/30 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-blue-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                      <Home className="w-3.5 h-3.5" /> Needs (50% Target)
-                    </span>
-                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
-                      {aiData?.needsWantsSavingsAI?.needs?.status || (data?.needsWantsSavings?.needs?.percentage <= 50 ? 'Optimal' : 'Over Target')}
-                    </span>
-                  </div>
-                  <div className="text-2xl font-bold text-[var(--foreground)] font-mono">
-                    {formatCurrency(aiData?.needsWantsSavingsAI?.needs?.amount || data?.needsWantsSavings?.needs?.amount || 0)}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
-                      <span>Actual Allocation</span>
-                      <span>{aiData?.needsWantsSavingsAI?.needs?.percentage || data?.needsWantsSavings?.needs?.percentage || 0}%</span>
+              {/* Full Shimmering AI Skeletons during initial / background loading */}
+              {aiLoading && !aiData?.needsWantsSavingsAI ? (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
+                  {/* Needs Skeleton */}
+                  <div className="p-4 bg-[var(--background-base)] border border-blue-500/20 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-28 bg-blue-500/20 rounded-md" />
+                      <div className="h-4 w-16 bg-blue-500/10 rounded-full" />
                     </div>
-                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div 
-                        style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.needs?.percentage || data?.needsWantsSavings?.needs?.percentage || 0)}%` }}
-                        className="h-full bg-blue-500 rounded-full transition-all"
-                      />
+                    <div className="h-8 w-32 bg-slate-200 dark:bg-white/10 rounded-md" />
+                    <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full" />
+                    <div className="h-3 w-48 bg-slate-200 dark:bg-white/5 rounded-md" />
+                    <div className="pt-3 border-t border-[var(--border-default)] space-y-2">
+                      <div className="h-7 w-full bg-slate-100 dark:bg-white/5 rounded-lg" />
+                      <div className="h-7 w-full bg-slate-100 dark:bg-white/5 rounded-lg" />
                     </div>
                   </div>
-                  
-                  <p className="text-[11px] text-[var(--foreground-muted)] italic">
-                    {aiData?.needsWantsSavingsAI?.needs?.advice || "Essential living costs (Rent, Groceries, Utilities, Health, Fuel)."}
-                  </p>
 
-                  {/* AI Classified Line Items */}
-                  {aiData?.needsWantsSavingsAI?.needs?.items?.length > 0 && (
-                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
-                      <span className="text-[10px] font-mono font-bold text-[var(--foreground-muted)] uppercase block">AI Classified Items:</span>
-                      {aiData.needsWantsSavingsAI.needs.items.map((item, i) => (
-                        <div key={i} className="flex justify-between items-center text-[11px] p-1.5 bg-[var(--background-elevated)] rounded-lg">
-                          <span className="font-semibold text-[var(--foreground)] truncate">{item.title}</span>
-                          <span className="font-mono font-bold text-blue-500 shrink-0">{formatCurrency(item.amount)}</span>
-                        </div>
-                      ))}
+                  {/* Wants Skeleton */}
+                  <div className="p-4 bg-[var(--background-base)] border border-pink-500/20 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-28 bg-pink-500/20 rounded-md" />
+                      <div className="h-4 w-16 bg-pink-500/10 rounded-full" />
                     </div>
-                  )}
+                    <div className="h-8 w-32 bg-slate-200 dark:bg-white/10 rounded-md" />
+                    <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full" />
+                    <div className="h-3 w-48 bg-slate-200 dark:bg-white/5 rounded-md" />
+                    <div className="pt-3 border-t border-[var(--border-default)] space-y-2">
+                      <div className="h-7 w-full bg-slate-100 dark:bg-white/5 rounded-lg" />
+                      <div className="h-7 w-full bg-slate-100 dark:bg-white/5 rounded-lg" />
+                    </div>
+                  </div>
+
+                  {/* Savings Skeleton */}
+                  <div className="p-4 bg-[var(--background-base)] border border-emerald-500/20 rounded-2xl space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 w-28 bg-emerald-500/20 rounded-md" />
+                      <div className="h-4 w-16 bg-emerald-500/10 rounded-full" />
+                    </div>
+                    <div className="h-8 w-32 bg-slate-200 dark:bg-white/10 rounded-md" />
+                    <div className="h-2 w-full bg-slate-200 dark:bg-white/10 rounded-full" />
+                    <div className="h-3 w-48 bg-slate-200 dark:bg-white/5 rounded-md" />
+                    <div className="pt-3 border-t border-[var(--border-default)] space-y-2">
+                      <div className="h-7 w-full bg-slate-100 dark:bg-white/5 rounded-lg" />
+                      <div className="h-7 w-full bg-slate-100 dark:bg-white/5 rounded-lg" />
+                    </div>
+                  </div>
                 </div>
-
-                {/* WANTS (30%) */}
-                <div className="p-4 bg-[var(--background-base)] border border-pink-500/30 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-pink-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                      <ShoppingBag className="w-3.5 h-3.5" /> Wants (30% Target)
-                    </span>
-                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-500 border border-pink-500/20">
-                      {aiData?.needsWantsSavingsAI?.wants?.status || (data?.needsWantsSavings?.wants?.percentage <= 30 ? 'Optimal' : 'Caution')}
-                    </span>
-                  </div>
-                  <div className="text-2xl font-bold text-[var(--foreground)] font-mono">
-                    {formatCurrency(aiData?.needsWantsSavingsAI?.wants?.amount || data?.needsWantsSavings?.wants?.amount || 0)}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
-                      <span>Actual Allocation</span>
-                      <span>{aiData?.needsWantsSavingsAI?.wants?.percentage || data?.needsWantsSavings?.wants?.percentage || 0}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div 
-                        style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.wants?.percentage || data?.needsWantsSavings?.wants?.percentage || 0)}%` }}
-                        className="h-full bg-pink-500 rounded-full transition-all"
-                      />
-                    </div>
-                  </div>
+              ) : (
+                /* 3 Pure AI Interactive Buckets Grid */
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   
-                  <p className="text-[11px] text-[var(--foreground-muted)] italic">
-                    {aiData?.needsWantsSavingsAI?.wants?.advice || "Discretionary lifestyle choices (Dining out, Entertainment, Shopping)."}
-                  </p>
-
-                  {/* AI Classified Line Items */}
-                  {aiData?.needsWantsSavingsAI?.wants?.items?.length > 0 && (
-                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
-                      <span className="text-[10px] font-mono font-bold text-[var(--foreground-muted)] uppercase block">AI Classified Items:</span>
-                      {aiData.needsWantsSavingsAI.wants.items.map((item, i) => (
-                        <div key={i} className="flex justify-between items-center text-[11px] p-1.5 bg-[var(--background-elevated)] rounded-lg">
-                          <span className="font-semibold text-[var(--foreground)] truncate">{item.title}</span>
-                          <span className="font-mono font-bold text-pink-500 shrink-0">{formatCurrency(item.amount)}</span>
+                  {/* NEEDS (50%) */}
+                  <div className="p-4 bg-[var(--background-base)] border border-blue-500/30 rounded-2xl space-y-3 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                          <Home className="w-3.5 h-3.5" /> Needs (50% Target)
+                        </span>
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                          {aiData?.needsWantsSavingsAI?.needs?.status || 'Optimal'}
+                        </span>
+                      </div>
+                      <div className="text-2xl font-bold text-[var(--foreground)] font-mono">
+                        {formatCurrency(aiData?.needsWantsSavingsAI?.needs?.amount || 0)}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                          <span>Actual Allocation</span>
+                          <span>{aiData?.needsWantsSavingsAI?.needs?.percentage || 0}%</span>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* SAVINGS (20%) */}
-                <div className="p-4 bg-[var(--background-base)] border border-emerald-500/30 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
-                      <Target className="w-3.5 h-3.5" /> Savings (20% Target)
-                    </span>
-                    <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                      {aiData?.needsWantsSavingsAI?.savings?.status || (data?.needsWantsSavings?.savings?.percentage >= 20 ? 'Supercharged' : 'Needs Boost')}
-                    </span>
-                  </div>
-                  <div className="text-2xl font-bold text-[var(--foreground)] font-mono">
-                    {formatCurrency(aiData?.needsWantsSavingsAI?.savings?.amount || data?.needsWantsSavings?.savings?.amount || 0)}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
-                      <span>Actual Allocation</span>
-                      <span>{aiData?.needsWantsSavingsAI?.savings?.percentage || data?.needsWantsSavings?.savings?.percentage || 0}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div 
-                        style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.savings?.percentage || data?.needsWantsSavings?.savings?.percentage || 0)}%` }}
-                        className="h-full bg-emerald-500 rounded-full transition-all"
-                      />
-                    </div>
-                  </div>
-                  
-                  <p className="text-[11px] text-[var(--foreground-muted)] italic">
-                    {aiData?.needsWantsSavingsAI?.savings?.advice || "Wealth compounding (SIPs, Stocks, Emergency reserves)."}
-                  </p>
-
-                  {/* AI Classified Line Items */}
-                  {aiData?.needsWantsSavingsAI?.savings?.items?.length > 0 && (
-                    <div className="pt-2 border-t border-[var(--border-default)] space-y-1.5">
-                      <span className="text-[10px] font-mono font-bold text-[var(--foreground-muted)] uppercase block">AI Classified Items:</span>
-                      {aiData.needsWantsSavingsAI.savings.items.map((item, i) => (
-                        <div key={i} className="flex justify-between items-center text-[11px] p-1.5 bg-[var(--background-elevated)] rounded-lg">
-                          <span className="font-semibold text-[var(--foreground)] truncate">{item.title}</span>
-                          <span className="font-mono font-bold text-emerald-500 shrink-0">{formatCurrency(item.amount)}</span>
+                        <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.needs?.percentage || 0)}%` }}
+                            className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                          />
                         </div>
-                      ))}
+                      </div>
+                      
+                      <p className="text-[11px] text-[var(--foreground-muted)] italic leading-tight">
+                        {aiData?.needsWantsSavingsAI?.needs?.advice || "Essential non-negotiable living costs (Rent, Groceries, Utilities, Health, Fuel)."}
+                      </p>
                     </div>
-                  )}
-                </div>
 
-              </div>
+                    {/* AI Classified Line Items Breakdown */}
+                    <div className="pt-3 border-t border-[var(--border-default)] space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-mono font-bold text-[var(--foreground-muted)] uppercase">
+                        <span>Classified Items ({aiData?.needsWantsSavingsAI?.needs?.items?.length || 0}):</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
+                        {(aiData?.needsWantsSavingsAI?.needs?.items || []).length === 0 ? (
+                          <div className="text-[10px] text-slate-400 font-mono text-center py-3">
+                            No transactions in Needs bucket.
+                          </div>
+                        ) : (
+                          aiData.needsWantsSavingsAI.needs.items.map((item, i) => (
+                            <div key={item.id || i} className="p-2 bg-[var(--background-elevated)] border border-blue-500/15 rounded-xl space-y-1">
+                              <div className="flex justify-between items-center text-xs gap-2">
+                                <span className="font-semibold text-[var(--foreground)] truncate">{item.title}</span>
+                                <span className="font-mono font-bold text-blue-500 shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[var(--foreground-muted)] font-mono">
+                                <span>{item.date || 'Cycle'} • {item.category || 'Essential'}</span>
+                                {item.reason && (
+                                  <span className="text-blue-600 dark:text-blue-400 truncate max-w-[140px]" title={item.reason}>
+                                    {item.reason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* WANTS (30%) */}
+                  <div className="p-4 bg-[var(--background-base)] border border-pink-500/30 rounded-2xl space-y-3 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-pink-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                          <ShoppingBag className="w-3.5 h-3.5" /> Wants (30% Target)
+                        </span>
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-pink-500/10 text-pink-500 border border-pink-500/20">
+                          {aiData?.needsWantsSavingsAI?.wants?.status || 'Optimal'}
+                        </span>
+                      </div>
+                      <div className="text-2xl font-bold text-[var(--foreground)] font-mono">
+                        {formatCurrency(aiData?.needsWantsSavingsAI?.wants?.amount || 0)}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                          <span>Actual Allocation</span>
+                          <span>{aiData?.needsWantsSavingsAI?.wants?.percentage || 0}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.wants?.percentage || 0)}%` }}
+                            className="h-full bg-pink-500 rounded-full transition-all duration-300"
+                          />
+                        </div>
+                      </div>
+                      
+                      <p className="text-[11px] text-[var(--foreground-muted)] italic leading-tight">
+                        {aiData?.needsWantsSavingsAI?.wants?.advice || "Discretionary lifestyle choices (Dining out, Entertainment, Shopping, Subscriptions)."}
+                      </p>
+                    </div>
+
+                    {/* AI Classified Line Items Breakdown */}
+                    <div className="pt-3 border-t border-[var(--border-default)] space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-mono font-bold text-[var(--foreground-muted)] uppercase">
+                        <span>Classified Items ({aiData?.needsWantsSavingsAI?.wants?.items?.length || 0}):</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
+                        {(aiData?.needsWantsSavingsAI?.wants?.items || []).length === 0 ? (
+                          <div className="text-[10px] text-slate-400 font-mono text-center py-3">
+                            No transactions in Wants bucket.
+                          </div>
+                        ) : (
+                          aiData.needsWantsSavingsAI.wants.items.map((item, i) => (
+                            <div key={item.id || i} className="p-2 bg-[var(--background-elevated)] border border-pink-500/15 rounded-xl space-y-1">
+                              <div className="flex justify-between items-center text-xs gap-2">
+                                <span className="font-semibold text-[var(--foreground)] truncate">{item.title}</span>
+                                <span className="font-mono font-bold text-pink-500 shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[var(--foreground-muted)] font-mono">
+                                <span>{item.date || 'Cycle'} • {item.category || 'Discretionary'}</span>
+                                {item.reason && (
+                                  <span className="text-pink-600 dark:text-pink-400 truncate max-w-[140px]" title={item.reason}>
+                                    {item.reason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SAVINGS (20%) */}
+                  <div className="p-4 bg-[var(--background-base)] border border-emerald-500/30 rounded-2xl space-y-3 flex flex-col justify-between">
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-emerald-500 uppercase tracking-wider font-mono flex items-center gap-1.5">
+                          <Target className="w-3.5 h-3.5" /> Savings (20% Target)
+                        </span>
+                        <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                          {aiData?.needsWantsSavingsAI?.savings?.status || 'Supercharged'}
+                        </span>
+                      </div>
+                      <div className="text-2xl font-bold text-[var(--foreground)] font-mono">
+                        {formatCurrency(aiData?.needsWantsSavingsAI?.savings?.amount || 0)}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] font-mono text-[var(--foreground-muted)]">
+                          <span>Actual Allocation</span>
+                          <span>{aiData?.needsWantsSavingsAI?.savings?.percentage || 0}%</span>
+                        </div>
+                        <div className="h-2 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                          <div 
+                            style={{ width: `${Math.min(100, aiData?.needsWantsSavingsAI?.savings?.percentage || 0)}%` }}
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                          />
+                        </div>
+                      </div>
+                      
+                      <p className="text-[11px] text-[var(--foreground-muted)] italic leading-tight">
+                        {aiData?.needsWantsSavingsAI?.savings?.advice || "Wealth compounding (SIPs, Stocks, Savings pots, Emergency reserves)."}
+                      </p>
+                    </div>
+
+                    {/* AI Classified Line Items Breakdown */}
+                    <div className="pt-3 border-t border-[var(--border-default)] space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-mono font-bold text-[var(--foreground-muted)] uppercase">
+                        <span>Classified Items ({aiData?.needsWantsSavingsAI?.savings?.items?.length || 0}):</span>
+                      </div>
+                      
+                      <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1 scrollbar-thin">
+                        {(aiData?.needsWantsSavingsAI?.savings?.items || []).length === 0 ? (
+                          <div className="text-[10px] text-slate-400 font-mono text-center py-3">
+                            No transactions in Savings bucket.
+                          </div>
+                        ) : (
+                          aiData.needsWantsSavingsAI.savings.items.map((item, i) => (
+                            <div key={item.id || i} className="p-2 bg-[var(--background-elevated)] border border-emerald-500/15 rounded-xl space-y-1">
+                              <div className="flex justify-between items-center text-xs gap-2">
+                                <span className="font-semibold text-[var(--foreground)] truncate">{item.title}</span>
+                                <span className="font-mono font-bold text-emerald-500 shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-[var(--foreground-muted)] font-mono">
+                                <span>{item.date || 'Cycle'} • {item.category || 'Investment'}</span>
+                                {item.reason && (
+                                  <span className="text-emerald-600 dark:text-emerald-400 truncate max-w-[140px]" title={item.reason}>
+                                    {item.reason}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
 
             {/* Detailed Categories Breakdown Grid */}

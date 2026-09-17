@@ -6,18 +6,51 @@ import { getCycleRange, getLogicalCyclePeriod } from '@/lib/cycle';
 import { categorizeTransaction } from '@/app/api/dashboard/route';
 
 const apiKey = process.env.GEMINI_API_KEY || '';
+const MAX_DAILY_REFRESHES = 5;
 
-export async function POST(req) {
+// Helper to compute user's today date string in YYYY-MM-DD
+function getTodayDateString(timezone = 'UTC') {
+  try {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    return formatter.format(new Date());
+  } catch (e) {
+    return new Date().toISOString().split('T')[0];
+  }
+}
+
+async function handleAiSummary(req) {
   try {
     const user = await requireUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({}));
+    let body = {};
+    if (req.method === 'POST') {
+      body = await req.json().catch(() => ({}));
+    } else {
+      const { searchParams } = new URL(req.url);
+      body = {
+        filter: searchParams.get('filter') || 'current',
+        forceRefresh: searchParams.get('forceRefresh') === 'true',
+        userPrompt: searchParams.get('userPrompt') || ''
+      };
+    }
+
     const filter = body.filter || 'current';
+    const forceRefresh = body.forceRefresh === true;
+    const rawUserPrompt = typeof body.userPrompt === 'string' ? body.userPrompt.trim() : '';
+    const isReset = rawUserPrompt === 'RESET_TO_DEFAULT';
+    const userPrompt = isReset ? '' : rawUserPrompt;
     const userId = user.id;
     const cycleDate = user.salaryCycleDate || 1;
+    const userTimezone = user.timezone || 'UTC';
+    const todayStr = getTodayDateString(userTimezone);
     const now = new Date();
 
     let startDate;
@@ -38,7 +71,61 @@ export async function POST(req) {
       endDate = range.endDate;
     }
 
-    // Query active cycle data
+    const startPeriod = getLogicalCyclePeriod(startDate, cycleDate);
+    const cycleMonth = startPeriod.month;
+    const cycleYear = startPeriod.year;
+
+    // Check DB for existing saved AI classification
+    let savedRecord = null;
+    try {
+      savedRecord = await db.aiBudgetClassification.findUnique({
+        where: {
+          userId_filter_cycleMonth_cycleYear: {
+            userId,
+            filter,
+            cycleMonth,
+            cycleYear
+          }
+        }
+      });
+    } catch (dbErr) {
+      console.warn('Could not read saved AiBudgetClassification:', dbErr.message);
+    }
+
+    // Calculate current daily refresh count & remaining quota
+    const refreshCountToday = (savedRecord && savedRecord.lastRefreshedDate === todayStr)
+      ? savedRecord.refreshCount
+      : 0;
+    const remainingRefreshes = Math.max(0, MAX_DAILY_REFRESHES - refreshCountToday);
+
+    // If NOT force refreshing, and NO user prompt override, and we have cached data -> Return cached immediately!
+    if (!forceRefresh && !userPrompt && savedRecord && savedRecord.summaryData) {
+      try {
+        const cachedIntelligence = JSON.parse(savedRecord.summaryData);
+        return NextResponse.json({
+          success: true,
+          cached: true,
+          remainingRefreshes,
+          maxDailyRefreshes: MAX_DAILY_REFRESHES,
+          lastRefreshedAt: savedRecord.updatedAt,
+          customPromptNotes: savedRecord.customPromptNotes,
+          intelligence: cachedIntelligence
+        });
+      } catch (parseErr) {
+        console.warn('Corrupted cached AI summary JSON, regenerating...');
+      }
+    }
+
+    // If user wants to refresh / re-classify, enforce daily 5-refresh cap!
+    if ((forceRefresh || userPrompt) && remainingRefreshes <= 0) {
+      return NextResponse.json({
+        error: `Daily AI 50/30/20 refresh limit (${MAX_DAILY_REFRESHES}/${MAX_DAILY_REFRESHES}) reached for today. Your quota resets tomorrow.`,
+        remainingRefreshes: 0,
+        maxDailyRefreshes: MAX_DAILY_REFRESHES,
+      }, { status: 429 });
+    }
+
+    // Query active cycle entries
     const periodEntries = await db.financialEntry.findMany({
       where: {
         userId,
@@ -47,12 +134,11 @@ export async function POST(req) {
       orderBy: { date: 'desc' },
     });
 
-    const startPeriod = getLogicalCyclePeriod(startDate, cycleDate);
     const periodSalaries = await db.salary.findMany({
-      where: { userId, month: startPeriod.month, year: startPeriod.year },
+      where: { userId, month: cycleMonth, year: cycleYear },
     });
     const periodBonuses = await db.bonus.findMany({
-      where: { userId, month: startPeriod.month, year: startPeriod.year },
+      where: { userId, month: cycleMonth, year: cycleYear },
     });
 
     let salaryTotal = 0;
@@ -84,7 +170,9 @@ export async function POST(req) {
     const daysRemaining = Math.max(0, totalCycleDays - daysElapsed);
     const dailyBurnRate = Math.round((spendingTotal / daysElapsed) * 100) / 100;
     const safeDailyBudget = daysRemaining > 0 ? Math.round((currentBalance / daysRemaining) * 100) / 100 : 0;
+    const incomeBase = salaryTotal > 0 ? salaryTotal : (spendingTotal + savingsTotal) || 1;
 
+    // Build exhaustive list of all transactions to classify
     const allTransactionsList = periodEntries.map(e => ({
       id: e.id,
       title: e.title,
@@ -92,74 +180,84 @@ export async function POST(req) {
       type: e.type,
       date: new Date(e.date).toISOString().split('T')[0],
       description: e.description || '',
-      category: categorizeTransaction(e.title, e.description, e.type)
     }));
 
-    // Prepared context summary for Gemini
     const financialContext = {
       currency,
+      incomeBaseline: incomeBase,
       cycleDays: { total: totalCycleDays, elapsed: daysElapsed, remaining: daysRemaining },
       inflow: { salaryAndBonus: salaryTotal },
       outflow: { totalSpending: spendingTotal, totalSavings: savingsTotal, totalLending: lendingTotal },
       activeBalance: currentBalance,
       burnRate: { dailyAverage: dailyBurnRate, safeDailyAllowance: safeDailyBudget },
-      categories: categoryBreakdown,
-      transactions: allTransactionsList.slice(0, 30)
+      transactionsCount: allTransactionsList.length,
+      transactions: allTransactionsList
     };
 
-    // If API key is present, try Gemini models
+    let generatedIntelligence = null;
+    let modelUsed = 'none';
+
+    // Dispatch to Gemini Generative AI
     if (apiKey) {
       const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-3.1-flash-lite'];
       const ai = new GoogleGenerativeAI(apiKey);
 
-      for (const modelName of candidateModels) {
+      for (const candidate of candidateModels) {
         try {
           const model = ai.getGenerativeModel({
-            model: modelName,
+            model: candidate,
             generationConfig: {
               responseMimeType: "application/json",
-              temperature: 0.2,
+              temperature: 0.15,
             }
           });
 
-          const prompt = `You are the Gemini 2050 Autonomous Financial Intelligence Engine for Passbook.
-Analyze the user's current salary cycle transactions, classify every item into the 50/30/20 Budget Discipline (Needs 50%, Wants 30%, Savings 20%), and return a rich structured JSON response.
+          const prompt = `You are the Gemini 2050 Autonomous Financial Intelligence & 50/30/20 Budgeting Engine for Passbook.
+Your job is to strictly classify ALL transactions into the 50/30/20 Budget Framework:
+1. NEEDS (50% Target): Essential non-negotiable living costs (Rent, Home Utilities, Groceries, Medicine/Doctor, Essential Commute/Fuel, Tuition/Education).
+2. WANTS (30% Target): Discretionary lifestyle and comfort (Dining out, Cafe, Shopping, Clothes, Electronics, Entertainment, Movies, Subscriptions, Leisure).
+3. SAVINGS (20% Target): Wealth building and capital allocation (SIPs, Mutual Funds, Stocks, Gold, Emergency Pot deposits, Debt payoffs).
 
-FINANCIAL CONTEXT:
+${userPrompt ? `CRITICAL USER OVERRIDE INSTRUCTIONS (MANDATORY TO APPLY):
+"${userPrompt}"
+Strictly incorporate and respect all the user's specific classification overrides above!
+` : ''}
+
+FINANCIAL DATA CONTEXT:
 ${JSON.stringify(financialContext, null, 2)}
 
-REQUIRED JSON OUTPUT FORMAT:
+REQUIRED JSON OUTPUT FORMAT (Strict JSON only, no markdown wrapping):
 {
-  "executiveSummary": "2 to 3 crisp, highly insightful sentences assessing spending velocity, largest expense clusters, and savings discipline.",
-  "financialHealthScore": 88, // integer from 0 to 100
-  "healthGrade": "A+", // "A+", "A", "B", "C", or "D"
-  "healthStatus": "Hyper-Optimal", // "Hyper-Optimal", "Disciplined", "Balanced", "Cautionary", "Critical Burn"
+  "executiveSummary": "2 to 3 crisp, insightful sentences assessing spending velocity, largest clusters, and savings discipline.",
+  "financialHealthScore": 88,
+  "healthGrade": "A+",
+  "healthStatus": "Hyper-Optimal",
   "needsWantsSavingsAI": {
     "needs": {
-      "amount": 450.00,
-      "percentage": 45, // percentage of total income
-      "status": "Optimal", // "Optimal", "Over Target", "Under Target"
-      "advice": "Essential expenses like rent and groceries are well under 50%.",
+      "amount": 0.00,
+      "percentage": 0,
+      "status": "Optimal",
+      "advice": "Concise advice for essential needs.",
       "items": [
-        { "title": "Rent", "amount": 300.00, "category": "Housing & Utilities", "reason": "Essential accommodation need" }
+        { "id": 1, "title": "Rent", "amount": 300.00, "date": "2026-09-01", "category": "Housing & Utilities", "reason": "Essential accommodation need" }
       ]
     },
     "wants": {
-      "amount": 250.00,
-      "percentage": 25, // percentage of total income
-      "status": "Optimal", // "Optimal", "Over Target", "Caution"
-      "advice": "Dining and leisure spending are in safe balance.",
+      "amount": 0.00,
+      "percentage": 0,
+      "status": "Optimal",
+      "advice": "Concise advice for discretionary spending.",
       "items": [
-        { "title": "Dinner Out", "amount": 45.00, "category": "Food & Dining", "reason": "Discretionary restaurant order" }
+        { "id": 2, "title": "Dinner Out", "amount": 45.00, "date": "2026-09-12", "category": "Food & Dining", "reason": "Discretionary restaurant order" }
       ]
     },
     "savings": {
-      "amount": 300.00,
-      "percentage": 30, // percentage of total income
-      "status": "Supercharged", // "Supercharged", "On Track", "Needs Boost"
-      "advice": "Excellent! You are allocating more than the 20% minimum target.",
+      "amount": 0.00,
+      "percentage": 0,
+      "status": "Supercharged",
+      "advice": "Concise advice for wealth building.",
       "items": [
-        { "title": "SIP Index Fund", "amount": 200.00, "category": "Investments & Savings", "reason": "Compounding equity wealth" }
+        { "id": 3, "title": "SIP Index Fund", "amount": 200.00, "date": "2026-09-05", "category": "Investments & Savings", "reason": "Compounding equity wealth" }
       ]
     },
     "aiVerdict": "Concise 1-2 sentence overall guidance on keeping the 50/30/20 balance optimal."
@@ -167,22 +265,22 @@ REQUIRED JSON OUTPUT FORMAT:
   "burnRateAnalysis": {
     "dailyAverageSpend": ${dailyBurnRate},
     "dailySafeBudget": ${safeDailyBudget},
-    "burnStatus": "Safe",
+    "burnStatus": "${dailyBurnRate > safeDailyBudget ? 'High' : 'Safe'}",
     "burnCommentary": "Short observation on daily burn velocity."
   },
   "smartCategories": [
     {
       "category": "Food & Dining",
-      "spent": 120.50,
-      "idealBudget": 150.00,
+      "spent": 0.00,
+      "idealBudget": 0.00,
       "status": "Within Budget",
-      "advice": "Short advice for this category."
+      "advice": "Advice for this category."
     }
   ],
   "spendingAnomalies": [
     {
-      "title": "Dining out spike",
-      "amount": 45.00,
+      "title": "Large expense spike",
+      "amount": 0.00,
       "date": "2026-09-14",
       "reason": "Sudden deviation from median weekday spending",
       "severity": "LOW"
@@ -190,11 +288,11 @@ REQUIRED JSON OUTPUT FORMAT:
   ],
   "savingsOpportunities": [
     {
-      "title": "Subscription Pruning",
-      "potentialMonthlySavings": 35.00,
+      "title": "Automated Micro-SIP Allocation",
+      "potentialMonthlySavings": 0,
       "impact": "HIGH",
-      "description": "Consolidate unused digital subscriptions.",
-      "actionableStep": "Audit recurring cloud / streaming renewals."
+      "description": "Channel 10% of liquid salary balance into index SIPs.",
+      "actionableStep": "Create an automatic recurring SIP pot in Passbook."
     }
   ],
   "projectedRunway": {
@@ -203,137 +301,101 @@ REQUIRED JSON OUTPUT FORMAT:
     "willRunOutOfMoney": ${currentBalance < (dailyBurnRate * daysRemaining)},
     "runwayConfidence": "High"
   },
-  "predictiveAdvice2050": "A futuristic personal wealth acceleration tip for 2050."
+  "predictiveAdvice2050": "A futuristic personal wealth acceleration tip."
 }
 
-Ensure all numbers are mathematically accurate and aligned with the provided context. Only return valid JSON.`;
+Ensure all transactions from the context are accounted for in either needs, wants, or savings. Sums and percentages must be mathematically accurate.`;
 
           const result = await model.generateContent(prompt);
           const responseText = result.response.text();
-          const parsed = JSON.parse(responseText);
-
-          return NextResponse.json({
-            success: true,
-            modelUsed: modelName,
-            generatedAt: new Date().toISOString(),
-            intelligence: parsed
-          });
+          generatedIntelligence = JSON.parse(responseText);
+          modelUsed = candidate;
+          break;
         } catch (modelErr) {
-          console.warn(`Gemini model ${modelName} failed, trying fallback...`, modelErr?.message || modelErr);
+          console.warn(`Gemini model ${candidate} failed:`, modelErr?.message || modelErr);
         }
       }
     }
 
-    // Heuristic algorithmic fallback if API key fails or rate limits
-    const incomeBase = salaryTotal > 0 ? salaryTotal : (spendingTotal + savingsTotal) || 1;
-    let needsSum = 0;
-    let wantsSum = 0;
-    const needsItems = [];
-    const wantsItems = [];
-    const savingsItems = [];
-
-    periodEntries.forEach(e => {
-      const amt = parseFloat(e.amount);
-      const cat = categorizeTransaction(e.title, e.description, e.type);
-      if (e.type === 'SAVINGS') {
-        savingsItems.push({ title: e.title, amount: amt, category: cat, reason: 'Invested in savings' });
-      } else if (['Housing & Utilities', 'Health & Wellness', 'Education & Learning'].includes(cat) || /(groceries|grocery|rent|electricity|water|wifi|medical|medicine)/i.test(e.title)) {
-        needsSum += amt;
-        needsItems.push({ title: e.title, amount: amt, category: cat, reason: 'Essential living requirement' });
-      } else {
-        wantsSum += amt;
-        wantsItems.push({ title: e.title, amount: amt, category: cat, reason: 'Discretionary lifestyle spend' });
+    // If Gemini failed or no API key, return structured error requiring AI
+    if (!generatedIntelligence) {
+      if (!savedRecord) {
+        return NextResponse.json({
+          error: 'AI Intelligence engine is temporarily unavailable. Please verify your GEMINI_API_KEY in backend.',
+        }, { status: 503 });
       }
-    });
+      // Return previously saved record if available
+      return NextResponse.json({
+        success: true,
+        cached: true,
+        remainingRefreshes,
+        maxDailyRefreshes: MAX_DAILY_REFRESHES,
+        lastRefreshedAt: savedRecord.updatedAt,
+        intelligence: JSON.parse(savedRecord.summaryData)
+      });
+    }
 
-    const needsPct = Math.round((needsSum / incomeBase) * 100);
-    const wantsPct = Math.round((wantsSum / incomeBase) * 100);
-    const savingsPct = Math.round((savingsTotal / incomeBase) * 100);
+    // Compute new daily refresh count
+    const updatedDailyCount = (savedRecord && savedRecord.lastRefreshedDate === todayStr)
+      ? savedRecord.refreshCount + 1
+      : 1;
 
-    const healthScore = Math.max(20, Math.min(98, Math.round(
-      (salaryTotal > 0 ? (currentBalance / salaryTotal) * 60 : 50) +
-      (savingsTotal > 0 ? 25 : 5) -
-      (dailyBurnRate > safeDailyBudget ? 15 : 0)
-    )));
-
-    const fallbackJson = {
-      executiveSummary: spendingTotal > 0 
-        ? `You have expended ${currency} ${spendingTotal.toLocaleString()} out of ${currency} ${salaryTotal.toLocaleString()} available. Your liquid reserve is steady with an estimated burn rate of ${currency} ${dailyBurnRate}/day.`
-        : `No significant outflow logged this cycle. Your salary capital of ${currency} ${salaryTotal.toLocaleString()} is fully intact and primed for strategic savings.`,
-      financialHealthScore: healthScore,
-      healthGrade: healthScore >= 90 ? 'A+' : healthScore >= 80 ? 'A' : healthScore >= 70 ? 'B' : 'C',
-      healthStatus: healthScore >= 85 ? 'Hyper-Optimal' : healthScore >= 75 ? 'Disciplined' : 'Balanced',
-      needsWantsSavingsAI: {
-        needs: {
-          amount: needsSum,
-          percentage: needsPct,
-          status: needsPct <= 50 ? 'Optimal' : 'Over Target',
-          advice: needsPct <= 50 ? 'Needs are well controlled under 50% target.' : 'Essential needs exceed 50% of your income baseline.',
-          items: needsItems.slice(0, 10)
+    // Persist AI response to DB
+    try {
+      await db.aiBudgetClassification.upsert({
+        where: {
+          userId_filter_cycleMonth_cycleYear: {
+            userId,
+            filter,
+            cycleMonth,
+            cycleYear
+          }
         },
-        wants: {
-          amount: wantsSum,
-          percentage: wantsPct,
-          status: wantsPct <= 30 ? 'Optimal' : 'Caution',
-          advice: wantsPct <= 30 ? 'Discretionary lifestyle spending is safely under 30%.' : 'Wants spending is higher than recommended 30%.',
-          items: wantsItems.slice(0, 10)
+        create: {
+          userId,
+          filter,
+          cycleMonth,
+          cycleYear,
+          summaryData: JSON.stringify(generatedIntelligence),
+          customPromptNotes: isReset ? null : (userPrompt || savedRecord?.customPromptNotes || null),
+          refreshCount: updatedDailyCount,
+          lastRefreshedDate: todayStr
         },
-        savings: {
-          amount: savingsTotal,
-          percentage: savingsPct,
-          status: savingsPct >= 20 ? 'Supercharged' : 'Needs Boost',
-          advice: savingsPct >= 20 ? 'Excellent wealth building! Over 20% saved.' : 'Aim to channel at least 20% into investments.',
-          items: savingsItems.slice(0, 10)
-        },
-        aiVerdict: `Your current distribution is ${needsPct}% Needs / ${wantsPct}% Wants / ${savingsPct}% Savings.`
-      },
-      burnRateAnalysis: {
-        dailyAverageSpend: dailyBurnRate,
-        dailySafeBudget: safeDailyBudget,
-        burnStatus: dailyBurnRate > safeDailyBudget * 1.2 ? 'High' : 'Safe',
-        burnCommentary: dailyBurnRate <= safeDailyBudget ? 'Spending is well within safe velocity limits.' : 'Daily spending slightly outpaces optimal run rate.'
-      },
-      smartCategories: Object.entries(categoryBreakdown).map(([cat, amt]) => ({
-        category: cat,
-        spent: amt,
-        idealBudget: Math.round(amt * 0.9),
-        status: amt > (salaryTotal * 0.3) ? 'Over Budget' : 'Within Budget',
-        advice: `Keep ${cat} allocations monitored towards the cycle close.`
-      })),
-      spendingAnomalies: periodEntries.slice(0, 2).filter(e => parseFloat(e.amount) > (spendingTotal * 0.35)).map(e => ({
-        title: e.title,
-        amount: parseFloat(e.amount),
-        date: new Date(e.date).toISOString().split('T')[0],
-        reason: 'Large single outflow relative to total cycle expenses',
-        severity: 'MEDIUM'
-      })),
-      savingsOpportunities: [
-        {
-          title: 'Automated Micro-SIP Allocation',
-          potentialMonthlySavings: Math.round(salaryTotal * 0.1),
-          impact: 'HIGH',
-          description: 'Channel 10% of liquid salary balance into index SIPs at cycle start.',
-          actionableStep: 'Create an automatic recurring SIP pot in Passbook.'
+        update: {
+          summaryData: JSON.stringify(generatedIntelligence),
+          customPromptNotes: isReset ? null : (userPrompt ? userPrompt : savedRecord?.customPromptNotes),
+          refreshCount: updatedDailyCount,
+          lastRefreshedDate: todayStr
         }
-      ],
-      projectedRunway: {
-        daysRemainingInCycle: daysRemaining,
-        projectedEndOfCycleBalance: Math.max(0, Math.round(currentBalance - (dailyBurnRate * daysRemaining))),
-        willRunOutOfMoney: currentBalance < (dailyBurnRate * daysRemaining),
-        runwayConfidence: 'High'
-      },
-      predictiveAdvice2050: 'Automate 20% savings before discretionary spending to guarantee compounding exponential runway.'
-    };
+      });
+    } catch (saveErr) {
+      console.warn('Could not save AiBudgetClassification to DB:', saveErr.message);
+    }
+
+    const newRemaining = Math.max(0, MAX_DAILY_REFRESHES - updatedDailyCount);
+    const finalPromptNotes = isReset ? null : (userPrompt || savedRecord?.customPromptNotes || null);
 
     return NextResponse.json({
       success: true,
-      modelUsed: 'heuristic-engine',
-      generatedAt: new Date().toISOString(),
-      intelligence: fallbackJson
+      cached: false,
+      modelUsed,
+      remainingRefreshes: newRemaining,
+      maxDailyRefreshes: MAX_DAILY_REFRESHES,
+      lastRefreshedAt: new Date().toISOString(),
+      customPromptNotes: finalPromptNotes,
+      intelligence: generatedIntelligence
     });
 
   } catch (error) {
     console.error('Error in /api/dashboard/ai-summary:', error);
-    return NextResponse.json({ error: 'Failed to generate AI intelligence' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to process AI 50/30/20 summary.' }, { status: 500 });
   }
+}
+
+export async function GET(req) {
+  return handleAiSummary(req);
+}
+
+export async function POST(req) {
+  return handleAiSummary(req);
 }
