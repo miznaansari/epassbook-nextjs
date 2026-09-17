@@ -658,6 +658,35 @@ export default function Assistant() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
 
+  // Thinking State & Rotating Prompts while API request is pending
+  const THINKING_PHRASES = [
+    'Reasoning and querying ledger database...',
+    'Analyzing financial entries & active pots...',
+    'Processing multimodal vision context...',
+    'Synthesizing intelligent finance response...'
+  ];
+  const [thinkingStep, setThinkingStep] = useState(0);
+
+  const isThinking = isGenerating && (
+    messages.length === 0 ||
+    messages[messages.length - 1]?.role === 'user' ||
+    (messages[messages.length - 1]?.role === 'assistant' && !messages[messages.length - 1]?.content)
+  );
+
+  useEffect(() => {
+    let interval;
+    if (isThinking) {
+      interval = setInterval(() => {
+        setThinkingStep(prev => (prev + 1) % THINKING_PHRASES.length);
+      }, 2200);
+    } else {
+      setThinkingStep(0);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isThinking]);
+
   // Live Speech Recognition & Sarvam AI Voice State
   const [isListening, setIsListening] = useState(false);
   const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
@@ -1673,8 +1702,8 @@ export default function Assistant() {
                           setIsSidebarOpen(false);
                         }}
                         className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${isActive
-                            ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
-                            : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
+                          ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
+                          : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
                           }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-8">
@@ -1758,8 +1787,8 @@ export default function Assistant() {
                         key={s.id}
                         onClick={() => setActiveSessionId(s.id)}
                         className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${isActive
-                            ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
-                            : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
+                          ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
+                          : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
                           }`}
                       >
                         <div className="flex items-center gap-2.5 truncate pr-6">
@@ -1876,6 +1905,9 @@ export default function Assistant() {
                   const isAi = msg.role === 'assistant';
                   const isStreamingCurrent = isAi && isGenerating && idx === messages.length - 1;
 
+                  // If assistant placeholder is empty while waiting for first token, let Thinking indicator render
+                  if (isAi && !msg.content && isStreamingCurrent) return null;
+
                   return (
                     <div
                       key={idx}
@@ -1883,8 +1915,8 @@ export default function Assistant() {
                     >
                       {isAi && (
                         <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-xs transition-all ${isStreamingCurrent
-                            ? 'bg-indigo-500/25 border-indigo-500 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                            : 'bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400'
+                          ? 'bg-indigo-500/25 border-indigo-500 text-indigo-600 dark:text-indigo-400 animate-pulse'
+                          : 'bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400'
                           }`}>
                           <Bot className="w-4 h-4 md:w-5 md:h-5" />
                         </div>
@@ -1897,10 +1929,10 @@ export default function Assistant() {
                       )}
 
                       <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-xs transition-all ${isAi
-                          ? isStreamingCurrent
-                            ? 'bg-white dark:bg-[var(--background-base)] border border-indigo-400 dark:border-indigo-500/40 text-slate-900 dark:text-[var(--foreground)] font-normal shadow-lg shadow-indigo-500/10'
-                            : 'bg-slate-100/90 dark:bg-[var(--background-base)] border border-slate-200/80 dark:border-[var(--border-default)] text-slate-900 dark:text-[var(--foreground)] font-normal shadow-2xs'
-                          : 'bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-600/20'
+                        ? isStreamingCurrent
+                          ? 'bg-white dark:bg-[var(--background-base)] border border-indigo-400 dark:border-indigo-500/40 text-slate-900 dark:text-[var(--foreground)] font-normal shadow-lg shadow-indigo-500/10'
+                          : 'bg-slate-100/90 dark:bg-[var(--background-base)] border border-slate-200/80 dark:border-[var(--border-default)] text-slate-900 dark:text-[var(--foreground)] font-normal shadow-2xs'
+                        : 'bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-600/20'
                         }`}>
 
                         {/* Live Streaming Gemini Transcript Banner */}
@@ -1938,12 +1970,12 @@ export default function Assistant() {
                               {!isAi && extractedImgUrls.length > 0 && (
                                 <div className="mb-3">
                                   <div className={`grid gap-2 ${extractedImgUrls.length === 1
-                                      ? 'grid-cols-1 max-w-sm'
-                                      : extractedImgUrls.length === 2
-                                        ? 'grid-cols-2'
-                                        : extractedImgUrls.length === 3
-                                          ? 'grid-cols-3'
-                                          : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
+                                    ? 'grid-cols-1 max-w-sm'
+                                    : extractedImgUrls.length === 2
+                                      ? 'grid-cols-2'
+                                      : extractedImgUrls.length === 3
+                                        ? 'grid-cols-3'
+                                        : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
                                     }`}>
                                     {extractedImgUrls.map((src, imgIdx) => (
                                       <div
@@ -1994,10 +2026,10 @@ export default function Assistant() {
                                 onClick={() => handleSpeak(msg.content, idx)}
                                 disabled={audioLoadingMsgIdx === idx}
                                 className={`p-1.5 rounded-lg transition-colors cursor-pointer ${speakingMsgIdx === idx
-                                    ? 'bg-indigo-500/25 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                                    : audioLoadingMsgIdx === idx
-                                      ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
-                                      : 'hover:bg-slate-200/70 dark:hover:bg-[var(--surface-hover)] text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
+                                  ? 'bg-indigo-500/25 text-indigo-600 dark:text-indigo-400 animate-pulse'
+                                  : audioLoadingMsgIdx === idx
+                                    ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                                    : 'hover:bg-slate-200/70 dark:hover:bg-[var(--surface-hover)] text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
                                   }`}
                                 title={
                                   audioLoadingMsgIdx === idx
@@ -2039,17 +2071,43 @@ export default function Assistant() {
                   );
                 })}
 
-                {isGenerating && !messages[messages.length - 1]?.content && (
-                  <div className="flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left justify-start items-start animate-fade-in">
-                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/25 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 animate-pulse">
-                      <Bot className="w-4 h-4 md:w-5 md:h-5" />
+                {/* Dynamic Thinking / Reasoning indicator while API request is pending */}
+                {isThinking && (
+                  <div className="flex flex-col md:flex-row gap-2 md:gap-3.5 text-left justify-start items-start animate-fade-in my-1">
+                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-gradient-to-tr from-indigo-500/25 via-purple-500/20 to-indigo-600/30 border border-indigo-500/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/10 animate-pulse">
+                      <Sparkles className="w-4 h-4 md:w-4.5 md:h-4.5 text-indigo-500 animate-spin" style={{ animationDuration: '3s' }} />
                     </div>
-                    <div className="p-3.5 md:p-4 rounded-2xl w-full md:w-auto bg-white dark:bg-[var(--background-base)] border border-indigo-300 dark:border-indigo-500/20 text-slate-800 dark:text-[var(--foreground)] text-xs font-mono flex items-center gap-2.5 shadow-xs">
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                      <span className="flex items-center gap-1.5">
-                        <Activity className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                        <span>Analyzing Vision & Ledger Data...</span>
-                      </span>
+
+                    <div className="p-3.5 md:p-4 rounded-2xl w-full sm:w-auto max-w-md bg-white/95 dark:bg-[var(--background-base)] border border-indigo-300 dark:border-indigo-500/30 text-slate-800 dark:text-[var(--foreground)] text-xs font-mono shadow-md shadow-indigo-500/5 space-y-2 backdrop-blur-md">
+                      {/* Header with bouncing dots and gradient text */}
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          {/* Animated Bouncing Wave Dots */}
+                          <div className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                            <span className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                            <span className="w-2 h-2 rounded-full bg-pink-500 dark:bg-cyan-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                          </div>
+
+                          <span className="text-xs font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 dark:from-indigo-400 dark:via-purple-300 dark:to-cyan-400 bg-clip-text text-transparent tracking-tight">
+                            Thinking...
+                          </span>
+                        </div>
+
+                        <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.04]">
+                          {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || selectedModel}
+                        </span>
+                      </div>
+
+                      {/* Rotating Activity / Thought Prompt */}
+                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.06] text-[11px] text-slate-500 dark:text-[var(--foreground-muted)]">
+                        <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0 animate-pulse" />
+                        <span className="truncate">
+                          {messages[messages.length - 1]?.imagePreviews?.length > 0
+                            ? 'Scanning multimodal receipts & OCR extraction...'
+                            : THINKING_PHRASES[thinkingStep]}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2059,12 +2117,11 @@ export default function Assistant() {
           </div>
 
           {/* Unified Floating AI Chat Input Capsule - Sits cleanly above floating bottom dock on mobile, and at base on desktop */}
-          <div 
-            className={`fixed left-3 right-3 max-w-[420px] md:max-w-none mx-auto z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:pt-3 space-y-2 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              isKeyboardOpen 
-                ? 'bottom-[max(8px,calc(env(safe-area-inset-bottom,0px)+4px))]' 
-                : 'bottom-[calc(max(10px,calc(env(safe-area-inset-bottom,0px)+6px))+62px)]'
-            }`}
+          <div
+            className={`fixed left-3 right-3 max-w-[420px] md:max-w-none mx-auto z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:pt-3 space-y-2 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${isKeyboardOpen
+              ? 'bottom-[max(8px,calc(env(safe-area-inset-bottom,0px)+4px))]'
+              : 'bottom-[calc(max(10px,calc(env(safe-area-inset-bottom,0px)+6px))+62px)]'
+              }`}
           >
 
             {/* Multi-Image Attachment Preview Strip (up to 10 images) */}
@@ -2089,8 +2146,8 @@ export default function Assistant() {
                     <div
                       key={img.id}
                       className={`relative shrink-0 w-18 h-18 rounded-xl overflow-hidden border group bg-slate-50 dark:bg-black/40 transition-all ${img.status === 'error'
-                          ? 'border-rose-500/60 bg-rose-500/10'
-                          : 'border-slate-200 dark:border-white/10 hover:border-indigo-500/50'
+                        ? 'border-rose-500/60 bg-rose-500/10'
+                        : 'border-slate-200 dark:border-white/10 hover:border-indigo-500/50'
                         }`}
                     >
                       <img
@@ -2166,11 +2223,11 @@ export default function Assistant() {
             {/* Unified Single Input Capsule Bar */}
             <form
               onSubmit={handleFormSubmit}
-              className={`relative floating-bottom-dock rounded-full p-1.5 pl-2 flex items-center gap-1.5 transition-all duration-200 ${isListening
-                  ? 'border-rose-500 ring-2 ring-rose-500/30 shadow-rose-500/10'
-                  : isTranscribingAudio
-                    ? 'border-indigo-500 ring-2 ring-indigo-500/30 shadow-indigo-500/10'
-                    : 'focus-within:border-[#5E6AD2]/70 focus-within:ring-2 focus-within:ring-[#5E6AD2]/20'
+              className={`relative mb-3 floating-bottom-dock rounded-full p-1.5 pl-2 flex items-center gap-1.5 transition-all duration-200 ${isListening
+                ? 'border-rose-500 ring-2 ring-rose-500/30 shadow-rose-500/10'
+                : isTranscribingAudio
+                  ? 'border-indigo-500 ring-2 ring-indigo-500/30 shadow-indigo-500/10'
+                  : 'focus-within:border-[#5E6AD2]/70 focus-within:ring-2 focus-within:ring-[#5E6AD2]/20'
                 }`}
             >
               {/* Hidden File Input (supports multiple files) */}
@@ -2189,10 +2246,10 @@ export default function Assistant() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || isProcessingImage}
                 className={`relative p-2 md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isProcessingImage
-                    ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                    : attachedImages.length > 0
-                      ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
-                      : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                  ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
+                  : attachedImages.length > 0
+                    ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
                   }`}
                 title={
                   isProcessingImage
@@ -2221,11 +2278,11 @@ export default function Assistant() {
                 type="button"
                 onClick={toggleSpeechRecognition}
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
-                className={`p-2 md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isListening
-                    ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
-                    : isTranscribingAudio
-                      ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                      : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
+                className={`p-2  md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isListening
+                  ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
+                  : isTranscribingAudio
+                    ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
+                    : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
                   }`}
                 title={
                   isListening
@@ -2270,8 +2327,8 @@ export default function Assistant() {
                 type="submit"
                 disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && attachedImages.length === 0)}
                 className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${input.trim() || attachedImages.length > 0
-                    ? 'bg-gradient-to-tr from-[#5E6AD2] via-[#7056E0] to-[#5E6AD2] text-white shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer hover:brightness-110'
-                    : 'bg-slate-100 dark:bg-white/[0.06] text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                  ? 'bg-gradient-to-tr from-[#5E6AD2] via-[#7056E0] to-[#5E6AD2] text-white shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer hover:brightness-110'
+                  : 'bg-slate-100 dark:bg-white/[0.06] text-slate-300 dark:text-slate-600 cursor-not-allowed'
                   }`}
                 title="Send message"
               >
