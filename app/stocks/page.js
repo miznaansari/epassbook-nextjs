@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { isMarketHours } from '@/lib/market';
+import PortfolioChart, { usePortfolioHistory } from '@/components/stocks/PortfolioChart';
 
 export default function StocksPage() {
   const { user, loading: authLoading } = useAuth();
@@ -41,6 +42,7 @@ export default function StocksPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [expandedSymbol, setExpandedSymbol] = useState(null);
+  const [liveTicks, setLiveTicks] = useState([]); // intraday points captured from 5s market-hours polls
 
   // Add stock modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -107,6 +109,10 @@ export default function StocksPage() {
           totalReturnsPercentage: 0,
         });
         setApiLimitRemaining(data.apiLimitRemaining ?? 10);
+        if (isMarketHours() && data.holdings?.length) {
+          const prices = Object.fromEntries(data.holdings.map(h => [h.symbol, h.currentPrice]));
+          setLiveTicks(prev => [...prev, { t: Date.now(), v: data.summary.totalCurrentValue, p: prices }].slice(-720));
+        }
       } else {
         setError('Failed to fetch stock holdings.');
       }
@@ -135,6 +141,16 @@ export default function StocksPage() {
       fetchHoldings();
     }
   }, [user]);
+
+  // Portfolio growth chart history (refetches when lots are added or removed)
+  const [chartRange, setChartRange] = useState('1D');
+  const holdingsKey = holdings.map(h => `${h.symbol}:${h.quantity}`).join('|');
+  const { data: chartHistory, dayData, isStale: chartStale, error: chartError } = usePortfolioHistory(
+    chartRange,
+    holdingsKey,
+    inMarketHours,
+    () => fetchHoldings(true)
+  );
 
   // Polling effect: Poll every 5 seconds during market hours
   useEffect(() => {
@@ -334,6 +350,38 @@ export default function StocksPage() {
 
   const isProfit = summary.totalReturns >= 0;
 
+  // Compact axis labels (₹1.2L, $12k)
+  const formatCompact = (val) => {
+    const symbol = (user?.currency || 'USD') === 'INR' ? '₹' : '$';
+    const abs = Math.abs(val);
+    if (abs >= 10000000) return `${symbol}${(val / 10000000).toFixed(1)}Cr`;
+    if (abs >= 100000) return `${symbol}${(val / 100000).toFixed(1)}L`;
+    if (abs >= 1000) return `${symbol}${(val / 1000).toFixed(1)}k`;
+    return `${symbol}${Math.round(val)}`;
+  };
+
+  // Today's move per holding, measured against the previous session close
+  const movers = holdings
+    .map(h => {
+      const quote = dayData?.symbols?.[h.symbol];
+      if (!quote?.previousClose) return null;
+      const price = inMarketHours ? h.currentPrice : (quote.lastPrice ?? h.currentPrice);
+      return {
+        symbol: h.symbol,
+        name: h.name,
+        price,
+        dayChange: (price - quote.previousClose) * h.quantity,
+        dayChangePct: ((price - quote.previousClose) / quote.previousClose) * 100,
+        prevValue: quote.previousClose * h.quantity,
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.dayChangePct - a.dayChangePct);
+  const dayPnl = movers.reduce((sum, m) => sum + m.dayChange, 0);
+  const dayPrevValue = movers.reduce((sum, m) => sum + m.prevValue, 0);
+  const dayPnlPct = dayPrevValue > 0 ? (dayPnl / dayPrevValue) * 100 : 0;
+  const isDayUp = dayPnl >= 0;
+
   return (
     <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30 app-sidebar-offset">
       <Navbar />
@@ -347,8 +395,8 @@ export default function StocksPage() {
                 Groww Portfolio
               </span>
               <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                MARKET ACTIVE
+                <span className={`w-1.5 h-1.5 rounded-full ${inMarketHours ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
+                {inMarketHours ? 'MARKET OPEN' : 'MARKET CLOSED'}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
@@ -399,26 +447,43 @@ export default function StocksPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
           {/* Main Portfolio Overview Panel */}
           <SpotlightCard
-            className="lg:col-span-2 p-6 flex flex-col justify-between min-h-[220px]"
+            className="lg:col-span-2 p-4 sm:p-6 flex flex-col justify-between min-h-[220px]"
             spotlightColor="rgba(94, 106, 210, 0.12)"
           >
-            <div className="flex justify-between items-start">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]"></span>
-                  Portfolio Valuation
-                </span>
-                <h2 className="text-3xl sm:text-4xl font-bold font-mono text-white tracking-tight mt-2">
-                  {formatCurrency(summary.totalCurrentValue)}
-                </h2>
+            {holdings.length > 0 ? (
+              <PortfolioChart
+                data={chartHistory}
+                isStale={chartStale}
+                error={chartError}
+                range={chartRange}
+                onRangeChange={setChartRange}
+                holdings={holdings}
+                summary={summary}
+                liveTicks={liveTicks}
+                inMarketHours={inMarketHours}
+                formatCurrency={formatCurrency}
+                formatCompact={formatCompact}
+              />
+            ) : (
+              <div className="flex justify-between items-start">
+                <div>
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]"></span>
+                    Portfolio Valuation
+                  </span>
+                  <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mt-2">
+                    {formatCurrency(summary.totalCurrentValue)}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-2">Add a holding to see your live growth chart.</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
+                  <Briefcase className="w-5 h-5 text-[#5E6AD2]" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                <Briefcase className="w-5 h-5 text-[#5E6AD2]" />
-              </div>
-            </div>
+            )}
 
             {/* Total Invested and Returns Segment */}
-            <div className="mt-8 pt-4 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="mt-6 pt-4 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Invested Capital</span>
                 <p className="text-base sm:text-lg font-mono font-semibold text-slate-200 mt-1">
@@ -433,12 +498,26 @@ export default function StocksPage() {
                 </p>
               </div>
 
-              <div className="col-span-2 sm:col-span-1">
+              <div>
                 <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Total Gain / Loss</span>
                 <p className={`text-base sm:text-lg font-mono font-bold mt-1 flex items-center gap-1.5 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
                   {isProfit ? <TrendingUp className="w-4 h-4 text-emerald-400" /> : <TrendingDown className="w-4 h-4 text-rose-400" />}
                   {isProfit ? '+' : ''}{summary.totalReturnsPercentage.toFixed(2)}%
                 </p>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
+                  {inMarketHours ? "Today's P&L" : 'Last Session P&L'}
+                </span>
+                {movers.length > 0 ? (
+                  <p className={`text-base sm:text-lg font-mono font-semibold mt-1 ${isDayUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {isDayUp ? '+' : '-'}{formatCurrency(Math.abs(dayPnl))}
+                    <span className="block text-[10px] font-normal opacity-80">{isDayUp ? '+' : ''}{dayPnlPct.toFixed(2)}%</span>
+                  </p>
+                ) : (
+                  <p className="text-base sm:text-lg font-mono font-semibold text-slate-500 mt-1">—</p>
+                )}
               </div>
             </div>
           </SpotlightCard>
@@ -503,6 +582,36 @@ export default function StocksPage() {
                 </div>
               ))}
             </div>
+
+            {/* Today's movers */}
+            {movers.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-white/[0.06]">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2 mb-3">
+                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+                  {inMarketHours ? "Today's Movers" : 'Last Session Movers'}
+                </span>
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                  {movers.map(m => {
+                    const up = m.dayChangePct >= 0;
+                    return (
+                      <div key={m.symbol} className="flex items-center justify-between gap-2 text-xs font-mono">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-white truncate">{m.symbol.split('.')[0]}</div>
+                          <div className="text-[10px] text-slate-500">{formatCurrency(m.price)}</div>
+                        </div>
+                        <div className={`text-right shrink-0 ${up ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          <div className="font-semibold flex items-center justify-end gap-1">
+                            {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {up ? '+' : ''}{m.dayChangePct.toFixed(2)}%
+                          </div>
+                          <div className="text-[10px] opacity-80">{up ? '+' : '-'}{formatCurrency(Math.abs(m.dayChange))}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </SpotlightCard>
         </div>
 

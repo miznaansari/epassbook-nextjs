@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReportInsights from '@/components/reports/ReportInsights';
 import {
   AreaChart,
   Area,
@@ -12,10 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
+  Bar
 } from 'recharts';
 import {
   TrendingDown,
@@ -47,12 +45,9 @@ export default function ReportsMobile({
   salaries,
   bonuses,
   entries,
+  sips,
   formatCurrency,
   monthlyChartData,
-  currentPeriodStats,
-  pieChartData,
-  COLORS,
-  PIE_COLORS,
   CustomTooltip,
   getCellMetadata,
   getMonthDays,
@@ -70,8 +65,7 @@ export default function ReportsMobile({
     { id: 'cashflow', name: 'Cash Flow', icon: Coins },
     { id: 'spending', name: 'Spending', icon: TrendingDown },
     { id: 'savings', name: 'Savings', icon: PiggyBank },
-    { id: 'stocks', name: 'Stocks', icon: Briefcase },
-    { id: 'breakdown', name: 'Categories', icon: AlertCircle }
+    { id: 'stocks', name: 'Stocks', icon: Briefcase }
   ];
 
   return (
@@ -89,38 +83,17 @@ export default function ReportsMobile({
           </h1>
         </div>
 
-        {/* Quick KPI Overview Cards */}
-        <div className="grid grid-cols-3 gap-2">
-          {/* Net Cashflow */}
-          <div className="bg-[#0a0a0c] border border-white/[0.06] p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left font-mono">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 block truncate">
-              Cashflow
-            </span>
-            <span className="text-xs font-bold text-white mt-1 block truncate">
-              {formatCurrency(currentPeriodStats.totalInflow - currentPeriodStats.totalOutflow)}
-            </span>
-          </div>
-
-          {/* Ledger Savings */}
-          <div className="bg-[#0a0a0c] border border-white/[0.06] p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left font-mono">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 block truncate">
-              Savings
-            </span>
-            <span className="text-xs font-bold text-amber-400 mt-1 block truncate">
-              {formatCurrency(currentPeriodStats.totalSavings)}
-            </span>
-          </div>
-
-          {/* Stocks Value */}
-          <div className="bg-[#0a0a0c] border border-white/[0.06] p-3 rounded-xl flex flex-col justify-between min-h-[72px] text-left font-mono">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 block truncate">
-              Stocks
-            </span>
-            <span className="text-xs font-bold text-[#06B6D4] mt-1 block truncate">
-              {formatCurrency(stockSummary.totalCurrentValue)}
-            </span>
-          </div>
-        </div>
+        {/* Spend & investment intelligence (period-scoped) */}
+        <ReportInsights
+          entries={entries}
+          salaries={salaries}
+          bonuses={bonuses}
+          sips={sips}
+          cycleDate={cycleDate}
+          user={user}
+          stockSummary={stockSummary}
+          formatCurrency={formatCurrency}
+        />
 
         {/* Interactive Contribution and date picker */}
         <div className="bg-[#0a0a0c] border border-white/[0.06] p-4 rounded-xl space-y-4">
@@ -448,7 +421,7 @@ export default function ReportsMobile({
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
                         <Area type="monotone" dataKey="Inflow" stroke="#10B981" fillOpacity={1} fill="url(#mColorInflow)" strokeWidth={1.5} />
                         <Area type="monotone" dataKey="Outflow" stroke="#F43F5E" fillOpacity={1} fill="url(#mColorOutflow)" strokeWidth={1.5} />
                       </AreaChart>
@@ -474,7 +447,7 @@ export default function ReportsMobile({
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
                         <Bar dataKey="Spending" fill="#F43F5E" radius={[3, 3, 0, 0]} maxBarSize={16} />
                       </BarChart>
                     </ResponsiveContainer>
@@ -499,7 +472,7 @@ export default function ReportsMobile({
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
-                        <Tooltip content={<CustomTooltip />} />
+                        <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
                         <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={16} />
                         <Bar dataKey="Invested Savings" stackId="a" fill="#5E6AD2" radius={[3, 3, 0, 0]} maxBarSize={16} />
                       </BarChart>
@@ -564,63 +537,6 @@ export default function ReportsMobile({
                 </motion.div>
               )}
 
-              {activeTab === 'breakdown' && (
-                <motion.div
-                  key="breakdown-chart"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="w-full h-full flex flex-col justify-between"
-                >
-                  <span className="text-[9px] font-mono uppercase tracking-wider text-slate-400 block mb-1">
-                    Cycle Spending Distribution
-                  </span>
-
-                  {pieChartData.length === 0 ? (
-                    <div className="h-40 w-full flex flex-col items-center justify-center text-slate-500 text-xs font-mono">
-                      <AlertCircle className="w-5 h-5 opacity-40 mb-1.5" />
-                      <span>No spending recorded in this cycle.</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-3 h-40">
-                      <div className="w-28 h-28 shrink-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={pieChartData}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={28}
-                              outerRadius={48}
-                              paddingAngle={2}
-                              stroke="rgba(10,10,12,0.8)"
-                              strokeWidth={2}
-                              dataKey="value"
-                            >
-                              {pieChartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <Tooltip content={<CustomTooltip />} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      <div className="flex-grow space-y-1 max-h-36 overflow-y-auto pr-1 font-mono text-xs">
-                        {pieChartData.map((slice, idx) => (
-                          <div key={idx} className="flex items-center justify-between border-b border-white/[0.04] pb-1">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[slice.name] || '#a78bfa' }}></span>
-                              <span className="truncate text-slate-300 text-[10px]">{slice.name}</span>
-                            </div>
-                            <span className="font-semibold text-white shrink-0 ml-1 text-[10px]">{formatCurrency(slice.value)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </motion.div>
-              )}
             </AnimatePresence>
           </div>
         </div>

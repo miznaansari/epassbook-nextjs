@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import ReportsMobile from '@/components/ReportsMobile';
-import SpotlightCard from '@/components/ui/SpotlightCard';
-import { motion } from 'framer-motion';
+import ReportInsights from '@/components/reports/ReportInsights';
+import { makeCompactFormatter } from '@/components/reports/chartTheme';
 import {
   AreaChart,
   Area,
@@ -17,30 +17,40 @@ import {
   Tooltip,
   ResponsiveContainer,
   BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell
+  Bar
 } from 'recharts';
 import {
   AreaChart as AreaIcon,
   PieChart as PieIcon,
-  BarChart4,
-  TrendingDown,
-  TrendingUp,
   Coins,
   AlertCircle,
-  PiggyBank,
   ChevronLeft,
   ChevronRight,
   Calendar as CalendarIcon,
   Info,
   CalendarDays,
   Briefcase,
-  ArrowUpRight,
   Loader2
 } from 'lucide-react';
 import { getLogicalCyclePeriod } from '@/lib/cycle';
+
+// Shared Recharts tooltip for the cycle charts (desktop + mobile)
+function CustomTooltip({ active, payload, label, formatCurrency }) {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-[#0a0a0c] border border-white/[0.08] p-3 rounded-xl shadow-2xl backdrop-blur-xl text-left font-mono">
+        <p className="text-[11px] font-semibold text-slate-400 mb-1.5">{label}</p>
+        {payload.map((item, index) => (
+          <p key={index} className="text-xs font-semibold tracking-tight flex items-center gap-2" style={{ color: item.color || item.fill }}>
+            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.fill }}></span>
+            {item.name}: {formatCurrency(item.value)}
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function Reports() {
   const { user, loading } = useAuth();
@@ -50,6 +60,7 @@ export default function Reports() {
   const [salaries, setSalaries] = useState([]);
   const [bonuses, setBonuses] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [sips, setSips] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [cycleDate, setCycleDate] = useState(1);
   const [stockHoldings, setStockHoldings] = useState([]);
@@ -113,6 +124,11 @@ export default function Reports() {
         const entData = entRes.ok ? await entRes.json() : [];
         setEntries(entData);
 
+        // Fetch SIP plans (commitments + paid/missed history)
+        const sipRes = await fetch('/api/sips');
+        const sipData = sipRes.ok ? await sipRes.json() : [];
+        setSips(Array.isArray(sipData) ? sipData : []);
+
         // Fetch Stock Holdings
         const stockRes = await fetch('/api/stocks/holdings');
         if (stockRes.ok) {
@@ -159,6 +175,8 @@ export default function Reports() {
       maximumFractionDigits: 0
     }).format(val || 0);
   };
+
+  const formatCompact = makeCompactFormatter(user?.currency || 'USD');
 
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const fullMonthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -400,150 +418,46 @@ export default function Reports() {
 
   const monthlyChartData = prepareMonthlyComparisonData();
 
-  // Helper to get current period stats
-  const getCurrentPeriodSummary = () => {
-    const now = new Date();
-    const logicalPeriod = getLogicalCyclePeriod(now, cycleDate);
-
-    // Current month salary
-    const matchingSalary = salaries.find(s => s.month === logicalPeriod.month && s.year === logicalPeriod.year);
-    const salaryAmt = matchingSalary ? parseFloat(matchingSalary.amount) : 0;
-
-    // Current month bonus
-    const matchingBonus = bonuses.find(b => b.month === logicalPeriod.month && b.year === logicalPeriod.year);
-    const bonusAmt = matchingBonus ? parseFloat(matchingBonus.amount) : 0;
-
-    const cycleStart = new Date(logicalPeriod.year, logicalPeriod.month - 1, cycleDate, 0, 0, 0, 0);
-    let endMonth = logicalPeriod.month;
-    let endYear = logicalPeriod.year;
-    if (endMonth > 11) {
-      endMonth = 0;
-      endYear++;
-    }
-    const cycleEnd = new Date(endYear, endMonth, cycleDate - 1, 23, 59, 59, 999);
-
-    const periodInflows = entries.filter(e => {
-      const d = new Date(e.date);
-      return d >= cycleStart && d <= cycleEnd && (e.type === 'ADVANCE' || e.type === 'LOAN');
-    });
-    const inflowExtra = periodInflows.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-    const totalInflow = salaryAmt + bonusAmt + inflowExtra;
-
-    const periodOutflows = entries.filter(e => {
-      const d = new Date(e.date);
-      return d >= cycleStart && d <= cycleEnd && (e.type === 'SPENDING' || e.type === 'LENDING' || e.type === 'SAVINGS');
-    });
-    const totalOutflow = periodOutflows.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-
-    // Calculate real remaining salary + bonus balance
-    let periodDeductions = 0;
-    let savingsDeductions = 0;
-
-    entries.forEach(entry => {
-      if (entry.deductions) {
-        entry.deductions.forEach(d => {
-          if (d.month === logicalPeriod.month && d.year === logicalPeriod.year) {
-            const amt = parseFloat(d.amount);
-            periodDeductions += amt;
-            if (entry.type === 'SAVINGS') {
-              savingsDeductions += amt;
-            }
-          }
-        });
-      }
-    });
-
-    const periodGeneralSavings = periodOutflows.filter(e => e.type === 'SAVINGS' && !e.useSalaryBalance);
-    const generalSavingsAmt = periodGeneralSavings.reduce((sum, e) => sum + parseFloat(e.amount), 0);
-    const totalSavings = savingsDeductions + generalSavingsAmt;
-
-    return {
-      totalInflow,
-      totalOutflow,
-      totalSavings
-    };
-  };
-
-  const currentPeriodStats = getCurrentPeriodSummary();
-
-  // 2. Prepare Pie Chart: Spending Categories Breakdown for current logical month
-  const prepareCategoriesPieData = () => {
-    const now = new Date();
-    const logicalPeriod = getLogicalCyclePeriod(now, cycleDate);
-
-    const cycleStart = new Date(logicalPeriod.year, logicalPeriod.month - 1, cycleDate, 0, 0, 0, 0);
-    let endMonth = logicalPeriod.month;
-    let endYear = logicalPeriod.year;
-    if (endMonth > 11) {
-      endMonth = 0;
-      endYear++;
-    }
-    const cycleEnd = new Date(endYear, endMonth, cycleDate - 1, 23, 59, 59, 999);
-
-    const currentPeriodSpending = entries.filter(e => {
-      const d = new Date(e.date);
-      return d >= cycleStart && d <= cycleEnd && (e.type === 'SPENDING' || e.type === 'SAVINGS');
-    });
-
-    if (currentPeriodSpending.length === 0) {
-      return [];
-    }
-
-    const groups = {};
-    currentPeriodSpending.forEach(e => {
-      if (e.type === 'SAVINGS') {
-        groups['Invested Savings'] = (groups['Invested Savings'] || 0) + parseFloat(e.amount);
-        return;
-      }
-      const title = e.title.trim().toLowerCase();
-      let cat = 'Others';
-
-      if (title.includes('food') || title.includes('eat') || title.includes('restaurant') || title.includes('cafe')) cat = 'Dining Out';
-      else if (title.includes('rent') || title.includes('flat') || title.includes('room')) cat = 'Rent & Living';
-      else if (title.includes('movie') || title.includes('game') || title.includes('ott') || title.includes('netflix') || title.includes('fun')) cat = 'Entertainment';
-      else if (title.includes('travel') || title.includes('cab') || title.includes('uber') || title.includes('fuel') || title.includes('bike') || title.includes('car')) cat = 'Transport';
-      else if (title.includes('bill') || title.includes('recharge') || title.includes('wifi') || title.includes('power') || title.includes('electricity')) cat = 'Utilities';
-      else if (title.includes('cloth') || title.includes('shop') || title.includes('shoes') || title.includes('amazon') || title.includes('flipkart')) cat = 'Shopping';
-
-      groups[cat] = (groups[cat] || 0) + parseFloat(e.amount);
-    });
-
-    return Object.entries(groups).map(([name, value]) => ({ name, value }));
-  };
-
-  const pieChartData = prepareCategoriesPieData();
-
-  // Color mappings matching our visual identity
-  const COLORS = {
-    'Dining Out': '#10B981',     // emerald
-    'Rent & Living': '#8B5CF6',  // purple
-    'Entertainment': '#FB923C', // orange
-    'Transport': '#3B82F6',     // blue
-    'Utilities': '#06B6D4',     // cyan
-    'Shopping': '#EC4899',      // pink
-    'Invested Savings': '#F59E0B', // amber (glowing gold)
-    'Others': '#64748B',         // slate
-  };
-
-  const PIE_COLORS = pieChartData.map(slice => COLORS[slice.name] || '#A78BFA');
-
-  // Custom tooltips for Recharts
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-[#0a0a0c] border border-white/[0.08] p-3 rounded-xl shadow-2xl backdrop-blur-xl text-left font-mono">
-          <p className="text-[11px] font-semibold text-slate-400 mb-1.5">{label}</p>
-          {payload.map((item, index) => (
-            <p key={index} className="text-xs font-semibold tracking-tight flex items-center gap-2" style={{ color: item.color || item.fill }}>
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.fill }}></span>
-              {item.name}: {formatCurrency(item.value)}
-            </p>
-          ))}
+  // Income vs Outflow per cycle — rendered beside Biggest Expenses inside ReportInsights
+  const cashflowCard = (
+    <div className="h-full bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between text-left">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-5">
+        <div>
+          <h3 className="text-sm sm:text-base font-semibold text-white flex items-center gap-2 mb-1">
+            <Coins className="w-4 h-4 text-emerald-400" /> Income vs Outflow
+          </h3>
+          <p className="text-xs text-slate-400">Salary, bonus &amp; advances against spend, lending &amp; savings — last 6 cycles</p>
         </div>
-      );
-    }
-    return null;
-  };
+        <div className="flex gap-3 text-[10px] font-mono text-slate-400">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#10B981]"></span> Inflow</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-[#F43F5E]"></span> Outflow</span>
+        </div>
+      </div>
+
+      <div className="h-64 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="colorOutflow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.25} />
+                <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="rgba(148,163,184,0.08)" vertical={false} />
+            <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} axisLine={false} dy={8} />
+            <YAxis stroke="#64748B" fontSize={10} tickLine={false} axisLine={false} width={52} tickFormatter={formatCompact} />
+            <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
+            <Area type="monotone" dataKey="Inflow" stroke="#10B981" fillOpacity={1} fill="url(#colorInflow)" strokeWidth={2} />
+            <Area type="monotone" dataKey="Outflow" stroke="#F43F5E" fillOpacity={1} fill="url(#colorOutflow)" strokeWidth={2} />
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
 
   if (isMobile) {
     return (
@@ -571,12 +485,9 @@ export default function Reports() {
             salaries={salaries}
             bonuses={bonuses}
             entries={entries}
+            sips={sips}
             formatCurrency={formatCurrency}
             monthlyChartData={monthlyChartData}
-            currentPeriodStats={currentPeriodStats}
-            pieChartData={pieChartData}
-            COLORS={COLORS}
-            PIE_COLORS={PIE_COLORS}
             CustomTooltip={CustomTooltip}
             getCellMetadata={getCellMetadata}
             getMonthDays={getMonthDays}
@@ -608,7 +519,7 @@ export default function Reports() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2.5">
             <AreaIcon className="w-7 h-7 text-[#5E6AD2]" /> Analytics & Reports
           </h1>
-          <p className="text-slate-400 text-xs mt-1">Multi-cycle financial metrics, liquidity trends, and asset allocation</p>
+          <p className="text-slate-400 text-xs mt-1">App-wise spend, category trends, SIP &amp; investment growth, and cycle-over-cycle burn rate</p>
         </div>
 
         {loadingData ? (
@@ -619,74 +530,19 @@ export default function Reports() {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Linear Stats Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {/* Card 1: Cycle Cashflow */}
-              <SpotlightCard className="p-5 flex items-start justify-between" spotlightColor="rgba(94, 106, 210, 0.12)">
-                <div className="text-left">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                    Cycle Net Cashflow
-                  </span>
-                  <h3 className="text-2xl font-bold font-mono text-white tracking-tight mt-1">
-                    {formatCurrency(currentPeriodStats.totalInflow - currentPeriodStats.totalOutflow)}
-                  </h3>
-                  <div className="text-[11px] font-mono text-slate-400 mt-2 flex items-center gap-2">
-                    <span>In: <strong className="text-emerald-400 font-semibold">{formatCurrency(currentPeriodStats.totalInflow)}</strong></span>
-                    <span className="text-slate-600">|</span>
-                    <span>Out: <strong className="text-rose-400 font-semibold">{formatCurrency(currentPeriodStats.totalOutflow)}</strong></span>
-                  </div>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                  <Coins className="w-5 h-5 text-[#5E6AD2]" />
-                </div>
-              </SpotlightCard>
+            {/* Spend & investment intelligence (period-scoped) */}
+            <ReportInsights
+              entries={entries}
+              salaries={salaries}
+              bonuses={bonuses}
+              sips={sips}
+              cycleDate={cycleDate}
+              user={user}
+              stockSummary={stockSummary}
+              formatCurrency={formatCurrency}
+              cashflowSlot={cashflowCard}
+            />
 
-              {/* Card 2: Ledger Savings */}
-              <SpotlightCard className="p-5 flex items-start justify-between" spotlightColor="rgba(245, 158, 11, 0.1)">
-                <div className="text-left">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                    Ledger Invested Savings
-                  </span>
-                  <h3 className="text-2xl font-bold font-mono text-amber-400 tracking-tight mt-1">
-                    {formatCurrency(currentPeriodStats.totalSavings)}
-                  </h3>
-                  <p className="text-[11px] font-mono text-slate-500 mt-2">
-                    Accumulated savings logged
-                  </p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                  <PiggyBank className="w-5 h-5 text-amber-400" />
-                </div>
-              </SpotlightCard>
-
-              {/* Card 3: Share Market Portfolio */}
-              <SpotlightCard className="p-5 flex items-start justify-between" spotlightColor="rgba(6, 182, 212, 0.1)">
-                <div className="text-left">
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                    Equity Market Portfolio
-                  </span>
-                  <h3 className="text-2xl font-bold font-mono text-white tracking-tight mt-1">
-                    {formatCurrency(stockSummary.totalCurrentValue)}
-                  </h3>
-                  <div className="flex flex-wrap items-center gap-2 mt-2 font-mono text-[11px]">
-                    <span className="text-slate-400">
-                      Invested: {formatCurrency(stockSummary.totalInvested)}
-                    </span>
-                    {stockSummary.totalInvested > 0 && (
-                      <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                        stockSummary.totalReturns >= 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                      }`}>
-                        {stockSummary.totalReturns >= 0 ? '+' : ''}{stockSummary.totalReturnsPercentage.toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                  <Briefcase className="w-5 h-5 text-[#06B6D4]" />
-                </div>
-              </SpotlightCard>
-            </div>
- 
             {/* Linear Contribution Calendar and Date Selector */}
             <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 space-y-6 text-left">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -977,177 +833,6 @@ export default function Reports() {
                     </div>
                   );
                 })()}
-              </div>
-            </div>
-
-            {/* Row 2: Triple Chart Columns (Income vs Outflow, Spending Trends, AND Balance & Savings) */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
-              {/* Chart A: Income vs Outflow Area Graph */}
-              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
-                    <Coins className="w-4 h-4 text-emerald-400" /> Income vs Outflow
-                  </h3>
-                  <p className="text-xs text-slate-400 font-mono mb-5">Cash inflows vs outflows per cycle</p>
-                </div>
-
-                <div className="h-60 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorInflow" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#10B981" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
-                        </linearGradient>
-                        <linearGradient id="colorOutflow" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                      <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Area type="monotone" dataKey="Inflow" stroke="#10B981" fillOpacity={1} fill="url(#colorInflow)" strokeWidth={2} />
-                      <Area type="monotone" dataKey="Outflow" stroke="#F43F5E" fillOpacity={1} fill="url(#colorOutflow)" strokeWidth={2} />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Chart B: Monthly Spending Trends Bar Chart */}
-              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
-                    <TrendingDown className="w-4 h-4 text-rose-400" /> Historical Spending
-                  </h3>
-                  <p className="text-xs text-slate-400 font-mono mb-5">Monthly expense trajectory across cycles</p>
-                </div>
-
-                <div className="h-60 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                      <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Spending" fill="#F43F5E" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-
-              {/* Chart C: Balance & Savings Trend Stacked Bar Chart */}
-              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
-                    <PiggyBank className="w-4 h-4 text-amber-400" /> Balance & Savings
-                  </h3>
-                  <p className="text-xs text-slate-400 font-mono mb-5">Pocket reserve + logged savings stacked</p>
-                </div>
-
-                <div className="h-60 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-                      <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
-                      <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Remaining Balance" stackId="a" fill="#10B981" radius={[0, 0, 0, 0]} maxBarSize={28} />
-                      <Bar dataKey="Invested Savings" stackId="a" fill="#5E6AD2" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Row 3: Category Breakdown Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-left">
-              {/* Category Pie Chart */}
-              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 lg:col-span-2 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-1">
-                    <PieIcon className="w-4 h-4 text-[#5E6AD2]" /> Cycle Spending Breakdown
-                  </h3>
-                  <p className="text-xs text-slate-400 font-mono mb-5">Categorical distribution of expenditures in active cycle</p>
-                </div>
-
-                {pieChartData.length === 0 ? (
-                  <div className="py-16 text-center text-slate-500 font-mono text-xs">
-                    <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    No spending logged in the current active billing cycle.
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row items-center justify-around gap-6 h-60">
-                    <div className="w-44 h-44 shrink-0">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={pieChartData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={48}
-                            outerRadius={80}
-                            paddingAngle={3}
-                            stroke="rgba(10,10,12,0.8)"
-                            strokeWidth={2}
-                            dataKey="value"
-                          >
-                            {pieChartData.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={<CustomTooltip />} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-
-                    <div className="w-full space-y-2 max-w-xs font-mono text-xs">
-                      {pieChartData.map((slice, idx) => (
-                        <div key={idx} className="flex items-center justify-between border-b border-white/[0.04] pb-1.5">
-                          <div className="flex items-center gap-2 text-slate-200">
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[slice.name] }}></span>
-                            <span>{slice.name}</span>
-                          </div>
-                          <span className="font-semibold text-white">{formatCurrency(slice.value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Sidebar Category Stats summary card */}
-              <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6 flex flex-col justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
-                    <PiggyBank className="w-4 h-4 text-[#06B6D4]" /> Cycle Discipline
-                  </h3>
-                  <div className="space-y-3">
-                    <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl text-left">
-                      <span className="text-[10px] uppercase font-mono text-slate-400">Target Rule</span>
-                      <h4 className="text-xs font-semibold text-white mt-1">Inflow &gt; Outflow Velocity</h4>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        Maintaining net cashflow surplus preserves safety buffer for upcoming cycles.
-                      </p>
-                    </div>
-
-                    <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl text-left">
-                      <span className="text-[10px] uppercase font-mono text-slate-400">Auto Deduction</span>
-                      <h4 className="text-xs font-semibold text-white mt-1">Salary Balance Synchronization</h4>
-                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                        Balances adjust when checking "Use Salary Balance" during transaction entries.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <Link
-                  href="/transactions"
-                  className="mt-5 btn-linear-secondary text-xs text-center py-2.5 flex items-center justify-center gap-1.5"
-                >
-                  View Passbook Ledger
-                </Link>
               </div>
             </div>
 
