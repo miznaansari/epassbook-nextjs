@@ -73,7 +73,7 @@ const summary = { totalCurrentValue, totalInvested: day.invested, totalReturns: 
 export default function Preview() {
   const [range, setRange] = useState(typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('range') || '1D');
   return (
-    <div className="min-h-screen bg-[#050506] p-6 space-y-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-[#050506] p-4 sm:p-6 space-y-8 max-w-7xl w-full mx-auto">
       <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl p-6 max-w-4xl">
         <PortfolioChart
           data={history[range] || null}

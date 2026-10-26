@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/requireUser';
 import { getCycleRange } from '@/lib/cycle';
+import { getLivePrices } from '@/lib/stockQuotes';
 
 export async function POST(req, { params }) {
   try {
@@ -150,10 +151,7 @@ export async function POST(req, { params }) {
     const userHoldings = await db.stockHolding.findMany({
       where: { userId: user.id }
     });
-    const symbols = userHoldings.map(h => h.symbol);
-    const stockPrices = await db.stockPrice.findMany({
-      where: { symbol: { in: symbols } }
-    });
+    const livePrices = await getLivePrices(userHoldings.map(h => h.symbol));
 
     let totalInvested = 0;
     let totalCurrentValue = 0;
@@ -162,8 +160,7 @@ export async function POST(req, { params }) {
       const buyVal = parseFloat(h.buyPrice) * qty;
       totalInvested += buyVal;
 
-      const sp = stockPrices.find(p => p.symbol === h.symbol);
-      const currentPrice = sp ? parseFloat(sp.price) : parseFloat(h.buyPrice);
+      const currentPrice = livePrices.get(h.symbol) ?? parseFloat(h.buyPrice);
       totalCurrentValue += currentPrice * qty;
     });
     const totalReturns = totalCurrentValue - totalInvested;

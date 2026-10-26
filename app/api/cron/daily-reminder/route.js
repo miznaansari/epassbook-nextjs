@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { calculateStreaks } from '@/lib/streaks';
+import { getLivePrices } from '@/lib/stockQuotes';
 
 function getIstParts(date) {
   const formatter = new Intl.DateTimeFormat('en-US', {
@@ -132,6 +133,9 @@ export async function GET(req) {
       dispatches: [],
       errors: []
     };
+
+    // Live stock quotes shared across all users in this run
+    const liveQuoteMemo = new Map();
 
     // Helper to send OneSignal push notification using direct subscription ID or Firebase UID external_id
     const sendPush = async (target, title, body) => {
@@ -955,10 +959,9 @@ export async function GET(req) {
             const userHoldings = await db.stockHolding.findMany({
               where: { userId: user.id }
             });
-            const symbols = userHoldings.map(h => h.symbol);
-            const stockPrices = await db.stockPrice.findMany({
-              where: { symbol: { in: symbols } }
-            });
+            // Fetch live quotes: the stockPrice cache is only refreshed when the user opens
+            // the stocks screen, so reading it directly would send stale values.
+            const livePrices = await getLivePrices(userHoldings.map(h => h.symbol), liveQuoteMemo);
 
             let totalInvested = 0;
             let totalCurrentValue = 0;
@@ -967,8 +970,7 @@ export async function GET(req) {
               const buyVal = parseFloat(h.buyPrice) * qty;
               totalInvested += buyVal;
 
-              const sp = stockPrices.find(p => p.symbol === h.symbol);
-              const currentPrice = sp ? parseFloat(sp.price) : parseFloat(h.buyPrice);
+              const currentPrice = livePrices.get(h.symbol) ?? parseFloat(h.buyPrice);
               totalCurrentValue += currentPrice * qty;
             });
             const totalReturns = totalCurrentValue - totalInvested;
