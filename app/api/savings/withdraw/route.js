@@ -38,7 +38,8 @@ export async function POST(req) {
         userId: user.id,
         type: 'SAVINGS',
         title: { equals: normalizedTitle }
-      }
+      },
+      select: { id: true, amount: true }
     });
 
     const savingIds = savingEntries.map(e => e.id);
@@ -53,7 +54,8 @@ export async function POST(req) {
           { description: { contains: `Withdrawal from savings pot "${normalizedTitle}"` } },
           { title: { equals: `Withdrawal: ${normalizedTitle}` } }
         ]
-      }
+      },
+      select: { amount: true }
     });
 
     const totalWithdrawn = existingWithdrawals.reduce((sum, e) => sum + parseFloat(e.amount), 0);

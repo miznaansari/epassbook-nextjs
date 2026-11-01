@@ -65,13 +65,6 @@ export async function GET(req) {
     const customStart = searchParams.get('startDate');
     const customEnd = searchParams.get('endDate');
 
-    // 1. Calculate streaks dynamically
-    const { streakLevel1, streakLevel2, limit: streakLimit } = await calculateStreaks(userId);
-    await db.user.update({
-      where: { id: userId },
-      data: { streakLevel1, streakLevel2 }
-    });
-
     const cycleDate = user.salaryCycleDate || 1;
     const now = new Date();
 
@@ -110,10 +103,75 @@ export async function GET(req) {
       endDate.setHours(23, 59, 59, 999);
     }
 
-    // 2. Query ALL transactions, salaries, and bonuses for global statistics
-    const allSalaries = await db.salary.findMany({ where: { userId } });
-    const allBonuses = await db.bonus.findMany({ where: { userId } });
-    const allEntries = await db.financialEntry.findMany({ where: { userId } });
+    // 1. Streaks (runs in parallel with the queries below; user update skipped when unchanged)
+    const streakPromise = (async () => {
+      const result = await calculateStreaks(userId, user);
+      if (result.streakLevel1 !== user.streakLevel1 || result.streakLevel2 !== user.streakLevel2) {
+        await db.user.update({
+          where: { id: userId },
+          data: { streakLevel1: result.streakLevel1, streakLevel2: result.streakLevel2 }
+        });
+      }
+      return result;
+    })();
+
+    // Logical salary & bonus window (pure computation, needed for the parallel fetch)
+    const startPeriod = getLogicalCyclePeriod(startDate, cycleDate);
+    const endPeriod = getLogicalCyclePeriod(endDate, cycleDate);
+    const periodWhere = startPeriod.year === endPeriod.year
+      ? {
+          userId,
+          year: startPeriod.year,
+          month: { gte: startPeriod.month, lte: endPeriod.month },
+        }
+      : {
+          userId,
+          OR: [
+            { year: startPeriod.year, month: { gte: startPeriod.month } },
+            { year: endPeriod.year, month: { lte: endPeriod.month } },
+            { year: { gt: startPeriod.year, lt: endPeriod.year } },
+          ],
+        };
+
+    // Previous cycle range (for trend badges)
+    const prevMonthDate = new Date(startDate);
+    prevMonthDate.setDate(prevMonthDate.getDate() - 1);
+    const prevRange = getCycleRange(prevMonthDate, cycleDate);
+
+    // 2. Run all independent queries in parallel
+    const [
+      streakResult,
+      allSalaries,
+      allBonuses,
+      allEntries,
+      periodEntries,
+      periodSalaries,
+      periodBonuses,
+      userSips,
+      stockHoldings,
+      prevEntries,
+    ] = await Promise.all([
+      streakPromise,
+      db.salary.findMany({ where: { userId }, select: { amount: true } }),
+      db.bonus.findMany({ where: { userId }, select: { amount: true } }),
+      db.financialEntry.findMany({
+        where: { userId },
+        select: { id: true, type: true, amount: true, title: true, description: true, parentEntryId: true },
+      }),
+      db.financialEntry.findMany({
+        where: { userId, date: { gte: startDate, lte: endDate } },
+        orderBy: { date: 'desc' },
+      }),
+      db.salary.findMany({ where: periodWhere, select: { amount: true, month: true, year: true } }),
+      db.bonus.findMany({ where: periodWhere, select: { amount: true, month: true, year: true } }),
+      db.sip.findMany({ where: { userId } }),
+      db.stockHolding.findMany({ where: { userId } }),
+      db.financialEntry.findMany({
+        where: { userId, date: { gte: prevRange.startDate, lte: prevRange.endDate } },
+        select: { type: true, amount: true },
+      }),
+    ]);
+    const { streakLevel1, streakLevel2, limit: streakLimit } = streakResult;
 
     // Identify all savings entries & linked withdrawals (matching /api/savings logic)
     const allSavingsEntries = allEntries.filter(e => e.type === 'SAVINGS');
@@ -205,19 +263,6 @@ export async function GET(req) {
       (totalAllTimeSalaries + totalAllTimeBonuses + totalAllTimeAdvance + nonAdvanceWithdrawalSum + totalAllTimeLoan) - 
       (totalAllTimeSpending + totalAllTimeLending + totalAllTimeSavingsDeposited);
 
-    // 3. Query records in SELECTED window
-    const periodEntries = await db.financialEntry.findMany({
-      where: {
-        userId,
-        date: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-      include: { deductions: true },
-      orderBy: { date: 'desc' },
-    });
-
     // 4. Period totals
     let periodSpending = 0;
     let periodLending = 0;
@@ -233,33 +278,6 @@ export async function GET(req) {
       else if (e.type === 'ADVANCE') periodAdvance += amt;
       else if (e.type === 'SAVINGS') periodSavings += amt;
     });
-
-    // 5. Logical salary & bonus calculation
-    const startPeriod = getLogicalCyclePeriod(startDate, cycleDate);
-    const endPeriod = getLogicalCyclePeriod(endDate, cycleDate);
-
-    let periodSalaries = [];
-    let periodBonuses = [];
-    if (startPeriod.year === endPeriod.year) {
-      const whereCond = {
-        userId,
-        year: startPeriod.year,
-        month: {
-          gte: startPeriod.month,
-          lte: endPeriod.month,
-        },
-      };
-      periodSalaries = await db.salary.findMany({ where: whereCond });
-      periodBonuses = await db.bonus.findMany({ where: whereCond });
-    } else {
-      const orCond = [
-        { year: startPeriod.year, month: { gte: startPeriod.month } },
-        { year: endPeriod.year, month: { lte: endPeriod.month } },
-        { year: { gt: startPeriod.year, lt: endPeriod.year } },
-      ];
-      periodSalaries = await db.salary.findMany({ where: { userId, OR: orCond } });
-      periodBonuses = await db.bonus.findMany({ where: { userId, OR: orCond } });
-    }
 
     let periodSalaryTotal = 0;
     periodSalaries.forEach(s => periodSalaryTotal += parseFloat(s.amount));
@@ -283,30 +301,56 @@ export async function GET(req) {
       }
     }
 
-    if (uniquePeriodMonths.length > 0) {
-      const deductionsQuery = await db.salaryDeduction.findMany({
-        where: {
-          entry: { userId },
-          OR: uniquePeriodMonths.map(m => ({
-            month: m.month,
-            year: m.year,
-          })),
-        },
-      });
-      deductionsQuery.forEach(d => periodDeductions += parseFloat(d.amount));
-    }
+    const recentTransactions = periodEntries.slice(0, 15);
+    const recentIds = recentTransactions.map(e => e.id);
+    const lendingIds = recentTransactions.filter(e => e.type === 'LENDING').map(e => e.id);
+    const holdingSymbols = [...new Set(stockHoldings.map(h => h.symbol))];
+
+    const [deductionsQuery, recentDeductions, repaymentRows, stockPrices] = await Promise.all([
+      uniquePeriodMonths.length > 0
+        ? db.salaryDeduction.findMany({
+            where: {
+              entry: { userId },
+              OR: uniquePeriodMonths.map(m => ({ month: m.month, year: m.year })),
+            },
+            select: { amount: true },
+          })
+        : Promise.resolve([]),
+      recentIds.length > 0
+        ? db.salaryDeduction.findMany({ where: { entryId: { in: recentIds } } })
+        : Promise.resolve([]),
+      lendingIds.length > 0
+        ? db.financialEntry.findMany({
+            where: { parentEntryId: { in: lendingIds } },
+            select: { id: true, parentEntryId: true, amount: true, title: true, date: true, description: true },
+          })
+        : Promise.resolve([]),
+      holdingSymbols.length > 0
+        ? db.stockPrice.findMany({ where: { symbol: { in: holdingSymbols } } })
+        : Promise.resolve([]),
+    ]);
+    deductionsQuery.forEach(d => periodDeductions += parseFloat(d.amount));
+
+    const deductionsByEntry = new Map();
+    recentDeductions.forEach(d => {
+      if (!deductionsByEntry.has(d.entryId)) deductionsByEntry.set(d.entryId, []);
+      deductionsByEntry.get(d.entryId).push(d);
+    });
+    const repaymentsByParent = new Map();
+    repaymentRows.forEach(r => {
+      if (!repaymentsByParent.has(r.parentEntryId)) repaymentsByParent.set(r.parentEntryId, []);
+      repaymentsByParent.get(r.parentEntryId).push(r);
+    });
 
     const periodSalaryBalance = (periodSalaryTotal + periodBonusTotal) - periodDeductions;
     const totalPeriodInflow = periodSalaryTotal + periodBonusTotal + periodAdvance + periodLoan;
 
     // 6. Enriched Recent Transactions
-    const recentTransactions = periodEntries.slice(0, 15);
-    const enrichedTransactions = await Promise.all(recentTransactions.map(async (entry) => {
+    const enrichedTransactions = recentTransactions.map((rawEntry) => {
+      const entry = { ...rawEntry, deductions: deductionsByEntry.get(rawEntry.id) || [] };
       const category = categorizeTransaction(entry.title, entry.description, entry.type);
       if (entry.type === 'LENDING') {
-        const repayments = await db.financialEntry.findMany({
-          where: { parentEntryId: entry.id }
-        });
+        const repayments = repaymentsByParent.get(entry.id) || [];
         const totalRepaid = repayments.reduce((sum, r) => sum + parseFloat(r.amount), 0);
         return {
           ...entry,
@@ -322,7 +366,7 @@ export async function GET(req) {
         };
       }
       return { ...entry, category };
-    }));
+    });
 
     // 7. Daily Spending Breakdown & Daily Rows
     const dailyMap = {};
@@ -483,12 +527,6 @@ export async function GET(req) {
     };
 
     // 10. Financial Structure & Assets Grouping
-    const [userSips, stockHoldings, stockPrices] = await Promise.all([
-      db.sip.findMany({ where: { userId } }),
-      db.stockHolding.findMany({ where: { userId } }),
-      db.stockPrice.findMany()
-    ]);
-
     const priceMap = {};
     stockPrices.forEach(p => priceMap[p.symbol] = parseFloat(p.price));
 
@@ -547,20 +585,6 @@ export async function GET(req) {
     };
 
     // 11. Comparison with Previous Cycle for Trend Badges
-    const prevMonthDate = new Date(startDate);
-    prevMonthDate.setDate(prevMonthDate.getDate() - 1);
-    const prevRange = getCycleRange(prevMonthDate, cycleDate);
-
-    const prevEntries = await db.financialEntry.findMany({
-      where: {
-        userId,
-        date: {
-          gte: prevRange.startDate,
-          lte: prevRange.endDate,
-        }
-      }
-    });
-
     let prevSpending = 0;
     let prevSavings = 0;
     prevEntries.forEach(e => {

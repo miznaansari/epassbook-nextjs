@@ -11,11 +11,22 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Fetch holdings
-    const holdings = await db.stockHolding.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
+    // 1. Fetch holdings and today's API usage in parallel
+    const todayStr = new Date().toISOString().split('T')[0];
+    const [holdings, apiUsage] = await Promise.all([
+      db.stockHolding.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      }),
+      db.stockApiUsage.findUnique({
+        where: {
+          userId_date: {
+            userId: user.id,
+            date: todayStr,
+          },
+        },
+      }),
+    ]);
 
     // 2. Fetch cached prices
     const symbols = Array.from(new Set(holdings.map(h => h.symbol)));
@@ -97,16 +108,6 @@ export async function GET(req) {
     const totalReturnsPercentage = totalInvested > 0 ? (totalReturns / totalInvested) * 100 : 0;
 
     // 4. Get remaining API refreshes for today (local date based on server timezone)
-    const todayStr = new Date().toISOString().split('T')[0];
-    const apiUsage = await db.stockApiUsage.findUnique({
-      where: {
-        userId_date: {
-          userId: user.id,
-          date: todayStr,
-        },
-      },
-    });
-
     const refreshCount = apiUsage ? apiUsage.count : 0;
     const limitRemaining = Math.max(0, 10 - refreshCount);
 

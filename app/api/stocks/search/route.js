@@ -18,7 +18,7 @@ export async function GET(req) {
     }
 
     const finnhubUrl = `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${FINNHUB_API_KEY}`;
-    const response = await fetch(finnhubUrl);
+    const response = await fetch(finnhubUrl, { signal: AbortSignal.timeout(4000), next: { revalidate: 300 } });
     
     if (!response.ok) {
       console.error('Finnhub search response error:', response.statusText);

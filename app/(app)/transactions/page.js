@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import TransactionModal from '@/components/TransactionModal';
@@ -32,6 +32,9 @@ import {
   Bot
 } from 'lucide-react';
 
+const PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200; // matches the API cap
+
 const monthsList = [
   { value: 1, name: 'January' },
   { value: 2, name: 'February' },
@@ -51,10 +54,17 @@ export default function Transactions() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
-  // Transactions State
+  // Transactions State (cursor-paginated: newest first, PAGE_SIZE per page)
   const [entries, setEntries] = useState([]);
-  const [loadingEntries, setLoadingEntries] = useState(true);
+  const [nextCursor, setNextCursor] = useState(null);
+  const [totalCount, setTotalCount] = useState(0);
+  const [loadedKey, setLoadedKey] = useState(null); // query key of the last finished first-page load
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadError, setLoadError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const requestIdRef = useRef(0);
+  const sentinelRef = useRef(null);
   const [typeFilter, setTypeFilter] = useState('ALL');
   const [groupBy, setGroupBy] = useState('date'); // 'date' | 'month'
 
@@ -73,36 +83,100 @@ export default function Transactions() {
     }
   }, [user, loading, router]);
 
-  // Fetch all transactions
-  const fetchEntries = async () => {
-    if (!user) return;
-    setLoadingEntries(true);
-    try {
-      let url = '/api/entries';
-      if (typeFilter !== 'ALL' && typeFilter !== 'AI') {
-        url += `?type=${typeFilter}`;
-      }
-
-      const res = await fetch(url);
-      if (res.ok) {
-        const payload = await res.json();
-        setEntries(payload);
-      } else if (res.status === 401) {
-        console.warn('Session expired (401), redirecting to login.');
-        logout();
-      }
-    } catch (err) {
-      console.error('Error fetching transactions:', err);
-    } finally {
-      setLoadingEntries(false);
-    }
-  };
-
+  // Debounce the search box so typing doesn't fire a request per keystroke
   useEffect(() => {
-    if (user) {
-      fetchEntries();
+    const t = setTimeout(() => setDebouncedSearch(searchTerm.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  // Filter + search identify the list; the skeleton shows until that list's first page arrives.
+  const queryKey = `${typeFilter}|${debouncedSearch}`;
+  const loadingEntries = loadedKey !== queryKey;
+
+  /** Fetch one page for the current filter/search. Returns null on 401 (after logging out). */
+  const fetchPage = useCallback(async ({ cursor = null, limit = PAGE_SIZE } = {}) => {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (typeFilter === 'AI') params.set('ai', '1');
+    else if (typeFilter !== 'ALL') params.set('type', typeFilter);
+    if (debouncedSearch) params.set('q', debouncedSearch);
+    if (cursor) params.set('cursor', String(cursor));
+
+    const res = await fetch(`/api/entries?${params}`);
+    if (res.status === 401) {
+      console.warn('Session expired (401), redirecting to login.');
+      logout();
+      return null;
     }
-  }, [user, typeFilter]);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }, [typeFilter, debouncedSearch, logout]);
+
+  /**
+   * (Re)load the first page. `limit` > PAGE_SIZE is used after edits so the rows
+   * already on screen are refreshed in place. Superseded responses are dropped.
+   */
+  const loadFirstPage = useCallback((limit = PAGE_SIZE) => {
+    const requestId = ++requestIdRef.current;
+    const key = queryKey;
+    const isCurrent = () => requestId === requestIdRef.current;
+    // State is only set in promise callbacks, after the response arrives.
+    return fetchPage({ limit })
+      .then((payload) => {
+        if (!isCurrent() || !payload) return;
+        setEntries(payload.items);
+        setNextCursor(payload.nextCursor);
+        setTotalCount(payload.total ?? payload.items.length);
+        setLoadError('');
+      })
+      .catch((err) => {
+        console.error('Error fetching transactions:', err);
+        if (isCurrent()) setLoadError('Could not load transactions. Please retry.');
+      })
+      .finally(() => {
+        if (isCurrent()) setLoadedKey(key);
+      });
+  }, [fetchPage, queryKey]);
+
+  /** Append the next page (infinite scroll / Load more). */
+  const loadMore = useCallback(async () => {
+    if (!nextCursor) return;
+    const requestId = ++requestIdRef.current;
+    setLoadingMore(true);
+    try {
+      const payload = await fetchPage({ cursor: nextCursor });
+      if (requestId !== requestIdRef.current || !payload) return;
+      setEntries(prev => [...prev, ...payload.items]);
+      setNextCursor(payload.nextCursor);
+      setLoadError('');
+    } catch (err) {
+      console.error('Error fetching more transactions:', err);
+      if (requestId === requestIdRef.current) setLoadError('Could not load more transactions. Please retry.');
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [fetchPage, nextCursor]);
+
+  // First page whenever the user, filter or search changes
+  useEffect(() => {
+    if (user) loadFirstPage();
+  }, [user, loadFirstPage]);
+
+  // After a create / edit / delete: refresh what's on screen without collapsing the list
+  const refreshEntries = () => loadFirstPage(Math.min(Math.max(entries.length, PAGE_SIZE), MAX_PAGE_SIZE));
+
+  // Infinite scroll: fetch the next page when the sentinel nears the viewport
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node || !nextCursor || loadingEntries || loadingMore || loadError) return;
+    const observer = new IntersectionObserver(
+      (items) => {
+        if (items[0]?.isIntersecting) loadMore();
+      },
+      { rootMargin: '600px 0px' }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [nextCursor, loadingEntries, loadingMore, loadError, loadMore]);
 
   // Handle Single Delete Entry
   const handleDeleteEntry = async (id) => {
@@ -113,7 +187,7 @@ export default function Transactions() {
       });
       if (res.ok) {
         setSelectedIds(prev => prev.filter(i => i !== id));
-        await fetchEntries();
+        await refreshEntries();
       } else if (res.status === 401) {
         console.warn('Session expired (401), redirecting to login.');
         logout();
@@ -138,7 +212,7 @@ export default function Transactions() {
 
       if (res.ok) {
         setSelectedIds([]);
-        await fetchEntries();
+        await refreshEntries();
       } else if (res.status === 401) {
         console.warn('Session expired (401), redirecting to login.');
         logout();
@@ -191,20 +265,8 @@ export default function Transactions() {
     );
   }
 
-  // Filter and search entries client-side
-  const filteredEntries = entries.filter(e => {
-    // Type or AI filter
-    if (typeFilter === 'AI') {
-      const isAi = Boolean(e.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(e.description || ''));
-      if (!isAi) return false;
-    } else if (typeFilter !== 'ALL' && e.type !== typeFilter) {
-      return false;
-    }
-
-    const titleMatch = e.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const descMatch = (e.description || '').toLowerCase().includes(searchTerm.toLowerCase());
-    return titleMatch || descMatch;
-  });
+  // Type, AI and search filtering happen on the server; these are the loaded pages.
+  const filteredEntries = entries;
 
   // Calculate sum of selected transactions
   const selectedEntriesList = entries.filter(e => selectedIds.includes(e.id));
@@ -270,7 +332,11 @@ export default function Transactions() {
             <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
               <ReceiptText className="w-7 h-7 text-[#818cf8]" /> E-Passbook
             </h1>
-            <p className="text-[#8A8F98] text-xs mt-1">Audit, search, multi-select date-wise, and manage your complete historical ledger entries.</p>
+            <p className="text-[#8A8F98] text-xs mt-1">
+              {loadingEntries
+                ? 'Loading your ledger…'
+                : `Showing ${entries.length.toLocaleString()} of ${Math.max(totalCount, entries.length).toLocaleString()} ${totalCount === 1 ? 'entry' : 'entries'}${debouncedSearch ? ` matching “${debouncedSearch}”` : ''}`}
+            </p>
           </div>
 
           {/* Search, Type Filter, View Switcher & Batch Selection */}
@@ -351,7 +417,7 @@ export default function Transactions() {
                 ) : (
                   <>
                     <Square className="w-3.5 h-3.5" />
-                    <span>Select All ({filteredEntries.length})</span>
+                    <span>{nextCursor ? `Select loaded (${filteredEntries.length})` : `Select All (${filteredEntries.length})`}</span>
                   </>
                 )}
               </button>
@@ -401,7 +467,7 @@ export default function Transactions() {
                   key={groupKey}
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.35, delay: groupIdx * 0.03 }}
+                  transition={{ duration: 0.3, delay: Math.min(groupIdx, 6) * 0.03 }}
                   className="space-y-2.5"
                 >
                   {/* Date / Month Section Header with Batch Select Toggle */}
@@ -585,6 +651,45 @@ export default function Transactions() {
             })}
           </div>
         )}
+
+        {/* Pagination: infinite-scroll sentinel, load-more fallback, errors */}
+        {!loadingEntries && (
+          <div className="mt-6 flex flex-col items-center gap-2 text-xs text-[#8A8F98]">
+            {loadError ? (
+              <div className="flex items-center gap-2 text-rose-300">
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{loadError}</span>
+                <button
+                  type="button"
+                  onClick={() => (nextCursor && entries.length ? loadMore() : loadFirstPage())}
+                  className="ml-1 rounded-lg border border-white/10 px-2.5 py-1 font-semibold text-white hover:bg-white/5 cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : nextCursor ? (
+              <>
+                <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
+                <button
+                  type="button"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a0a0c] px-4 py-2 font-medium text-white hover:border-white/20 disabled:opacity-60 cursor-pointer"
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading more…
+                    </>
+                  ) : (
+                    `Load more (${Math.max(totalCount - entries.length, 0).toLocaleString()} left)`
+                  )}
+                </button>
+              </>
+            ) : entries.length > PAGE_SIZE ? (
+              <span className="font-mono">You&apos;ve reached the first entry.</span>
+            ) : null}
+          </div>
+        )}
       </main>
 
       {/* Floating Multi-Select Action Bar */}
@@ -671,7 +776,7 @@ export default function Transactions() {
         }}
         entryToEdit={entryToEdit}
         parentLending={parentLending}
-        onSuccess={fetchEntries}
+        onSuccess={refreshEntries}
         user={user}
         monthsList={monthsList}
         formatCurrency={formatCurrency}

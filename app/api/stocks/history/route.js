@@ -36,6 +36,7 @@ async function fetchChart(symbol, cfg) {
       {
         headers: { 'User-Agent': 'Mozilla/5.0' },
         next: { revalidate: cfg.revalidate },
+        signal: AbortSignal.timeout(4000),
       }
     );
     if (!res.ok) {

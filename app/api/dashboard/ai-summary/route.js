@@ -126,20 +126,24 @@ async function handleAiSummary(req) {
     }
 
     // Query active cycle entries
-    const periodEntries = await db.financialEntry.findMany({
-      where: {
-        userId,
-        date: { gte: startDate, lte: endDate },
-      },
-      orderBy: { date: 'desc' },
-    });
-
-    const periodSalaries = await db.salary.findMany({
-      where: { userId, month: cycleMonth, year: cycleYear },
-    });
-    const periodBonuses = await db.bonus.findMany({
-      where: { userId, month: cycleMonth, year: cycleYear },
-    });
+    const [periodEntries, periodSalaries, periodBonuses] = await Promise.all([
+      db.financialEntry.findMany({
+        where: {
+          userId,
+          date: { gte: startDate, lte: endDate },
+        },
+        select: { id: true, amount: true, type: true, title: true, description: true, date: true },
+        orderBy: { date: 'desc' },
+      }),
+      db.salary.findMany({
+        where: { userId, month: cycleMonth, year: cycleYear },
+        select: { amount: true },
+      }),
+      db.bonus.findMany({
+        where: { userId, month: cycleMonth, year: cycleYear },
+        select: { amount: true },
+      }),
+    ]);
 
     let salaryTotal = 0;
     periodSalaries.forEach(s => salaryTotal += parseFloat(s.amount));

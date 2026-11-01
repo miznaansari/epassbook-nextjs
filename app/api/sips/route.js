@@ -9,18 +9,27 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sips = await db.sip.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' }
-    });
+    // Only entries inside the displayed windows (last 6 months / 6 weeks) can match;
+    // the lower bound carries a safety margin so no matchable row is dropped.
+    const boundNow = new Date();
+    const monthStart = new Date(boundNow.getFullYear(), boundNow.getMonth() - 5, 1);
+    const weekStart = new Date(boundNow.getFullYear(), boundNow.getMonth(), boundNow.getDate() - 7 - 35 - 2);
+    const lowerBound = new Date(Math.min(monthStart.getTime(), weekStart.getTime()) - 2 * 24 * 60 * 60 * 1000);
 
-    // Fetch all savings transactions for this user once to filter in memory
-    const savings = await db.financialEntry.findMany({
-      where: {
-        userId: user.id,
-        type: 'SAVINGS'
-      }
-    });
+    const [sips, savings] = await Promise.all([
+      db.sip.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' }
+      }),
+      db.financialEntry.findMany({
+        where: {
+          userId: user.id,
+          type: 'SAVINGS',
+          date: { gte: lowerBound }
+        },
+        select: { id: true, title: true, amount: true, date: true }
+      })
+    ]);
 
     const enrichedSips = sips.map(sip => {
       const periods = [];

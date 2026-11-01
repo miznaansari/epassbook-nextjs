@@ -46,10 +46,11 @@ export default function TransactionModal({
     if (isOpen) {
       const fetchPastEntries = async () => {
         try {
-          const res = await fetch('/api/entries');
+          // The latest 200 entries are plenty for title suggestions
+          const res = await fetch('/api/entries?limit=200');
           if (res.ok) {
-            const list = await res.json();
-            setPastEntries(list);
+            const payload = await res.json();
+            setPastEntries(Array.isArray(payload) ? payload : payload.items || []);
           }
         } catch (err) {
           console.error('Error fetching past entries for autocomplete:', err);

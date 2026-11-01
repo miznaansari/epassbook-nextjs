@@ -63,7 +63,11 @@ export async function GET(req) {
 
     const rangeEntries = await db.financialEntry.findMany({
       where: { userId: user.id, type: 'SPENDING', date: { gte: minStart, lte: maxEnd } },
-      include: { spendTag: true },
+      select: {
+        id: true, amount: true, title: true, description: true, date: true, type: true,
+        useSalaryBalance: true, salaryMonth: true, salaryYear: true, updatedAt: true,
+        spendTag: true,
+      },
       orderBy: { date: 'desc' },
     });
 

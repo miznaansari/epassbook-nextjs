@@ -156,23 +156,34 @@ export async function POST(req) {
     });
     savedUserMessageId = savedUserMessage.id;
 
-    // Auto update session title if it is still 'New Chat'
+    // Auto update session title (if still 'New Chat') in parallel with fetching recent history
+    let titlePromise = Promise.resolve();
     if (session.title === 'New Chat' || !session.title) {
       const truncatedTitle = userMessageContent.length > 35
         ? userMessageContent.substring(0, 32) + '...'
         : (hasImageAttachment ? (resolvedImageUrls.length > 1 ? `${resolvedImageUrls.length} Receipts Analysis` : 'Receipt Analysis') : userMessageContent);
-      await db.chatSession.update({
-        where: { id: activeSessionId },
-        data: { title: truncatedTitle },
-      });
-      renamedSession = { id: activeSessionId, title: session.title || 'New Chat' };
+      titlePromise = (async () => {
+        await db.chatSession.update({
+          where: { id: activeSessionId },
+          data: { title: truncatedTitle },
+        });
+        renamedSession = { id: activeSessionId, title: session.title || 'New Chat' };
+      })();
     }
 
-    // 3. Fetch all historical messages for this session from the database
-    const dbMessages = await db.chatMessage.findMany({
+    // 3. Fetch the most recent 40 historical messages for this session (ascending after reverse)
+    const historyPromise = db.chatMessage.findMany({
       where: { chatSessionId: activeSessionId },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
+      take: 40,
+      select: { role: true, content: true },
     });
+
+    // Wait for both to settle so `renamedSession` is accurate before any error propagates
+    const [historyResult, titleResult] = await Promise.allSettled([historyPromise, titlePromise]);
+    if (titleResult.status === 'rejected') throw titleResult.reason;
+    if (historyResult.status === 'rejected') throw historyResult.reason;
+    const dbMessages = historyResult.value.reverse();
 
     // Format for Gemini API (Vercel style role -> Gemini model role)
     let contents = dbMessages.map(m => ({

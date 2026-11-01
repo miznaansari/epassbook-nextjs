@@ -137,9 +137,10 @@ model FinancialEntry {
   isAiGenerated      Boolean   @default(false)
   spendTag           SpendTag?
 
-  @@index([userId, date])
-  @@index([userId, type])
-  @@index([parentEntryId])
+  @@index([userId, date]) // passbook pagination (date desc, id desc), date-range reports
+  @@index([userId, type, date]) // type filter + date range / type-filtered pagination (supersedes [userId, type])
+  @@index([userId, salaryYear, salaryMonth]) // salary-cycle deductions (balances, cron, ?salaryMonth= filter)
+  @@index([parentEntryId]) // lending repayments
 }
 
 model ChatSession {
@@ -256,7 +257,7 @@ model Sip {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  @@index([userId])
+  @@index([userId, createdAt]) // list ordered by createdAt
 }
 
 model ApiKey {
@@ -272,8 +273,7 @@ model ApiKey {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  @@index([userId])
-  @@index([key])
+  @@index([userId, createdAt]) // list ordered by createdAt; `key` is already @unique
 }
 
 model AiBudgetClassification {

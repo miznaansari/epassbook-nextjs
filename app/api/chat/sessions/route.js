@@ -13,6 +13,8 @@ export async function GET() {
     const sessions = await db.chatSession.findMany({
       where: { userId: user.id },
       orderBy: { updatedAt: 'desc' },
+      take: 100,
+      select: { id: true, userId: true, title: true, createdAt: true, updatedAt: true },
     });
 
     return NextResponse.json(sessions);

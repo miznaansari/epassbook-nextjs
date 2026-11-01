@@ -54,7 +54,8 @@ export async function POST(req) {
     const fetchPromises = uniqueSymbols.map(async (symbol) => {
       try {
         const res = await fetch(
-          `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`
+          `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`,
+          { signal: AbortSignal.timeout(4000) }
         );
         if (!res.ok) {
           console.error(`Failed to fetch price for ${symbol}:`, res.statusText);
@@ -75,49 +76,23 @@ export async function POST(req) {
     await Promise.all(fetchPromises);
 
     // 4. Update the cached prices in the database and increment usage counter if outside market hours
-    const updatedCount = await db.$transaction(async (tx) => {
-      // Upsert all fetched prices
-      for (const update of priceUpdates) {
-        await tx.stockPrice.upsert({
-          where: { symbol: update.symbol },
-          update: { price: update.price },
-          create: { symbol: update.symbol, price: update.price },
-        });
-      }
-
-      if (inMarketHours) {
-        // Do not increment count during market hours, just get the current count
-        const apiUsage = await tx.stockApiUsage.findUnique({
-          where: {
-            userId_date: {
-              userId: user.id,
-              date: todayStr,
-            },
-          },
-        });
-        return apiUsage ? apiUsage.count : 0;
-      }
-
-      // Increment usage count
-      const usage = await tx.stockApiUsage.upsert({
-        where: {
-          userId_date: {
-            userId: user.id,
-            date: todayStr,
-          },
-        },
-        update: {
-          count: { increment: 1 },
-        },
-        create: {
-          userId: user.id,
-          date: todayStr,
-          count: 1,
-        },
-      });
-
-      return usage.count;
-    });
+    const usageWhere = { userId_date: { userId: user.id, date: todayStr } };
+    const ops = priceUpdates.map(update => db.stockPrice.upsert({
+      where: { symbol: update.symbol },
+      update: { price: update.price },
+      create: { symbol: update.symbol, price: update.price },
+    }));
+    // Last op yields the usage row (read-only during market hours, incremented otherwise)
+    ops.push(inMarketHours
+      ? db.stockApiUsage.findUnique({ where: usageWhere })
+      : db.stockApiUsage.upsert({
+          where: usageWhere,
+          update: { count: { increment: 1 } },
+          create: { userId: user.id, date: todayStr, count: 1 },
+        }));
+    const txResults = await db.$transaction(ops);
+    const usageRow = txResults[txResults.length - 1];
+    const updatedCount = usageRow ? usageRow.count : 0;
 
     return NextResponse.json({
       success: true,

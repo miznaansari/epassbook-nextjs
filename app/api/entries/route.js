@@ -11,7 +11,88 @@ function getMonthName(num) {
   return monthNames[num] || `Month ${num}`;
 }
 
-// GET: Fetch entries for the authenticated user, optionally filtered by type, date range, or salary month/year
+const ENTRY_TYPES = ['LENDING', 'LOAN', 'SPENDING', 'ADVANCE', 'SAVINGS'];
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 200;
+// Newest first; id breaks ties so cursor pagination is stable.
+const ENTRY_ORDER = [{ date: 'desc' }, { id: 'desc' }];
+// Entries logged by the AI assistant before the isAiGenerated flag existed.
+const AI_DESCRIPTION_MARKERS = ['logged via ai', 'ai assistant', 'gemini'];
+const AI_DESCRIPTION_RE = /logged via ai|ai assistant|gemini/i;
+
+/**
+ * Adds isAiGenerated (normalised) and, for LENDING entries, their repayments and
+ * unpaid amount. Repayments for the whole batch come from ONE query.
+ */
+async function enrichEntries(entries) {
+  const lendingIds = entries.filter(e => e.type === 'LENDING').map(e => e.id);
+  const repaymentsByParent = new Map();
+
+  if (lendingIds.length > 0) {
+    const repayments = await db.financialEntry.findMany({
+      where: { parentEntryId: { in: lendingIds } },
+      select: { id: true, parentEntryId: true, amount: true, title: true, date: true, description: true },
+      orderBy: { id: 'asc' },
+    });
+    for (const r of repayments) {
+      const list = repaymentsByParent.get(r.parentEntryId) || [];
+      list.push(r);
+      repaymentsByParent.set(r.parentEntryId, list);
+    }
+  }
+
+  return entries.map((entry) => {
+    const isAi = Boolean(entry.isAiGenerated || AI_DESCRIPTION_RE.test(entry.description || ''));
+    if (entry.type !== 'LENDING') {
+      return { ...entry, isAiGenerated: isAi };
+    }
+    const repayments = repaymentsByParent.get(entry.id) || [];
+    const totalRepaid = repayments.reduce((sum, r) => sum + parseFloat(r.amount), 0);
+    return {
+      ...entry,
+      isAiGenerated: isAi,
+      unpaidAmount: Math.max(0, parseFloat(entry.amount) - totalRepaid),
+      repayments: repayments.map(r => ({
+        id: r.id,
+        amount: parseFloat(r.amount),
+        title: r.title,
+        date: r.date,
+        description: r.description,
+      })),
+    };
+  });
+}
+
+/** Key for a salary deduction bucket. */
+const refundKey = (d) => `${d.year}-${d.month}-${d.type}`;
+
+/**
+ * Amount already refunded per salary bucket by earlier repayments of a lending,
+ * in ONE query (previously one query per parent deduction per repayment).
+ */
+async function refundedByMonth(repaymentIds) {
+  const totals = new Map();
+  if (repaymentIds.length === 0) return totals;
+  const rows = await db.salaryDeduction.findMany({
+    where: { entryId: { in: repaymentIds } },
+    select: { month: true, year: true, type: true, amount: true },
+  });
+  for (const d of rows) {
+    const key = refundKey(d);
+    totals.set(key, (totals.get(key) || 0) + Math.abs(parseFloat(d.amount)));
+  }
+  return totals;
+}
+
+// GET: Fetch entries for the authenticated user, optionally filtered by type, date range, or salary month/year.
+//
+// Without `limit` the full list is returned as an array (used by reports).
+// With `limit` the response is paginated: { items, nextCursor, total }.
+//   limit   page size (1-200, default 50)
+//   cursor  id of the last entry from the previous page
+//   q       search in title / description
+//   ai=1    only entries added by the AI assistant
+// `total` is only computed for the first page (no cursor); later pages return null.
 export async function GET(req) {
   try {
     const user = await requireUser();
@@ -25,11 +106,34 @@ export async function GET(req) {
     const endDate = searchParams.get('endDate');
     const salaryMonth = searchParams.get('salaryMonth');
     const salaryYear = searchParams.get('salaryYear');
+    const q = (searchParams.get('q') || '').trim().slice(0, 100);
+    const aiOnly = searchParams.get('ai') === '1';
+    const limitParam = searchParams.get('limit');
+    const cursorParam = searchParams.get('cursor');
 
     const where = { userId: user.id };
+    const conditions = [];
 
     if (type) {
+      if (!ENTRY_TYPES.includes(type)) {
+        return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+      }
       where.type = type;
+    }
+
+    if (q) {
+      conditions.push({ OR: [{ title: { contains: q } }, { description: { contains: q } }] });
+    }
+    if (aiOnly) {
+      conditions.push({
+        OR: [
+          { isAiGenerated: true },
+          ...AI_DESCRIPTION_MARKERS.map(marker => ({ description: { contains: marker } })),
+        ],
+      });
+    }
+    if (conditions.length > 0) {
+      where.AND = conditions;
     }
 
     // Filter by date range (for cycles and dashboard filtering)
@@ -47,39 +151,39 @@ export async function GET(req) {
     if (salaryMonth) where.salaryMonth = parseInt(salaryMonth);
     if (salaryYear) where.salaryYear = parseInt(salaryYear);
 
-    const entries = await db.financialEntry.findMany({
-      where,
-      include: { deductions: true },
-      orderBy: { date: 'desc' },
+    // Unpaginated (legacy) response: the full list as an array.
+    if (limitParam === null) {
+      const entries = await db.financialEntry.findMany({
+        where,
+        include: { deductions: true },
+        orderBy: ENTRY_ORDER,
+      });
+      return NextResponse.json(await enrichEntries(entries));
+    }
+
+    const limit = Math.min(Math.max(parseInt(limitParam, 10) || DEFAULT_PAGE_SIZE, 1), MAX_PAGE_SIZE);
+    const cursor = parseInt(cursorParam, 10);
+    const hasCursor = Number.isInteger(cursor) && cursor > 0;
+
+    const [rows, total] = await Promise.all([
+      db.financialEntry.findMany({
+        where,
+        include: { deductions: true },
+        orderBy: ENTRY_ORDER,
+        take: limit + 1, // one extra row tells us whether another page exists
+        ...(hasCursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      }),
+      hasCursor ? Promise.resolve(null) : db.financialEntry.count({ where }),
+    ]);
+
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+
+    return NextResponse.json({
+      items: await enrichEntries(page),
+      nextCursor: hasMore ? page[page.length - 1].id : null,
+      total,
     });
-
-    const enriched = await Promise.all(entries.map(async (entry) => {
-      const isAi = Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || ''));
-      if (entry.type === 'LENDING') {
-        const repayments = await db.financialEntry.findMany({
-          where: { parentEntryId: entry.id }
-        });
-        const totalRepaid = repayments.reduce((sum, r) => sum + parseFloat(r.amount), 0);
-        return {
-          ...entry,
-          isAiGenerated: isAi,
-          unpaidAmount: Math.max(0, parseFloat(entry.amount) - totalRepaid),
-          repayments: repayments.map(r => ({
-            id: r.id,
-            amount: parseFloat(r.amount),
-            title: r.title,
-            date: r.date,
-            description: r.description
-          }))
-        };
-      }
-      return {
-        ...entry,
-        isAiGenerated: isAi,
-      };
-    }));
-
-    return NextResponse.json(enriched);
   } catch (error) {
     console.error('Error in /api/entries GET:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -142,7 +246,7 @@ export async function POST(req) {
         where: { id: parentId },
         include: { deductions: true }
       });
-      if (!parentEntry) {
+      if (!parentEntry || parentEntry.userId !== user.id) {
         return NextResponse.json({ error: 'Parent lending entry not found' }, { status: 400 });
       }
       if (parentEntry.type !== 'LENDING') {
@@ -151,7 +255,8 @@ export async function POST(req) {
 
       // Check remaining unpaid amount
       const existingRepayments = await db.financialEntry.findMany({
-        where: { parentEntryId: parentId }
+        where: { parentEntryId: parentId },
+        select: { id: true, amount: true },
       });
       const totalRepaidSoFar = existingRepayments.reduce((sum, r) => sum + parseFloat(r.amount), 0);
       const originalLendingAmt = parseFloat(parentEntry.amount);
@@ -169,23 +274,13 @@ export async function POST(req) {
       // Refund to the original deduction months/types
       if (parentEntry.useSalaryBalance) {
         let remainingRepayment = parsedAmount;
+        const refundedSoFar = await refundedByMonth(existingRepayments.map(r => r.id));
 
         for (const pd of parentEntry.deductions) {
           if (remainingRepayment <= 0) break;
 
           const pdAmt = parseFloat(pd.amount);
-          let alreadyRefunded = 0;
-          for (const prevRepay of existingRepayments) {
-            const prevDeductions = await db.salaryDeduction.findMany({
-              where: {
-                entryId: prevRepay.id,
-                month: pd.month,
-                year: pd.year,
-                type: pd.type
-              }
-            });
-            prevDeductions.forEach(d => alreadyRefunded += Math.abs(parseFloat(d.amount)));
-          }
+          const alreadyRefunded = refundedSoFar.get(refundKey(pd)) || 0;
 
           const maxRefundable = Math.max(0, pdAmt - alreadyRefunded);
           const refundAmt = Math.min(remainingRepayment, maxRefundable);
@@ -404,13 +499,14 @@ export async function PUT(req) {
         where: { id: parentId },
         include: { deductions: true }
       });
-      if (!parentEntry) {
+      if (!parentEntry || parentEntry.userId !== user.id) {
         return NextResponse.json({ error: 'Parent lending entry not found' }, { status: 400 });
       }
 
       // Check remaining unpaid amount (excluding this repayment entry itself)
       const existingRepayments = await db.financialEntry.findMany({
-        where: { parentEntryId: parentId, id: { not: existingEntry.id } }
+        where: { parentEntryId: parentId, id: { not: existingEntry.id } },
+        select: { id: true, amount: true },
       });
       const totalRepaidSoFar = existingRepayments.reduce((sum, r) => sum + parseFloat(r.amount), 0);
       const originalLendingAmt = parseFloat(parentEntry.amount);
@@ -427,23 +523,13 @@ export async function PUT(req) {
 
       if (parentEntry.useSalaryBalance) {
         let remainingRepayment = parsedAmount;
+        const refundedSoFar = await refundedByMonth(existingRepayments.map(r => r.id));
 
         for (const pd of parentEntry.deductions) {
           if (remainingRepayment <= 0) break;
 
           const pdAmt = parseFloat(pd.amount);
-          let alreadyRefunded = 0;
-          for (const prevRepay of existingRepayments) {
-            const prevDeductions = await db.salaryDeduction.findMany({
-              where: {
-                entryId: prevRepay.id,
-                month: pd.month,
-                year: pd.year,
-                type: pd.type
-              }
-            });
-            prevDeductions.forEach(d => alreadyRefunded += Math.abs(parseFloat(d.amount)));
-          }
+          const alreadyRefunded = refundedSoFar.get(refundKey(pd)) || 0;
 
           const maxRefundable = Math.max(0, pdAmt - alreadyRefunded);
           const refundAmt = Math.min(remainingRepayment, maxRefundable);

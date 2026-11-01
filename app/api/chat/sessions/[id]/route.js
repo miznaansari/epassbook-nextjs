@@ -13,11 +13,12 @@ export async function GET(req, { params }) {
     const resolvedParams = await params;
     const { id } = resolvedParams;
 
-    const session = await db.chatSession.findUnique({
-      where: { id },
+    const session = await db.chatSession.findFirst({
+      where: { id, userId: user.id },
       include: {
         messages: {
-          orderBy: { createdAt: 'asc' },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
         },
       },
     });
@@ -26,9 +27,7 @@ export async function GET(req, { params }) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    if (session.userId !== user.id) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
+    session.messages.reverse();
 
     return NextResponse.json(session);
   } catch (error) {

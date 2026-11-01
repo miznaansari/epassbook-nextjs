@@ -10,47 +10,56 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 1. Fetch all SAVINGS entries for this user
-    const savingEntries = await db.financialEntry.findMany({
-      where: {
-        userId: user.id,
-        type: 'SAVINGS'
-      },
-      include: { deductions: true },
-      orderBy: { date: 'desc' }
-    });
+    // 1. Fetch SAVINGS entries, SIPs and stock holdings in parallel
+    const [savingEntries, userSips, stockHoldings] = await Promise.all([
+      db.financialEntry.findMany({
+        where: {
+          userId: user.id,
+          type: 'SAVINGS'
+        },
+        select: {
+          id: true, title: true, amount: true, type: true, date: true,
+          description: true, useSalaryBalance: true, salaryMonth: true,
+          salaryYear: true, isAiGenerated: true
+        },
+        orderBy: { date: 'desc' }
+      }),
+      db.sip.findMany({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' }
+      }),
+      db.stockHolding.findMany({
+        where: { userId: user.id },
+        select: { symbol: true, name: true, quantity: true, buyPrice: true, updatedAt: true },
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
 
     const savingIds = savingEntries.map(e => e.id);
-
-    // 2. Fetch all linked withdrawals or withdrawal entries
-    const withdrawalEntries = await db.financialEntry.findMany({
-      where: {
-        userId: user.id,
-        OR: [
-          ...(savingIds.length > 0 ? [{ parentEntryId: { in: savingIds } }] : []),
-          { description: { contains: 'Withdrawal from savings pot' } },
-          { title: { startsWith: 'Withdrawal: ' } }
-        ]
-      },
-      orderBy: { date: 'desc' }
-    });
-
-    // 3. Fetch user's SIP configurations
-    const userSips = await db.sip.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    // 4. Fetch user's Stock Holdings & Cached Live Stock Prices
-    const stockHoldings = await db.stockHolding.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' }
-    });
-
     const stockSymbols = Array.from(new Set(stockHoldings.map(h => h.symbol)));
-    const cachedStockPrices = await db.stockPrice.findMany({
-      where: { symbol: { in: stockSymbols } }
-    });
+
+    // 2. Fetch linked withdrawals and cached live stock prices in parallel
+    const [withdrawalEntries, cachedStockPrices] = await Promise.all([
+      db.financialEntry.findMany({
+        where: {
+          userId: user.id,
+          OR: [
+            ...(savingIds.length > 0 ? [{ parentEntryId: { in: savingIds } }] : []),
+            { description: { contains: 'Withdrawal from savings pot' } },
+            { title: { startsWith: 'Withdrawal: ' } }
+          ]
+        },
+        select: {
+          id: true, title: true, amount: true, type: true, date: true,
+          description: true, parentEntryId: true, isAiGenerated: true
+        },
+        orderBy: { date: 'desc' }
+      }),
+      db.stockPrice.findMany({
+        where: { symbol: { in: stockSymbols } },
+        select: { symbol: true, price: true }
+      })
+    ]);
 
     const stockPriceMap = {};
     cachedStockPrices.forEach(p => {
