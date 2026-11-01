@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PanelLeftClose, PanelLeftOpen, History, Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useKeyboard } from '@/context/KeyboardContext';
-import Navbar from '@/components/Navbar';
 import { getPendingCameraPhoto } from '@/lib/cameraBridge';
 import Icon3D from '@/components/ui/Icon3D';
 import { ErrorState } from '@/components/ui/States';
@@ -15,6 +14,7 @@ import WelcomeScreen from '@/components/assistant/WelcomeScreen';
 import ThinkingIndicator from '@/components/assistant/ThinkingIndicator';
 import MessageItem from '@/components/assistant/MessageItem';
 import Composer from '@/components/assistant/Composer';
+import { replaceChartsWithText, stripChartsForSpeech } from '@/components/assistant/chartSpec';
 
 const AVAILABLE_MODELS = [
   { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
@@ -804,8 +804,10 @@ export default function Assistant() {
   };
 
   // Sarvam AI Text-to-Speech (Bulbul v3 / Web Speech Synthesis fallback)
-  const handleSpeak = async (text, idx) => {
+  const handleSpeak = async (rawText, idx) => {
     if (typeof window === 'undefined') return;
+    // Never read chart JSON aloud
+    const text = stripChartsForSpeech(rawText);
 
     // If already speaking this message, stop it
     if (speakingMsgIdx === idx) {
@@ -889,7 +891,7 @@ export default function Assistant() {
   // Copy transcript to clipboard
   const handleCopyTranscript = (text, idx) => {
     if (typeof navigator !== 'undefined') {
-      navigator.clipboard.writeText(text);
+      navigator.clipboard.writeText(replaceChartsWithText(text, user?.currency));
       setCopiedMsgIdx(idx);
       setTimeout(() => setCopiedMsgIdx(null), 2000);
     }
@@ -930,7 +932,7 @@ export default function Assistant() {
 
   if (loading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas">
+      <div className="flex flex-1 items-center justify-center bg-canvas">
         <Icon3D name="assistant" size={64} className="animate-pulse" />
       </div>
     );
@@ -948,8 +950,7 @@ export default function Assistant() {
   };
 
   return (
-    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-canvas text-ink app-sidebar-offset">
-      <Navbar />
+    <div className="relative flex h-[calc(100dvh-var(--app-header-h))] flex-col overflow-hidden bg-canvas text-ink">
 
       <div data-ui="v2" className="flex min-h-0 flex-1">
         {/* Desktop history panel */}

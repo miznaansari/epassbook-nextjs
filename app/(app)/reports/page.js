@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Navbar from '@/components/Navbar';
 import ReportsMobile from '@/components/ReportsMobile';
 import ReportInsights from '@/components/reports/ReportInsights';
 import { makeCompactFormatter } from '@/components/reports/chartTheme';
@@ -157,7 +156,7 @@ export default function Reports() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
       </div>
     );
@@ -462,9 +461,8 @@ export default function Reports() {
   if (isMobile) {
     return (
       <>
-        <Navbar />
         {loadingData ? (
-          <div className="min-h-screen flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
+          <div className="flex-1 flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
             <div className="w-12 h-12 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 flex items-center justify-center shadow-lg shadow-[#5E6AD2]/10 mb-4 animate-pulse">
               <AreaIcon className="w-6 h-6 text-[#5E6AD2]" />
             </div>
@@ -504,8 +502,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between app-sidebar-offset">
-      <Navbar />
+    <div className="relative flex-1 flex flex-col justify-between">
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-6 py-8">
         {/* Row 1: Header Titles */}

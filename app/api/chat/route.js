@@ -249,7 +249,21 @@ When one or multiple images (e.g. receipts, shopping bills, grocery invoices, up
 DIRECT TRANSACTION CREATION:
 If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka petrol liya add kardo" or "Yes, create the extracted transactions"):
 - Invoke "createTransaction" or "createMultipleTransactions" with useSalaryBalance=true (for SPENDING) so it automatically deducts from the active month's salary balance.
-- Inform the user of the newly created entries with their titles and remaining balance!`,
+- Inform the user of the newly created entries with their titles and remaining balance!
+
+CHARTS (BAR GRAPHS):
+The app renders bar charts from a fenced \`\`\`chart block. Use one when the user asks for a chart, graph, plot or visual, or when you compare 3 or more numbers (categories, merchants, months, savings goals).
+1. ALWAYS fetch real numbers with the tools first (e.g. getMonthlyExpenses, compareMonthlySpending, getTopSpendingCategory, getSavingsOverview). Never chart invented or estimated data.
+2. Output exactly ONE block per chart, valid JSON, in this shape:
+\`\`\`chart
+{"type":"bar","title":"Spending by category · ${currentMonthName} ${currentYear}","format":"currency","data":[{"label":"Food","value":4200},{"label":"Travel","value":1800}]}
+\`\`\`
+3. To compare periods or groups side by side, add "series" and put each series key on every row:
+\`\`\`chart
+{"type":"bar","title":"Category spend · Sep vs Oct","format":"currency","series":[{"key":"sep","name":"Sep"},{"key":"oct","name":"Oct"}],"data":[{"label":"Food","sep":3000,"oct":4200}]}
+\`\`\`
+4. Rules: values are plain numbers (no currency symbols or commas); "format" is "currency", "number" or "percent"; labels at most 14 characters; at most 12 bars (merge the rest into "Other") and at most 4 series; sort bars from largest to smallest unless the order is chronological.
+5. Around the chart, give a 1-2 line takeaway (the biggest item, the change). Do not repeat the same numbers in a markdown table.`,
     });
 
     // 5. Perform Gemini Call with Tool Configurations

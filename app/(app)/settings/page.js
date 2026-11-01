@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
-import Navbar from '@/components/Navbar';
 import { motion } from 'framer-motion';
 import packageInfo from '@/package.json';
 import OneSignal from 'react-onesignal';
@@ -177,15 +176,14 @@ export default function Settings() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050506]">
+      <div className="flex-1 flex items-center justify-center bg-[#050506]">
         <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF] app-sidebar-offset">
-      <Navbar />
+    <div className="relative flex-1 flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
 
       <main className="flex-grow max-w-3xl w-full mx-auto px-4 sm:px-6 py-8 pb-32 sm:pb-12">
 

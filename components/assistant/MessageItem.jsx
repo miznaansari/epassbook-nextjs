@@ -121,7 +121,7 @@ export default function MessageItem({
       </span>
       <div className="min-w-0 flex-1 pt-1">
         <div className="break-words text-sm leading-relaxed text-ink">
-          {formatMessageContent(text, true, currency, onProposalCreated)}
+          {formatMessageContent(text, true, currency, onProposalCreated, { streaming: isStreaming })}
           {isStreaming && <span className="ml-0.5 inline-block h-4 w-1.5 translate-y-0.5 rounded-sm bg-primary animate-pulse" aria-hidden="true" />}
         </div>
 

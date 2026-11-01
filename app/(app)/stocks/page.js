@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import Navbar from '@/components/Navbar';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -338,7 +337,7 @@ export default function StocksPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
+      <div className="flex-1 flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
         <div className="w-12 h-12 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 flex items-center justify-center shadow-lg shadow-[#5E6AD2]/10 mb-4 animate-pulse">
           <Briefcase className="w-6 h-6 text-[#5E6AD2]" />
         </div>
@@ -383,8 +382,7 @@ export default function StocksPage() {
   const isDayUp = dayPnl >= 0;
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30 app-sidebar-offset">
-      <Navbar />
+    <div className="relative flex-1 flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30">
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-8 relative z-10">
         {/* Header Title and Controls */}

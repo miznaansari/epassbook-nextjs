@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ShieldCheck, Mail, Lock, AlertCircle, Terminal } from 'lucide-react';
+import { ShieldCheck, Mail, Lock, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function AdminLoginPage() {
@@ -79,7 +79,7 @@ export default function AdminLoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@monthlymoney.com"
+                placeholder="you@company.com"
                 className="w-full pl-12 pr-4 py-3.5 bg-slate-950/40 border border-white/10 rounded-xl text-white text-sm placeholder-slate-600 focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all font-medium"
               />
             </div>
@@ -109,17 +109,6 @@ export default function AdminLoginPage() {
             ) : "Authenticate Admin"}
           </button>
         </form>
-
-        <div className="mt-8 p-4 bg-slate-950/50 border border-white/5 rounded-xl text-left">
-          <h4 className="text-[10px] font-bold text-violet-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-            <Terminal className="w-3.5 h-3.5" /> Initial Boot Instructions
-          </h4>
-          <p className="text-slate-400 text-[10px] leading-relaxed font-semibold">
-            If there are no registered admins, logging in will automatically seed a default administrator account:<br/>
-            <span className="text-slate-200">Email:</span> <code className="text-cyan-400 font-mono">admin@monthlymoney.com</code><br/>
-            <span className="text-slate-200">Password:</span> <code className="text-cyan-400 font-mono">admin123</code>
-          </p>
-        </div>
       </motion.div>
     </div>
   );

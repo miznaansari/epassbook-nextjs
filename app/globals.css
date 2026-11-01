@@ -172,6 +172,10 @@
   --sidebar-width: 260px;
   --sidebar-collapsed-width: 76px;
 
+  /* Height of the sticky app top bar (mobile: 52px + notch; md+: 64px).
+     Full-height pages (e.g. the assistant) subtract it from 100dvh. */
+  --app-header-h: calc(52px + env(safe-area-inset-top, 0px));
+
   /* Financial semantics (HSL triplets; used as hsl(var(--x))) */
   --salary: 160 84% 36%;
   --spending: 343 89% 54%;
@@ -378,9 +382,9 @@ html[data-keyboard-open="true"] .floating-bottom-dock-container {
 }
 
 .floating-bottom-dock {
-  background-color: color-mix(in srgb, var(--color-card) 92%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background-color: color-mix(in srgb, var(--color-card) 95%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--color-line);
   box-shadow: var(--shadow-pop);
 }
@@ -403,6 +407,10 @@ html[data-keyboard-open="true"] .floating-bottom-dock-container {
 
 /* Desktop Sidebar Layout Offset */
 @media (min-width: 768px) {
+  :root {
+    --app-header-h: 64px;
+  }
+
   .app-sidebar-offset {
     padding-left: var(--sidebar-width, 260px);
     transition: padding-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);

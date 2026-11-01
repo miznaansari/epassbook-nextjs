@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Navbar from '@/components/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Key,
@@ -313,15 +312,14 @@ export default function McpManagementPage() {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex-1 flex items-center justify-center bg-background">
         <div className="w-12 h-12 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-background text-foreground app-sidebar-offset">
-      <Navbar />
+    <div className="relative flex-1 flex flex-col justify-between bg-background text-foreground">
 
       <main className="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 pb-28 md:pb-16 space-y-8">
         {/* Header section */}

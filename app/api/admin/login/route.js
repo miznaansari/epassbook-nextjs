@@ -9,19 +9,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
     }
 
-    // 1. Auto-seeding check: if admin table is empty, seed master account
-    const adminCount = await db.admin.count();
-    if (adminCount === 0) {
-      await db.admin.create({
-        data: {
-          email: 'admin@monthlymoney.com',
-          password: 'admin123',
-          name: 'Master Admin',
-        },
-      });
-    }
-
-    // 2. Find administrative record
+    // 1. Find administrative record
     const admin = await db.admin.findUnique({
       where: { email },
     });
@@ -30,7 +18,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    // 3. Establish secure administrative session
+    // 2. Establish secure administrative session
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import Navbar from '@/components/Navbar';
 import TransactionModal from '@/components/TransactionModal';
 import AiQuickAddInput from '@/components/AiQuickAddInput';
 import { getRecentCycles } from '@/lib/spendAnalytics';
@@ -236,7 +235,7 @@ export default function Dashboard() {
 
   if (loading && !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-canvas">
+      <div className="flex flex-1 items-center justify-center bg-canvas">
         <Icon3D name="savings" size={56} className="animate-pulse" />
       </div>
     );
@@ -254,8 +253,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-canvas text-ink app-sidebar-offset overflow-x-hidden">
-      <Navbar />
+    <div className="relative flex flex-1 flex-col bg-canvas text-ink overflow-x-hidden">
 
       <main data-ui="v2" className="w-full max-w-6xl flex-grow mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-28 md:pb-10 space-y-4 md:space-y-5">
         <DashboardHero

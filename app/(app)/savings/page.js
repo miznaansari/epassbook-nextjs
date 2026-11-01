@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import Navbar from '@/components/Navbar';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -314,9 +313,12 @@ export default function SavingsManagement() {
     return true;
   });
 
+  // Chart Timeframe Filter State — must stay above the early return (rules of hooks)
+  const [chartTimeframe, setChartTimeframe] = useState('ALL'); // 'ALL' | '1Y' | '6M' | '30D'
+
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#050506]">
+      <div className="flex-1 flex items-center justify-center bg-[#050506]">
         <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
       </div>
     );
@@ -345,9 +347,6 @@ export default function SavingsManagement() {
     totalStockReturnsPercentage: 0,
     stocksCount: 0
   };
-
-  // Chart Timeframe Filter State
-  const [chartTimeframe, setChartTimeframe] = useState('ALL'); // 'ALL' | '1Y' | '6M' | '30D'
 
   // Format compact currency for chart axis ticks
   const formatCompactCurrency = (val) => {
@@ -521,8 +520,7 @@ export default function SavingsManagement() {
   };
 
   return (
-    <div className="relative min-h-screen flex flex-col justify-between bg-[#050506] text-[#EDEDEF] app-sidebar-offset">
-      <Navbar />
+    <div className="relative flex-1 flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
 
       <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-28 text-left">
         
