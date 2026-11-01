@@ -135,6 +135,7 @@ model FinancialEntry {
   deductions         SalaryDeduction[]
   parentEntryId      Int?
   isAiGenerated      Boolean   @default(false)
+  spendTag           SpendTag?
 
   @@index([userId, date])
   @@index([userId, type])
@@ -291,5 +292,34 @@ model AiBudgetClassification {
 
   @@unique([userId, filter, cycleMonth, cycleYear])
   @@index([userId, lastRefreshedDate])
+}
+
+// AI merchant/item tag for a SPENDING entry. Cached per entry so only new or
+// edited entries are sent to Gemini; keeps merchant names stable across cycles.
+model SpendTag {
+  entryId        Int            @id
+  entry          FinancialEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  userId         String
+  merchant       String         // "Blinkit", "Ajaz General Store", "Family & People", "Miscellaneous"
+  merchantSlug   String         // "blinkit", "ajaz-general-store", "family", "misc"
+  merchantDomain String?        // "blinkit.com" — used for logo lookup; null for local shops
+  item           String         // "Aashirvaad Atta", "Amma", "Coffee"
+  itemKey        String         // key into lib/spendIcons.js catalog
+  source         String         @default("ai") // "ai" | "rules" (fallback, retried later)
+  entryUpdatedAt DateTime       // entry.updatedAt when tagged; mismatch => re-tag
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([userId, merchantSlug])
+}
+
+// Registry of downloaded brand logos / item icons stored in R2.
+model SpendAsset {
+  key       String    @id // "logo:blinkit" | "item:onion"
+  url       String?   @db.Text // public R2 URL; null = looked, nothing found
+  sourceUrl String?   @db.Text
+  failedAt  DateTime? // negative results retried after 7 days
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 

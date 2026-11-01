@@ -4,6 +4,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { clearDashboardCache } from '@/components/dashboard/useCachedFetch';
 
 const AuthContext = createContext({
   user: null,
@@ -200,6 +201,7 @@ export function AuthProvider({ children }) {
     } catch (e) {
       console.error('Error signing out from Firebase:', e);
     }
+    clearDashboardCache();
     setUser(null);
     setLoading(false);
     router.push('/login');

@@ -40,7 +40,33 @@ const getFunctionCalls = (res) => {
   return undefined;
 };
 
+/**
+ * Map Gemini/SDK failures to a short, user-facing message. Every AI failure is
+ * retryable from the client; `code` lets the UI pick an icon or hint.
+ */
+function classifyAiError(error) {
+  const msg = String(error?.message || '');
+  const status = Number(error?.status) || Number(msg.match(/\[(\d{3})\b/)?.[1]) || 0;
+  if (status === 401 || status === 403 || /api key not valid|unauthori[sz]ed|permission denied/i.test(msg)) {
+    return { code: 'AI_AUTH', error: 'The AI service rejected our API key. Ask the admin to update GEMINI_API_KEY, then retry.' };
+  }
+  if (status === 429 || /quota|rate limit|resource has been exhausted/i.test(msg)) {
+    return { code: 'AI_RATE_LIMIT', error: 'The AI is getting too many requests right now. Wait a few seconds and retry.' };
+  }
+  if (status === 404 || /model .*not found|is not found for api version/i.test(msg)) {
+    return { code: 'AI_MODEL', error: 'This AI model is not available right now. Pick another model and retry.' };
+  }
+  if (status >= 500 || /fetch failed|timed? ?out|ECONNRESET|ENOTFOUND|overloaded|unavailable/i.test(msg)) {
+    return { code: 'AI_UNAVAILABLE', error: 'The AI service is temporarily unavailable. Please retry in a moment.' };
+  }
+  return { code: 'AI_ERROR', error: 'Something went wrong while generating a reply. Please retry.' };
+}
+
 export async function POST(req) {
+  // Id of the user message saved for this turn; removed again if the turn fails
+  // so a retry never leaves an orphan or a duplicate in the history.
+  let savedUserMessageId = null;
+  let renamedSession = null; // { id, title } to restore if the first turn fails
   try {
     const user = await requireUser();
     if (!user) {
@@ -121,13 +147,14 @@ export async function POST(req) {
         ? (userMessageContent ? `${userMessageContent}\n\n[Attached Receipt Image]` : `[Attached Receipt Image]`)
         : userMessageContent);
 
-    await db.chatMessage.create({
+    const savedUserMessage = await db.chatMessage.create({
       data: {
         chatSessionId: activeSessionId,
         role: 'user',
         content: dbContentToStore,
       },
     });
+    savedUserMessageId = savedUserMessage.id;
 
     // Auto update session title if it is still 'New Chat'
     if (session.title === 'New Chat' || !session.title) {
@@ -138,6 +165,7 @@ export async function POST(req) {
         where: { id: activeSessionId },
         data: { title: truncatedTitle },
       });
+      renamedSession = { id: activeSessionId, title: session.title || 'New Chat' };
     }
 
     // 3. Fetch all historical messages for this session from the database
@@ -335,6 +363,8 @@ If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka 
         content: textResponse,
       },
     });
+    savedUserMessageId = null; // turn completed — keep the user message and title
+    renamedSession = null;
 
     // Update the ChatSession's updatedAt timestamp to bubble it to top of list
     await db.chatSession.update({
@@ -372,6 +402,18 @@ If the user explicitly asks to add or log expenses directly (e.g. "Maine 200 ka 
 
   } catch (error) {
     console.error('Error in /api/chat POST:', error);
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+    if (savedUserMessageId) {
+      await db.chatMessage.delete({ where: { id: savedUserMessageId } }).catch((cleanupErr) => {
+        console.error('Failed to remove orphan chat message:', cleanupErr);
+      });
+    }
+    if (renamedSession) {
+      await db.chatSession.update({ where: { id: renamedSession.id }, data: { title: renamedSession.title } }).catch(() => {});
+    }
+    const { code, error: message } = classifyAiError(error);
+    return NextResponse.json(
+      { error: message, code, retryable: true, detail: String(error?.message || '').slice(0, 200) },
+      { status: 502 },
+    );
   }
 }

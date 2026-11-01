@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import NextTopLoader from "nextjs-toploader";
 import { AuthProvider } from "@/context/AuthContext";
@@ -21,16 +21,25 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+});
+
 export const viewport = {
-  themeColor: "#050506",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F6F7FB" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0D14" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
 };
 
 export const metadata = {
-  title: "Manage Monthly Money | Precision Financial Ledger",
-  description: "A precision-engineered, AI-assisted personal finance ledger for tracking salary cycles, active lending, debt management, and spending analytics.",
+  title: "MonthlyMoney — know where your salary goes",
+  description: "AI groups every rupee you spend by merchant, compares salary cycles, reads receipts and answers questions about your money.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -47,7 +56,7 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${jakarta.variable} antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -79,37 +88,21 @@ export default function RootLayout({ children }) {
           }}
         />
       </head>
-      <body className="min-h-screen flex flex-col bg-[var(--background-base)] text-[var(--foreground)] relative selection:bg-[#5E6AD2]/30 selection:text-white transition-colors duration-200">
-        {/* Layer 1: Base Depth Gradient */}
-        <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,#0e0e14_0%,#050506_50%,#020203_100%)] light-base-gradient pointer-events-none z-0" />
-
-        {/* Layer 2: Subtle Technical Grid Overlay */}
-        <div className="fixed inset-0 bg-grid-pattern opacity-40 dark:opacity-40 light:opacity-20 pointer-events-none z-0" />
-
-        {/* Layer 3: Layered Ambient Light Blobs (Linear Signature) */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-          {/* Primary Top-Center Ambient Light Pool */}
-          <div 
-            className="absolute -top-[15%] left-1/2 -translate-x-1/2 w-[900px] h-[550px] bg-[#5E6AD2]/12 dark:bg-[#5E6AD2]/12 light:bg-[#5E6AD2]/6 rounded-full blur-[150px] animate-float pointer-events-none"
-          />
-          {/* Secondary Ambient Light Accent - Left */}
-          <div 
-            className="absolute top-[25%] -left-[10%] w-[600px] h-[600px] bg-[#7056E0]/8 dark:bg-[#7056E0]/8 light:bg-[#7056E0]/4 rounded-full blur-[140px] animate-float-slow pointer-events-none"
-          />
-          {/* Tertiary Subtle Ambient Glow - Right */}
-          <div 
-            className="absolute top-[45%] -right-[10%] w-[550px] h-[550px] bg-[#3B82F6]/6 dark:bg-[#3B82F6]/6 light:bg-[#3B82F6]/3 rounded-full blur-[140px] animate-float pointer-events-none"
-          />
-          {/* Lower Ambient Accent */}
-          <div 
-            className="absolute -bottom-[10%] left-[25%] w-[600px] h-[400px] bg-[#5E6AD2]/6 dark:bg-[#5E6AD2]/6 light:bg-[#5E6AD2]/3 rounded-full blur-[160px] animate-float-slow pointer-events-none"
-          />
-        </div>
+      <body className="min-h-screen flex flex-col bg-canvas text-ink relative selection:bg-primary/25 transition-colors duration-200">
+        {/* Ambient brand glow (theme-aware, static for mobile performance) */}
+        <div
+          aria-hidden="true"
+          className="fixed inset-0 pointer-events-none z-0"
+          style={{
+            background:
+              'radial-gradient(55% 38% at 50% -6%, color-mix(in srgb, var(--color-primary) 11%, transparent) 0%, transparent 70%), radial-gradient(35% 30% at 100% 0%, color-mix(in srgb, var(--color-secondary) 7%, transparent) 0%, transparent 70%)',
+          }}
+        />
 
         {/* Layer 4: Application Shell & Context */}
         <div className="relative z-10 flex-1 flex flex-col">
           <NextTopLoader
-            color="#5E6AD2"
+            color="#6366F1"
             initialPosition={0.08}
             crawlSpeed={200}
             height={3}
@@ -117,7 +110,7 @@ export default function RootLayout({ children }) {
             showSpinner={false}
             easing="cubic-bezier(0.16, 1, 0.3, 1)"
             speed={250}
-            shadow="0 0 14px #5E6AD2, 0 0 6px #7056E0"
+            shadow="0 0 12px #6366F1, 0 0 6px #F59E0B"
             zIndex={99999}
             showAtBottom={false}
           />

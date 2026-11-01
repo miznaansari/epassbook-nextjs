@@ -2,669 +2,75 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PanelLeftClose, PanelLeftOpen, History, Plus, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
 import { useKeyboard } from '@/context/KeyboardContext';
 import Navbar from '@/components/Navbar';
-import { motion, AnimatePresence } from 'framer-motion';
 import { getPendingCameraPhoto } from '@/lib/cameraBridge';
-import {
-  Sparkles,
-  Send,
-  Bot,
-  User as UserIcon,
-  TrendingUp,
-  PiggyBank,
-  Lightbulb,
-  LineChart,
-  AlertCircle,
-  Plus,
-  Trash2,
-  MessageSquare,
-  Menu,
-  X,
-  History,
-  Loader2,
-  ChevronDown,
-  Camera,
-  Image as ImageIcon,
-  Images,
-  Receipt,
-  Check,
-  CheckCheck,
-  Maximize2,
-  CheckCircle2,
-  Mic,
-  MicOff,
-  Volume2,
-  VolumeX,
-  Copy,
-  Radio,
-  Activity,
-  RotateCcw,
-  Undo2,
-  Coins,
-  Wallet,
-  Sun,
-  Moon
-} from 'lucide-react';
+import Icon3D from '@/components/ui/Icon3D';
+import { ErrorState } from '@/components/ui/States';
+import ChatSidebar from '@/components/assistant/ChatSidebar';
+import WelcomeScreen from '@/components/assistant/WelcomeScreen';
+import ThinkingIndicator from '@/components/assistant/ThinkingIndicator';
+import MessageItem from '@/components/assistant/MessageItem';
+import Composer from '@/components/assistant/Composer';
 
-// Interactive Transaction Proposal Card Component
-function TransactionProposalCard({ initialItems, userCurrency = 'INR', onCreated }) {
-  const [items, setItems] = useState(initialItems || []);
-  const [status, setStatus] = useState('pending'); // 'pending' | 'saving' | 'approved' | 'rolling_back' | 'rolled_back' | 'error'
-  const [errorMsg, setErrorMsg] = useState('');
-  const [createdTransactions, setCreatedTransactions] = useState([]);
+const AVAILABLE_MODELS = [
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
+  { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
+  { id: 'gemma-4-26b', name: 'Gemma 4 26B' },
+  { id: 'gemma-4-31b', name: 'Gemma 4 31B' },
+];
 
-  const currencySymbol = userCurrency === 'USD' ? '$' : '₹';
-  const totalAmount = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+const RECEIPT_PROMPT_ONE = 'Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions.';
+const receiptPromptMany = (n) => `Please scan these ${n} receipt/bill images, extract and consolidate all purchased items with prices across all receipts, and ask for my approval before creating transactions.`;
 
-  const handleCreateAll = async () => {
-    if (items.length === 0 || status === 'saving' || status === 'approved') return;
-    setStatus('saving');
-    setErrorMsg('');
-
-    try {
-      const createdList = [];
-      const now = new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
-
-      for (const item of items) {
-        const amt = parseFloat(item.amount);
-        if (isNaN(amt) || amt <= 0) continue;
-
-        const res = await fetch('/api/entries', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: item.title?.trim() || 'Untitled Expense',
-            amount: amt,
-            type: item.type || 'SPENDING',
-            useSalaryBalance: item.useSalaryBalance !== false,
-            salaryMonth: item.salaryMonth || currentMonth,
-            salaryYear: item.salaryYear || currentYear,
-            description: item.description || 'Logged via AI Assistant Receipt OCR',
-            date: item.date ? new Date(item.date).toISOString() : now.toISOString(),
-            isAiGenerated: true
-          })
-        });
-
-        if (res.ok) {
-          const entryData = await res.json();
-          createdList.push({
-            id: entryData.id,
-            title: entryData.title || item.title,
-            amount: parseFloat(entryData.amount) || amt,
-            type: entryData.type || item.type || 'SPENDING',
-            date: entryData.date || item.date || now.toISOString(),
-          });
-        } else {
-          let errText = 'Failed to create transaction.';
-          try {
-            const errData = await res.json();
-            errText = errData.error || errData.message || errText;
-          } catch (e) {
-            try {
-              const raw = await res.text();
-              if (raw) errText = raw.slice(0, 100);
-            } catch (e2) { }
-          }
-          throw new Error(errText);
-        }
-      }
-
-      setCreatedTransactions(createdList);
-      setStatus('approved');
-      if (onCreated) onCreated(createdList.length, totalAmount);
-    } catch (err) {
-      console.error('Error creating transactions:', err);
-      setErrorMsg(err.message || 'Failed to create transactions.');
-      setStatus('error');
-    }
-  };
-
-  // Undo / Rollback created transactions
-  const handleRollback = async () => {
-    if (createdTransactions.length === 0 || status === 'rolling_back') return;
-    if (!confirm(`Are you sure you want to rollback and delete these ${createdTransactions.length} recorded transactions from your ledger?`)) return;
-
-    setStatus('rolling_back');
-    setErrorMsg('');
-
-    try {
-      const idsToDelete = createdTransactions.map(t => t.id).filter(Boolean);
-      const res = await fetch('/api/entries', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: idsToDelete }),
-      });
-
-      if (res.ok) {
-        setStatus('rolled_back');
-        if (onCreated) onCreated(0, 0);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to rollback transactions.');
-      }
-    } catch (err) {
-      console.error('Error during rollback:', err);
-      setErrorMsg(err.message || 'Failed to rollback transactions.');
-      setStatus('approved'); // keep approved state if rollback fails
-    }
-  };
-
-  const handleRemoveItem = (index) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleUpdateItem = (index, field, value) => {
-    setItems(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
-  };
-
-  if (items.length === 0 && status !== 'approved' && status !== 'rolled_back') return null;
-
-  return (
-    <div className="my-4 p-4 rounded-xl bg-slate-50/90 dark:bg-[var(--background-elevated)] border border-slate-200/90 dark:border-[var(--border-default)] shadow-sm backdrop-blur-xl text-left">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-200/90 dark:border-[var(--border-default)] gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/25 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-            <Receipt className="w-4 h-4" />
-          </div>
-          <div className="min-w-0">
-            <h4 className="text-xs font-semibold text-slate-900 dark:text-[var(--foreground)] tracking-wide truncate">
-              {status === 'approved'
-                ? 'Transactions Successfully Added'
-                : status === 'rolled_back'
-                  ? 'Transactions Rolled Back'
-                  : 'Receipt OCR Proposal'}
-            </h4>
-            <span className="text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-mono block">
-              {status === 'approved' ? (
-                <span>
-                  {createdTransactions.length} recorded entries • Total: <strong className="text-emerald-500 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
-                </span>
-              ) : status === 'rolled_back' ? (
-                <span className="text-amber-500">
-                  {createdTransactions.length} entries removed from ledger
-                </span>
-              ) : (
-                <span>
-                  {items.length} {items.length === 1 ? 'item' : 'items'} detected • Total: <strong className="text-emerald-500 font-mono font-bold">{currencySymbol}{totalAmount.toLocaleString()}</strong>
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-
-        {status === 'approved' ? (
-          <span className="px-2.5 py-0.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0 font-semibold">
-            <CheckCheck className="w-3 h-3" /> Recorded
-          </span>
-        ) : status === 'rolled_back' ? (
-          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[9px] font-mono uppercase tracking-wider rounded-md flex items-center gap-1 shrink-0 font-semibold">
-            <RotateCcw className="w-3 h-3" /> Undone
-          </span>
-        ) : (
-          <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-[9px] font-mono uppercase tracking-wider rounded-md shrink-0 font-semibold">
-            Pending Approval
-          </span>
-        )}
-      </div>
-
-      {errorMsg && (
-        <div className="mt-3 p-2.5 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg text-xs font-medium flex items-center gap-2">
-          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      {/* Items List (Pending or Approved) */}
-      {status === 'rolled_back' ? (
-        <div className="my-4 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20 text-left">
-          <div className="flex items-center gap-2 text-amber-600 dark:text-amber-300 text-xs font-semibold">
-            <RotateCcw className="w-4 h-4" />
-            <span>All {createdTransactions.length} transactions have been successfully undone and deleted.</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-[var(--foreground-muted)] mt-1 font-mono">
-            Your e-Passbook balance and monthly deductions have been automatically restored.
-          </p>
-          <button
-            type="button"
-            onClick={() => setStatus('pending')}
-            className="mt-3 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
-          >
-            Re-open proposal to edit or re-approve
-          </button>
-        </div>
-      ) : status === 'approved' ? (
-        /* Successfully Added List with Total Amount */
-        <div className="mt-3 space-y-2 max-h-72 overflow-y-auto pr-1">
-          <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center justify-between text-xs">
-            <span className="text-slate-800 dark:text-[var(--foreground)] font-medium">Grand Total Added</span>
-            <span className="font-mono font-bold text-emerald-500 text-sm">{currencySymbol}{totalAmount.toLocaleString()}</span>
-          </div>
-
-          {createdTransactions.map((tx, idx) => (
-            <div key={tx.id || idx} className="p-2.5 bg-white dark:bg-[var(--background-base)] border border-emerald-500/15 rounded-lg flex items-center justify-between gap-3 font-mono">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="w-4 h-4 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-bold flex items-center justify-center shrink-0">
-                  <Check className="w-2.5 h-2.5" />
-                </span>
-                <span className="text-xs font-sans text-slate-800 dark:text-[var(--foreground)] truncate font-medium">
-                  {tx.title}
-                </span>
-                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0 font-semibold">
-                  {tx.type}
-                </span>
-              </div>
-              <div className="text-xs font-bold text-emerald-500 shrink-0">
-                {currencySymbol}{tx.amount.toLocaleString()}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        /* Pre-approval Editable Items List */
-        <div className="mt-3 space-y-2 max-h-64 overflow-y-auto pr-1">
-          {items.map((item, idx) => (
-            <div key={idx} className="p-2.5 bg-white dark:bg-[var(--background-base)] border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-500/30 rounded-lg flex items-center justify-between gap-3 transition-all">
-              <div className="flex-1 min-w-0 flex items-center gap-2 font-mono">
-                <span className="w-4 h-4 rounded bg-slate-100 dark:bg-[var(--surface-active)] text-slate-500 dark:text-[var(--foreground-muted)] text-[9px] font-bold flex items-center justify-center shrink-0">
-                  {idx + 1}
-                </span>
-                <input
-                  type="text"
-                  disabled={status === 'saving'}
-                  value={item.title}
-                  onChange={(e) => handleUpdateItem(idx, 'title', e.target.value)}
-                  placeholder="Item name"
-                  className="bg-transparent border-b border-transparent focus:border-indigo-500 text-xs font-sans text-slate-900 dark:text-[var(--foreground)] placeholder-slate-400 dark:placeholder-[var(--foreground-muted)] focus:outline-none w-full truncate disabled:opacity-80 font-medium"
-                />
-                <span className="text-[8px] font-mono uppercase px-1.5 py-0.2 rounded bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 shrink-0 font-semibold">
-                  {item.type || 'SPENDING'}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="flex items-center gap-1 font-mono text-xs font-bold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">
-                  <span>{currencySymbol}</span>
-                  <input
-                    type="number"
-                    disabled={status === 'saving'}
-                    value={item.amount}
-                    onChange={(e) => handleUpdateItem(idx, 'amount', e.target.value)}
-                    className="bg-transparent text-xs font-bold text-emerald-500 focus:outline-none w-14 text-right disabled:opacity-80"
-                  />
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => handleRemoveItem(idx)}
-                  className="p-1 text-slate-400 dark:text-[var(--foreground-muted)] hover:text-rose-500 rounded hover:bg-rose-500/10 transition-colors cursor-pointer"
-                  title="Remove item"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Action Footer */}
-      {status === 'pending' || status === 'saving' || status === 'error' ? (
-        <div className="mt-3.5 pt-3 border-t border-slate-200/90 dark:border-[var(--border-default)] flex items-center justify-between gap-3">
-          <span className="text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-mono">
-            Deducts from active salary balance
-          </span>
-          <button
-            type="button"
-            disabled={status === 'saving' || items.length === 0}
-            onClick={handleCreateAll}
-            className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer transition-all"
-          >
-            {status === 'saving' ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Recording...</span>
-              </>
-            ) : (
-              <>
-                <Check className="w-3.5 h-3.5" />
-                <span>Approve All ({currencySymbol}{totalAmount.toLocaleString()})</span>
-              </>
-            )}
-          </button>
-        </div>
-      ) : status === 'approved' ? (
-        <div className="mt-3.5 pt-3 border-t border-slate-200/90 dark:border-[var(--border-default)] flex items-center justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-emerald-500 font-mono font-semibold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-            <span>Recorded into e-Passbook</span>
-          </span>
-
-          {/* Rollback / Undo Button */}
-          <button
-            type="button"
-            disabled={status === 'rolling_back'}
-            onClick={handleRollback}
-            className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50 active:scale-95"
-            title="Undo and delete newly created transactions"
-          >
-            {status === 'rolling_back' ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                <span>Rolling back...</span>
-              </>
-            ) : (
-              <>
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span>Undo / Rollback</span>
-              </>
-            )}
-          </button>
-        </div>
-      ) : null}
-    </div>
-  );
+/** Turn a thrown error / failed response into the text shown under the message. */
+function friendlyError(err) {
+  if (err?.name === 'TypeError') return 'Network error. Check your connection and retry.';
+  return err?.message || "Couldn't get a reply.";
 }
-
-// Parse message content to render markdown elements (bold, inline code, tables, lists, HR, and interactive proposal cards)
-const formatMessageContent = (content, isAi = false, userCurrency = 'INR', onCreated = null) => {
-  if (!content) return [];
-
-  // Check for embedded proposal JSON blocks
-  const proposalRegex = /```(?:json:transaction_proposal|json)\s*([\s\S]*?\{[\s\S]*?"items"[\s\S]*?\})\s*```/;
-  const proposalMatch = content.match(proposalRegex);
-
-  let proposalItems = null;
-  let textToRender = content;
-
-  if (proposalMatch) {
-    try {
-      const parsed = JSON.parse(proposalMatch[1]);
-      if (parsed.items && Array.isArray(parsed.items) && parsed.items.length > 0) {
-        proposalItems = parsed.items;
-      }
-    } catch (err) {
-      console.error('Error parsing transaction proposal JSON:', err);
-    }
-    // Remove the raw proposal code block from textual render
-    textToRender = content.replace(proposalRegex, '').trim();
-  }
-
-  const renderTextWithFormatting = (text) => {
-    if (!text) return '';
-    const regex = /(\*\*[^*]+\*\*|`[^`]+`)/g;
-    const parts = text.split(regex);
-    return parts.map((part, idx) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        const boldText = part.slice(2, -2);
-        return (
-          <strong key={idx} className="font-extrabold text-slate-900 dark:text-[var(--foreground)] bg-slate-200/80 dark:bg-[var(--surface-active)] px-1 py-0.5 rounded">
-            {boldText}
-          </strong>
-        );
-      }
-      if (part.startsWith('`') && part.endsWith('`')) {
-        const codeText = part.slice(1, -1);
-        return (
-          <code key={idx} className="font-mono text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-200 dark:border-indigo-500/20 text-xs font-semibold">
-            {codeText}
-          </code>
-        );
-      }
-      return part;
-    });
-  };
-
-  const renderCellContent = (cell) => {
-    const trimmed = cell.trim();
-    if (trimmed.startsWith('+')) {
-      return <span className="text-emerald-500 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
-    }
-    if (trimmed.startsWith('-') && !trimmed.startsWith('---')) {
-      return <span className="text-rose-500 font-semibold font-mono">{renderTextWithFormatting(cell)}</span>;
-    }
-    return renderTextWithFormatting(cell);
-  };
-
-  const lines = textToRender.split('\n');
-  const elements = [];
-  let currentTable = null;
-  let currentList = null; // { type: 'ul'|'ol', items: [] }
-  let paragraphText = [];
-
-  const flushParagraph = (key) => {
-    if (paragraphText.length > 0) {
-      const text = paragraphText.join('\n').trim();
-      if (text) {
-        elements.push(
-          <p key={`p-${key}`} className="whitespace-pre-line break-words mb-3 last:mb-0 leading-relaxed text-slate-800 dark:text-[var(--foreground)]">
-            {renderTextWithFormatting(text)}
-          </p>
-        );
-      }
-      paragraphText = [];
-    }
-  };
-
-  const flushTable = (key) => {
-    if (currentTable) {
-      elements.push(
-        <div key={`table-wrapper-${key}`} className="my-4 overflow-x-auto rounded-xl border border-slate-200/90 dark:border-[var(--border-default)] bg-white dark:bg-[var(--background-elevated)] shadow-xs">
-          <table className="w-full border-collapse text-left text-xs md:text-sm">
-            <thead>
-              <tr className="border-b border-slate-200/90 dark:border-[var(--border-default)] bg-slate-50 dark:bg-[var(--surface-hover)]">
-                {currentTable.headers.map((h, hIdx) => (
-                  <th key={hIdx} className="px-4 py-2.5 font-mono text-[11px] uppercase tracking-wider text-slate-600 dark:text-[var(--foreground-muted)] font-bold">
-                    {renderTextWithFormatting(h)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200/80 dark:divide-[var(--border-default)]">
-              {currentTable.rows.map((row, rIdx) => (
-                <tr key={rIdx} className="hover:bg-slate-50 dark:hover:bg-[var(--surface-hover)] transition-colors">
-                  {row.map((cell, cIdx) => (
-                    <td key={cIdx} className="px-4 py-2.5 text-slate-900 dark:text-[var(--foreground)]">
-                      {renderCellContent(cell)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-      currentTable = null;
-    }
-  };
-
-  const flushList = (key) => {
-    if (currentList) {
-      if (currentList.type === 'ul') {
-        elements.push(
-          <ul key={`ul-${key}`} className="list-disc list-inside space-y-1.5 my-3 pl-2 leading-relaxed text-slate-800 dark:text-[var(--foreground)]">
-            {currentList.items.map((item, itemIdx) => (
-              <li key={itemIdx}>
-                {renderTextWithFormatting(item)}
-              </li>
-            ))}
-          </ul>
-        );
-      } else {
-        elements.push(
-          <ol key={`ol-${key}`} className="list-decimal list-inside space-y-1.5 my-3 pl-2 leading-relaxed text-slate-800 dark:text-[var(--foreground)]">
-            {currentList.items.map((item, itemIdx) => (
-              <li key={itemIdx}>
-                {renderTextWithFormatting(item)}
-              </li>
-            ))}
-          </ol>
-        );
-      }
-      currentList = null;
-    }
-  };
-
-  const flushAll = (key) => {
-    flushParagraph(key);
-    flushTable(key);
-    flushList(key);
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // 1. Table parsing
-    if (trimmed.startsWith('|') && trimmed.endsWith('|')) {
-      flushParagraph(i);
-      flushList(i);
-
-      const cells = line.split('|').slice(1, -1).map((c) => c.trim());
-      const isSeparator = cells.every((c) => /^:?-+:?$/.test(c));
-
-      if (isSeparator) {
-        continue;
-      }
-
-      if (!currentTable) {
-        currentTable = {
-          headers: cells,
-          rows: [],
-        };
-      } else {
-        const rowCells = [...cells];
-        while (rowCells.length < currentTable.headers.length) {
-          rowCells.push('');
-        }
-        currentTable.rows.push(rowCells.slice(0, currentTable.headers.length));
-      }
-    }
-    // 2. Unordered list parsing
-    else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      flushParagraph(i);
-      flushTable(i);
-
-      const itemText = trimmed.slice(2).trim();
-      if (currentList && currentList.type === 'ul') {
-        currentList.items.push(itemText);
-      } else {
-        flushList(i);
-        currentList = {
-          type: 'ul',
-          items: [itemText],
-        };
-      }
-    }
-    // 3. Ordered list parsing
-    else if (/^\d+\.\s/.test(trimmed)) {
-      flushParagraph(i);
-      flushTable(i);
-
-      const match = trimmed.match(/^(\d+)\.\s(.*)/);
-      const itemText = match ? match[2].trim() : trimmed;
-      if (currentList && currentList.type === 'ol') {
-        currentList.items.push(itemText);
-      } else {
-        flushList(i);
-        currentList = {
-          type: 'ol',
-          items: [itemText],
-        };
-      }
-    }
-    // 4. Horizontal Rule
-    else if (trimmed === '---' || trimmed === '***') {
-      flushAll(i);
-      elements.push(<hr key={`hr-${i}`} className="my-4 border-slate-200/90 dark:border-[var(--border-default)]" />);
-    }
-    // 5. Normal text / empty line
-    else {
-      if (trimmed === '') {
-        flushAll(i);
-      } else {
-        flushTable(i);
-        flushList(i);
-        paragraphText.push(line);
-      }
-    }
-  }
-
-  flushAll(lines.length);
-
-  // If there are proposed transactions, append the interactive proposal card
-  if (proposalItems) {
-    elements.push(
-      <TransactionProposalCard
-        key="proposal-card"
-        initialItems={proposalItems}
-        userCurrency={userCurrency}
-        onCreated={onCreated}
-      />
-    );
-  }
-
-  return elements;
-};
 
 export default function Assistant() {
   const { user, loading } = useAuth();
-  const { theme, resolvedTheme, toggleTheme } = useTheme();
   const { isKeyboardOpen } = useKeyboard();
   const router = useRouter();
 
-  const AVAILABLE_MODELS = [
-    { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite' },
-    { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' },
-    { id: 'gemma-4-26b', name: 'Gemma 4 26B' },
-    { id: 'gemma-4-31b', name: 'Gemma 4 31B' }
-  ];
-
-  const [selectedModel, setSelectedModel] = useState('gemini-3.1-flash-lite');
-
-  // Load selected model from localStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedModel = localStorage.getItem('assistant_model');
-      if (savedModel) {
-        setSelectedModel(savedModel);
-      }
+  const [selectedModel, setSelectedModel] = useState(() => {
+    if (typeof window === 'undefined') return AVAILABLE_MODELS[0].id;
+    try {
+      return localStorage.getItem('assistant_model') || AVAILABLE_MODELS[0].id;
+    } catch {
+      return AVAILABLE_MODELS[0].id;
     }
-  }, []);
+  });
 
   const handleModelChange = (modelId) => {
     setSelectedModel(modelId);
-    localStorage.setItem('assistant_model', modelId);
+    try { localStorage.setItem('assistant_model', modelId); } catch { /* storage unavailable */ }
   };
 
-  // Chat Sessions List & Active ID
+  // Chat sessions
   const [sessions, setSessions] = useState([]);
   const [activeSessionId, setActiveSessionId] = useState(null);
-
-  // Loading & State
   const [isLoadingSessions, setIsLoadingSessions] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // Default open on desktop
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true); // desktop panel
+  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Chat Conversation State
+  // Conversation
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState('');
-
-  // Thinking State & Rotating Prompts while API request is pending
-  const THINKING_PHRASES = [
-    'Reasoning and querying ledger database...',
-    'Analyzing financial entries & active pots...',
-    'Processing multimodal vision context...',
-    'Synthesizing intelligent finance response...'
-  ];
+  // Non-send problems (history load, mic, file type…) with an optional retry.
+  // setError(msg) always clears the retry; setErrorRetry(() => fn) attaches one.
+  const [errorState, setErrorState] = useState({ message: '', retry: null });
+  const error = errorState.message;
+  const errorRetry = errorState.retry;
+  const setError = (message) => setErrorState({ message, retry: null });
+  const setErrorRetry = (factory) => setErrorState(s => ({ ...s, retry: typeof factory === 'function' ? factory() : null }));
   const [thinkingStep, setThinkingStep] = useState(0);
 
   const isThinking = isGenerating && (
@@ -674,20 +80,12 @@ export default function Assistant() {
   );
 
   useEffect(() => {
-    let interval;
-    if (isThinking) {
-      interval = setInterval(() => {
-        setThinkingStep(prev => (prev + 1) % THINKING_PHRASES.length);
-      }, 2200);
-    } else {
-      setThinkingStep(0);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
+    if (!isThinking) return undefined;
+    const interval = setInterval(() => setThinkingStep(prev => prev + 1), 2200);
+    return () => clearInterval(interval);
   }, [isThinking]);
 
-  // Live Speech Recognition & Sarvam AI Voice State
+  // Voice
   const [isListening, setIsListening] = useState(false);
   const [isTranscribingAudio, setIsTranscribingAudio] = useState(false);
   const [speakingMsgIdx, setSpeakingMsgIdx] = useState(null);
@@ -698,47 +96,25 @@ export default function Assistant() {
   const audioChunksRef = useRef([]);
   const activeAudioPlayerRef = useRef(null);
 
-  // Multi-Image Upload / Receipt OCR State (supports up to 10 images)
-  const [attachedImages, setAttachedImages] = useState([]); // Array of { id, file, previewUrl, name, sizeStr, url, key, status: 'uploading'|'ready'|'error', errorMessage }
+  // Receipt images (up to 10)
+  const [attachedImages, setAttachedImages] = useState([]); // { id, file, previewUrl, name, sizeStr, url, key, status, errorMessage }
   const [isProcessingImage, setIsProcessingImage] = useState(false);
   const [lightboxImage, setLightboxImage] = useState(null);
   const fileInputRef = useRef(null);
 
-  // Scroll Container Ref
   const messagesEndRef = useRef(null);
 
-  // Suggested Prompts list
-  const suggestions = [
-    { text: "Scan my grocery / restaurant receipt image", icon: Receipt, isImagePrompt: true },
-    { text: "Show my savings pots and accumulated balances.", icon: PiggyBank },
-    { text: "Where did I spend the most money this month?", icon: TrendingUp },
-    { text: "Withdraw money from my savings pot or SIP.", icon: Coins },
-    { text: "Compare this month spending with last month.", icon: LineChart },
-    { text: "Give me my loan and lending summary.", icon: Wallet }
-  ];
-
-  // Redirect if unauthenticated
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
+    if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
 
-  // Handle mobile screen detection
   useEffect(() => {
-    const checkScreen = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) {
-        setIsSidebarOpen(false); // Collapsed by default on mobile
-      } else {
-        setIsSidebarOpen(true); // Open by default on desktop
-      }
-    };
+    const checkScreen = () => setIsMobile(window.innerWidth < 768);
     checkScreen();
     window.addEventListener('resize', checkScreen);
     return () => window.removeEventListener('resize', checkScreen);
   }, []);
+
 
   // Fetch all chat sessions for the user
   const loadSessions = async (selectLatest = false) => {
@@ -772,44 +148,29 @@ export default function Assistant() {
     }
   }, [user]);
 
-  // Load message logs when activeSessionId changes
+  // Load a session's messages (empty list = welcome screen)
   const loadMessages = async (sessionId) => {
+    setError('');
+    setErrorRetry(null);
     if (!sessionId) {
-      setMessages([
-        {
-          role: 'assistant',
-          content: "Yo! 👋 I am your Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
-        }
-      ]);
+      setMessages([]);
       return;
     }
-
     setIsLoadingMessages(true);
-    setError('');
     try {
       const res = await fetch(`/api/chat/sessions/${sessionId}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.messages && data.messages.length > 0) {
-          setMessages(data.messages);
-        } else {
-          setMessages([
-            {
-              role: 'assistant',
-              content: "Yo! 👋 Welcome back to this chat session. Ask me questions about your ledger or upload receipt photos to scan and log transactions!"
-            }
-          ]);
-        }
-      } else {
-        throw new Error('Failed to load chat history.');
-      }
+      if (!res.ok) throw new Error('Failed to load chat history.');
+      const data = await res.json();
+      setMessages(Array.isArray(data.messages) ? data.messages : []);
     } catch (err) {
       console.error(err);
-      setError('Could not retrieve chat logs from the database.');
+      setError("Couldn't load this chat.");
+      setErrorRetry(() => () => loadMessages(sessionId));
     } finally {
       setIsLoadingMessages(false);
     }
   };
+
 
   useEffect(() => {
     if (user) {
@@ -823,6 +184,8 @@ export default function Assistant() {
   };
 
   useEffect(() => {
+    // Keep the welcome screen at the top; only follow the thread once it exists.
+    if (messages.length === 0 && !isGenerating) return;
     scrollToBottom();
   }, [messages, isGenerating, isLoadingMessages, attachedImages]);
 
@@ -1078,196 +441,221 @@ export default function Assistant() {
     }
   };
 
-  // Create a brand new blank chat session
+  const selectSession = (id) => {
+    setActiveSessionId(id);
+    setMobileHistoryOpen(false);
+  };
+
+  // Create a blank chat session
   const handleCreateSession = async () => {
     setError('');
+    setErrorRetry(null);
     try {
       const res = await fetch('/api/chat/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'New Chat' }),
       });
-      if (res.ok) {
-        const newSession = await res.json();
-        setSessions(prev => [newSession, ...prev]);
-        setActiveSessionId(newSession.id);
-        if (isMobile) setIsSidebarOpen(false); // Close sidebar on mobile select
-      } else {
-        throw new Error('Failed to create new session.');
-      }
+      if (!res.ok) throw new Error('Failed to create new session.');
+      const newSession = await res.json();
+      setSessions(prev => [newSession, ...prev]);
+      setActiveSessionId(newSession.id);
+      setMobileHistoryOpen(false);
     } catch (err) {
       console.error(err);
-      setError('Could not create a new chat session.');
+      setError("Couldn't start a new chat.");
+      setErrorRetry(() => handleCreateSession);
     }
   };
 
-  // Delete a chat session and handle active states
+  // Delete a chat session
   const handleDeleteSession = async (e, sessionId) => {
     e.stopPropagation();
     setError('');
+    setErrorRetry(null);
     try {
-      const res = await fetch(`/api/chat/sessions/${sessionId}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        const updatedSessions = sessions.filter(s => s.id !== sessionId);
-        setSessions(updatedSessions);
-        if (activeSessionId === sessionId) {
-          if (updatedSessions.length > 0) {
-            setActiveSessionId(updatedSessions[0].id);
-          } else {
-            setActiveSessionId(null);
-            setMessages([
-              {
-                role: 'assistant',
-                content: "Yo! 👋 I am your Finance AI. You can ask me anything about your ledger, or upload photos of your receipts/bills (up to 10 images) to extract items and log transactions directly into your passbook!"
-              }
-            ]);
-          }
-        }
-      } else {
-        throw new Error('Failed to delete session.');
+      const res = await fetch(`/api/chat/sessions/${sessionId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete session.');
+      const updatedSessions = sessions.filter(s => s.id !== sessionId);
+      setSessions(updatedSessions);
+      if (activeSessionId === sessionId) {
+        setActiveSessionId(updatedSessions[0]?.id ?? null);
+        if (!updatedSessions.length) setMessages([]);
       }
     } catch (err) {
       console.error(err);
-      setError('Could not delete the chat session.');
+      setError("Couldn't delete that chat.");
+      setErrorRetry(() => () => handleDeleteSession({ stopPropagation() {} }, sessionId));
     }
   };
 
-  // Handle message sending with multi-image support
-  const sendMessage = async (textToSend, customImages = null) => {
-    const imagesToSend = customImages || attachedImages;
-    const prompt = textToSend !== undefined ? textToSend : input;
+  /**
+   * Send a message. `retryIndex` re-sends a failed user message in place
+   * (same text + already-uploaded images) without adding a new bubble.
+   */
+  const sendMessage = async (textToSend, customImages = null, retryIndex = null) => {
+    if (isGenerating) return;
+    const isRetry = retryIndex !== null;
+    const failedMsg = isRetry ? messages[retryIndex] : null;
+    const imagesToSend = isRetry ? [] : (customImages || attachedImages);
+    const prompt = isRetry ? '' : (textToSend !== undefined ? textToSend : input);
 
-    if ((!prompt.trim() && imagesToSend.length === 0) || isGenerating) return;
+    if (!isRetry && !prompt.trim() && imagesToSend.length === 0) return;
 
     setIsGenerating(true);
     setError('');
+    setErrorRetry(null);
 
-    // Ensure all images are uploaded to Cloudflare R2
-    const resolvedUrls = [];
-    for (const img of imagesToSend) {
-      if (img.url) {
-        resolvedUrls.push(img.url);
-      } else if (img.file) {
-        try {
-          const upRes = await uploadFileToR2(img.file);
-          resolvedUrls.push(upRes.url);
-        } catch (upErr) {
-          console.error('Upload failed before message dispatch:', upErr);
+    // Make sure every attachment is in R2 (skip ones that still fail)
+    let resolvedUrls = isRetry ? (failedMsg?.imageUrls || []) : [];
+    if (!isRetry) {
+      for (const img of imagesToSend) {
+        if (img.url) {
+          resolvedUrls.push(img.url);
+        } else if (img.file) {
+          try {
+            const upRes = await uploadFileToR2(img.file);
+            resolvedUrls.push(upRes.url);
+          } catch (upErr) {
+            console.error('Upload failed before message dispatch:', upErr);
+          }
         }
       }
+      setInput('');
+      setAttachedImages([]);
     }
-
-    setInput('');
-    setAttachedImages([]);
 
     let currentSessionId = activeSessionId;
 
-    // 1. If no active session exists, automatically create one first!
+    // Auto-create a session for the first message
     if (!currentSessionId) {
       try {
-        const sessionTitle = prompt.trim() || (resolvedUrls.length > 0 ? (resolvedUrls.length > 1 ? `${resolvedUrls.length} Receipts Scan` : 'Receipt Scan') : 'New Chat');
+        const sessionTitle = (prompt.trim() || failedMsg?.content || '').slice(0, 60)
+          || (resolvedUrls.length > 1 ? `${resolvedUrls.length} Receipts Scan` : resolvedUrls.length ? 'Receipt Scan' : 'New Chat');
         const res = await fetch('/api/chat/sessions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ title: sessionTitle }),
         });
-        if (res.ok) {
-          const newSession = await res.json();
-          currentSessionId = newSession.id;
-          setActiveSessionId(currentSessionId);
-          setSessions(prev => [newSession, ...prev]);
-        } else {
-          throw new Error('Failed to create new session.');
-        }
+        if (!res.ok) throw new Error('Failed to create new session.');
+        const newSession = await res.json();
+        currentSessionId = newSession.id;
+        setActiveSessionId(currentSessionId);
+        setSessions(prev => [newSession, ...prev]);
       } catch (err) {
         console.error(err);
-        setError('Failed to establish a new chat session context.');
         setIsGenerating(false);
-        setAttachedImages(imagesToSend);
+        if (!isRetry) {
+          setInput(prompt);
+          setAttachedImages(imagesToSend);
+        }
+        setError("Couldn't start a chat. Check your connection.");
+        setErrorRetry(() => () => sendMessage(isRetry ? undefined : prompt, isRetry ? null : imagesToSend, retryIndex));
         return;
       }
     }
 
-    // 2. Append User Message to UI
-    const defaultMsg = imagesToSend.length > 0 && !prompt.trim()
-      ? (imagesToSend.length > 1
-        ? `Please scan these ${imagesToSend.length} receipt/bill images, extract and consolidate all purchased items with prices across all receipts, and ask for my approval before creating transactions.`
-        : "Please scan this receipt/bill image, extract all purchased items with prices, and ask for my approval before creating transactions.")
-      : prompt.trim();
-
-    const userMessage = {
-      role: 'user',
-      content: defaultMsg,
-      imagePreviews: resolvedUrls.length > 0 ? resolvedUrls : imagesToSend.map(img => img.previewUrl).filter(Boolean),
-    };
-
-    const cleanMessages = messages.filter(m => m.id || !m.content.includes("Yo! 👋 I am your Finance AI."));
-    const updatedMessages = [...cleanMessages, userMessage];
-    setMessages(updatedMessages);
-
-    try {
-      const payload = {
-        messages: updatedMessages,
-        sessionId: currentSessionId,
-        model: selectedModel,
+    // Build the thread to send
+    let thread;
+    if (isRetry) {
+      thread = messages.slice(0, retryIndex + 1).map((m, i) => (i === retryIndex ? { ...m, status: 'sending', error: null } : m));
+    } else {
+      const content = imagesToSend.length > 0 && !prompt.trim()
+        ? (imagesToSend.length > 1 ? receiptPromptMany(imagesToSend.length) : RECEIPT_PROMPT_ONE)
+        : prompt.trim();
+      thread = [...messages, {
+        role: 'user',
+        content,
         imageUrls: resolvedUrls,
-      };
+        imagePreviews: resolvedUrls.length ? resolvedUrls : imagesToSend.map(img => img.previewUrl).filter(Boolean),
+        status: 'sending',
+      }];
+    }
+    const userIdx = thread.length - 1;
+    setMessages(thread);
 
+    let streamStarted = false;
+    try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          messages: thread.map(m => ({ role: m.role, content: m.content })),
+          sessionId: currentSessionId,
+          model: selectedModel,
+          imageUrls: resolvedUrls,
+        }),
       });
 
       if (!res.ok) {
-        let errorMsg = 'Failed to generate response.';
+        let message = "Couldn't get a reply.";
         try {
-          const errorData = await res.json();
-          errorMsg = errorData.error || errorData.message || errorMsg;
-        } catch (e) {
-          try {
-            const rawText = await res.text();
-            if (rawText) errorMsg = rawText.slice(0, 120);
-          } catch (e2) { }
-        }
-        throw new Error(errorMsg);
+          const data = await res.json();
+          message = data.error || message;
+        } catch { /* non-JSON error body */ }
+        throw new Error(message);
       }
 
-      // Read streamed chunk values!
+      // Accepted: mark the user message sent and stream the reply in
+      setMessages(prev => [
+        ...prev.map((m, i) => (i === userIdx ? { ...m, status: 'sent', error: null } : m)),
+        { role: 'assistant', content: '' },
+      ]);
+      streamStarted = true;
+
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let currentResponse = '';
-
-      // Append blank assistant placeholder
-      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-
-        const textChunk = decoder.decode(value);
-        currentResponse += textChunk;
-
-        // Update the last assistant response chunk
+        currentResponse += decoder.decode(value, { stream: true });
         setMessages(prev => {
           const next = [...prev];
-          next[next.length - 1].content = currentResponse;
+          next[next.length - 1] = { ...next[next.length - 1], content: currentResponse };
           return next;
         });
       }
 
-      // Refresh sessions to pull auto-generated title changes and timestamps
-      loadSessions(false);
-
+      loadSessions(false); // pick up auto-generated titles / ordering
     } catch (err) {
       console.error('Chat error:', err);
-      setError(err.message || 'Something went wrong. Please ensure your GEMINI_API_KEY is configured in the backend.');
+      if (streamStarted) {
+        // The full reply is already saved server-side; offer a reload.
+        setMessages(prev => {
+          const next = [...prev];
+          next[next.length - 1] = { ...next[next.length - 1], interrupted: true };
+          return next;
+        });
+      } else {
+        setMessages(prev => prev.map((m, i) => (i === userIdx ? { ...m, status: 'failed', error: friendlyError(err) } : m)));
+      }
     } finally {
       setIsGenerating(false);
     }
   };
+
+  const retryMessage = (idx) => sendMessage(undefined, null, idx);
+
+  // Put a failed message back into the composer for editing
+  const editFailedMessage = (idx) => {
+    const failed = messages[idx];
+    if (!failed) return;
+    setMessages(prev => prev.filter((_, i) => i !== idx));
+    const isAutoPrompt = failed.content === RECEIPT_PROMPT_ONE || /^Please scan these \d+ receipt/.test(failed.content || '');
+    setInput(isAutoPrompt ? '' : failed.content || '');
+    if (failed.imageUrls?.length) {
+      setAttachedImages(failed.imageUrls.map((url, i) => ({
+        id: `retry_${Date.now()}_${i}`,
+        previewUrl: url,
+        url,
+        name: `Receipt ${i + 1}`,
+        sizeStr: '',
+        status: 'ready',
+      })));
+    }
+  };
+
 
   // Toggle Live Speech-to-Text (Sarvam AI Saaras v3 + Web Speech Fallback)
   const toggleSpeechRecognition = async () => {
@@ -1532,842 +920,244 @@ export default function Assistant() {
     sendMessage();
   };
 
+  const pickSuggestion = (s) => {
+    if (s.isImagePrompt) {
+      fileInputRef.current?.click();
+      return;
+    }
+    sendMessage(s.text);
+  };
+
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-[var(--background-deep)]">
-        <div className="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-600 rounded-full animate-spin"></div>
+      <div className="flex min-h-screen items-center justify-center bg-canvas">
+        <Icon3D name="assistant" size={64} className="animate-pulse" />
       </div>
     );
   }
 
+  const activeSession = sessions.find(s => s.id === activeSessionId);
+  const firstName = (user?.displayName || user?.name || '').split(' ')[0];
+  const sidebarProps = {
+    sessions,
+    activeSessionId,
+    isLoading: isLoadingSessions,
+    onSelect: selectSession,
+    onCreate: handleCreateSession,
+    onDelete: handleDeleteSession,
+  };
+
   return (
-    <div className="relative min-h-screen flex flex-col overflow-hidden bg-slate-50 dark:bg-[var(--background-deep)] text-slate-900 dark:text-[var(--foreground)] app-sidebar-offset transition-colors duration-200">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-canvas text-ink app-sidebar-offset">
       <Navbar />
 
-      {/* Decorative Ambient Orbs */}
-      <div className="absolute top-20 left-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none"></div>
+      <div data-ui="v2" className="flex min-h-0 flex-1">
+        {/* Desktop history panel */}
+        <aside
+          className={`hidden md:block shrink-0 overflow-hidden border-line bg-card/70 transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            isSidebarOpen ? 'w-72 border-r' : 'w-0'
+          }`}
+          aria-hidden={!isSidebarOpen}
+        >
+          <div className="h-full w-72">
+            <ChatSidebar {...sidebarProps} />
+          </div>
+        </aside>
 
-      {/* AI Assistant Dedicated Page Header Bar - Positioned right below Top Navbar */}
-      <div className="w-full border-b border-slate-200/80 dark:border-[var(--border-default)] bg-white/90 dark:bg-[var(--background-elevated)]/90 backdrop-blur-2xl shrink-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-2.5 md:py-3 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            {/* Sidebar toggle button */}
+        <section className="flex min-w-0 flex-1 flex-col">
+          {/* Chat header */}
+          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-canvas/80 px-3 backdrop-blur-xl md:px-4">
             <button
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="p-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-[var(--surface)] dark:hover:bg-[var(--surface-hover)] border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-500/30 text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer shrink-0"
-              title={isSidebarOpen ? "Hide Chat Logs" : "Show Chat Logs"}
+              type="button"
+              onClick={() => setIsSidebarOpen(o => !o)}
+              className="hidden md:inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-2 hover:bg-card-2 hover:text-ink cursor-pointer"
+              aria-label={isSidebarOpen ? 'Hide chat history' : 'Show chat history'}
+              title={isSidebarOpen ? 'Hide history' : 'Show history'}
             >
-              {isSidebarOpen ? <X className="w-4 h-4 md:w-5 md:h-5" /> : <Menu className="w-4 h-4 md:w-5 md:h-5" />}
+              {isSidebarOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileHistoryOpen(true)}
+              className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-2 hover:bg-card-2 cursor-pointer"
+              aria-label="Open chat history"
+            >
+              <History className="h-4 w-4" />
             </button>
 
-            <div className="flex items-center gap-2.5 min-w-0">
-              <span className="p-2 bg-indigo-500/10 border border-indigo-500/30 rounded-xl text-indigo-600 dark:text-indigo-400 shadow-xs shrink-0 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 md:w-5 md:h-5" />
-              </span>
-              <div className="min-w-0 text-left">
-                <h1 className="text-sm md:text-lg font-bold text-slate-900 dark:text-[var(--foreground)] tracking-tight truncate flex items-center gap-2">
-                  <span>AI Assistant</span>
-                  <span className="hidden sm:inline text-xs font-medium text-slate-500 dark:text-[var(--foreground-muted)]">• Vision & Finance</span>
-                </h1>
-                <p className="text-slate-500 dark:text-[var(--foreground-muted)] text-[10px] md:text-xs truncate hidden xs:block sm:block">
-                  Receipt OCR extraction & real-time ledger intelligence.
-                </p>
-              </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-ink">{activeSession?.title || 'New chat'}</p>
+              <p className="text-[11px] text-ink-3">Money assistant</p>
             </div>
-          </div>
 
-          {/* Syncing Indicators, Model Selector & Theme Switcher */}
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Dark / Light Mode Toggle Button */}
-            {/* <button
-              type="button"
-              onClick={toggleTheme}
-              className="p-2 bg-slate-100 hover:bg-slate-200/80 dark:bg-[var(--surface)] dark:hover:bg-[var(--surface-hover)] border border-slate-200/90 dark:border-[var(--border-default)] text-slate-700 hover:text-slate-900 dark:text-[var(--foreground-muted)] dark:hover:text-[var(--foreground)] rounded-xl transition-all cursor-pointer shadow-xs flex items-center justify-center active:scale-95"
-              title={`Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
-              aria-label="Toggle Theme"
+            <label htmlFor="model-select" className="sr-only">AI model</label>
+            <select
+              id="model-select"
+              value={selectedModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              disabled={isGenerating}
+              className="h-9 max-w-[128px] md:max-w-[180px] truncate rounded-xl border border-line bg-card px-2 text-xs font-medium text-ink focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer"
             >
-              {resolvedTheme === 'dark' ? (
-                <Moon className="w-4 h-4 text-indigo-400" />
-              ) : (
-                <Sun className="w-4 h-4 text-amber-500" />
-              )}
-            </button> */}
-
-            <div className="relative flex items-center">
-              <select
-                value={selectedModel}
-                onChange={(e) => handleModelChange(e.target.value)}
-                className="appearance-none bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-500/40 text-[10px] md:text-xs font-mono uppercase tracking-wider text-slate-800 dark:text-[var(--foreground)] rounded-xl py-1.5 md:py-2 pl-3 pr-8 md:pr-9 focus:outline-none focus:border-indigo-500 transition-all cursor-pointer shadow-xs"
-              >
-                {AVAILABLE_MODELS.map((model) => (
-                  <option key={model.id} value={model.id} className="bg-white dark:bg-[var(--background-elevated)] text-slate-900 dark:text-[var(--foreground)] font-mono text-xs">
-                    {model.name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute right-2.5 md:right-3 flex items-center text-indigo-500 dark:text-indigo-400">
-                <ChevronDown className="w-3.5 h-3.5" />
-              </div>
-            </div>
-
-            <span className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-[10px] font-mono tracking-wider font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-              Sarvam AI Audio
-            </span>
-
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl text-[10px] font-mono tracking-wider font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Ledger Linked
-            </span>
+              {AVAILABLE_MODELS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={handleCreateSession}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary-ink hover:brightness-95 dark:hover:brightness-125 cursor-pointer"
+              aria-label="New chat"
+              title="New chat"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           </div>
-        </div>
+
+          {/* Thread */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-5 md:py-8">
+              {isLoadingMessages ? (
+                <div className="space-y-5" aria-busy="true">
+                  {[0.6, 0.85, 0.45].map((w, i) => (
+                    <div key={i} className={`flex ${i % 2 ? 'justify-start' : 'justify-end'}`}>
+                      <span className="block h-12 rounded-2xl bg-card-3 animate-pulse" style={{ width: `${w * 100}%` }} />
+                    </div>
+                  ))}
+                </div>
+              ) : messages.length === 0 && !isGenerating ? (
+                <WelcomeScreen name={firstName} onPick={pickSuggestion} />
+              ) : (
+                messages.map((msg, idx) => {
+                  const isStreamingCurrent = msg.role === 'assistant' && isGenerating && idx === messages.length - 1;
+                  if (msg.role === 'assistant' && !msg.content && isStreamingCurrent) return null;
+                  return (
+                    <MessageItem
+                      key={msg.id || `m-${idx}`}
+                      msg={msg}
+                      isStreaming={isStreamingCurrent}
+                      currency={user?.currency}
+                      onRetry={() => retryMessage(idx)}
+                      onEdit={() => editFailedMessage(idx)}
+                      onReload={() => loadMessages(activeSessionId)}
+                      onSpeak={() => handleSpeak(msg.content, idx)}
+                      speaking={speakingMsgIdx === idx}
+                      audioLoading={audioLoadingMsgIdx === idx}
+                      onCopy={() => handleCopyTranscript(msg.content, idx)}
+                      copied={copiedMsgIdx === idx}
+                      onImageClick={setLightboxImage}
+                      onProposalCreated={() => loadSessions(false)}
+                    />
+                  );
+                })
+              )}
+              {isThinking && <ThinkingIndicator step={thinkingStep} />}
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Composer (clears the mobile dock unless the keyboard is open) */}
+          <div className={`shrink-0 px-3 pt-2 md:px-4 ${isKeyboardOpen ? 'pb-2' : 'pb-[calc(92px+env(safe-area-inset-bottom))] md:pb-4'}`}>
+            <div className="mx-auto w-full max-w-3xl space-y-2">
+              {error && (
+                <div className="flex items-center gap-2 rounded-2xl border border-line bg-card p-2.5 pl-3 shadow-card">
+                  <ErrorState compact title={error} onRetry={errorRetry ? () => errorRetry() : undefined} className="flex-1" />
+                  <button
+                    type="button"
+                    onClick={() => { setError(''); setErrorRetry(null); }}
+                    className="rounded-lg p-1.5 text-ink-3 hover:bg-card-2 hover:text-ink cursor-pointer"
+                    aria-label="Dismiss"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <Composer
+                input={input}
+                setInput={setInput}
+                onSubmit={handleFormSubmit}
+                onPaste={handlePaste}
+                attachedImages={attachedImages}
+                onRemoveImage={handleRemoveAttachedImage}
+                onRetryUpload={handleRetryUpload}
+                onClearImages={handleClearAllImages}
+                onOpenImage={setLightboxImage}
+                fileInputRef={fileInputRef}
+                onImageSelect={handleImageSelect}
+                isProcessingImage={isProcessingImage}
+                isListening={isListening}
+                isTranscribing={isTranscribingAudio}
+                onToggleMic={toggleSpeechRecognition}
+                isGenerating={isGenerating}
+                disabled={isGenerating || isLoadingMessages}
+              />
+            </div>
+          </div>
+        </section>
       </div>
 
-      {/* 1. MOBILE SLIDE-OVER DRAWER (Rendered at root level outside overflow container) */}
+      {/* Mobile history drawer */}
       <AnimatePresence>
-        {isMobile && isSidebarOpen && (
-          <div className="fixed inset-0 z-[100] md:hidden overflow-hidden">
-            {/* Backdrop Overlay */}
+        {mobileHistoryOpen && isMobile && (
+          <div data-ui="v2" className="fixed inset-0 z-[90] md:hidden">
             <motion.div
-              key="mobile-drawer-backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsSidebarOpen(false)}
-              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setMobileHistoryOpen(false)}
+              className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
             />
-
-            {/* Slide-out Drawer Panel */}
-            <motion.aside
-              key="mobile-drawer-panel"
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Chat history"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 26, stiffness: 240 }}
-              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[320px] bg-white/98 dark:bg-[var(--background-elevated)] backdrop-blur-2xl border-r border-slate-200/80 dark:border-[var(--border-default)] shadow-2xl flex flex-col justify-between p-4 z-10 text-slate-900 dark:text-[var(--foreground)]"
-              style={{
-                paddingTop: 'max(16px, env(safe-area-inset-top, 0px))',
-                paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px))',
-              }}
+              transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+              className="absolute inset-y-0 left-0 flex w-[86vw] max-w-[340px] flex-col bg-card shadow-pop"
+              style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
-              {/* Header inside Mobile Drawer */}
-              <div className="flex items-center justify-between gap-3 pb-4 border-b border-slate-200/80 dark:border-[var(--border-default)] shrink-0">
-                <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-[var(--foreground)]">
-                  <span className="p-1.5 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-indigo-600 dark:text-indigo-400">
-                    <Sparkles className="w-4 h-4" />
-                  </span>
-                  <span className="text-sm">Chat History & Logs</span>
-                </div>
-
-                <button
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="p-1.5 hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] rounded-xl text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)] transition-all cursor-pointer"
-                  title="Close Drawer"
-                >
-                  <X className="w-5 h-5" />
+              <div className="flex h-14 items-center justify-between border-b border-line px-4">
+                <span className="inline-flex items-center gap-2 font-display text-base font-bold text-ink">
+                  <Icon3D name="chat" size={22} /> Chats
+                </span>
+                <button type="button" onClick={() => setMobileHistoryOpen(false)} className="rounded-lg p-2 text-ink-2 hover:bg-card-2 cursor-pointer" aria-label="Close">
+                  <X className="h-5 w-5" />
                 </button>
               </div>
-
-              {/* Create New Chat Session Button */}
-              <button
-                onClick={() => {
-                  handleCreateSession();
-                  setIsSidebarOpen(false);
-                }}
-                className="w-full py-2.5 px-4 my-3 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer active:scale-98 transition-all"
-              >
-                <Plus className="w-4 h-4" /> New Chat Session
-              </button>
-
-              {/* Scrollable list of sessions */}
-              <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin my-1">
-                {isLoadingSessions ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-500 dark:text-[var(--foreground-muted)] text-xs font-mono">
-                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
-                    <span>Syncing past logs...</span>
-                  </div>
-                ) : sessions.length === 0 ? (
-                  <div className="text-center py-10 px-4 text-xs text-slate-500 dark:text-[var(--foreground-muted)]">
-                    No active sessions. Start a new session or upload a receipt to chat!
-                  </div>
-                ) : (
-                  sessions.map((s) => {
-                    const isActive = activeSessionId === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        onClick={() => {
-                          setActiveSessionId(s.id);
-                          setIsSidebarOpen(false);
-                        }}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
-                          : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
-                          }`}
-                      >
-                        <div className="flex items-center gap-2.5 truncate pr-8">
-                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-[var(--foreground-muted)]'}`} />
-                          <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
-                        </div>
-
-                        {/* In-place Delete Button */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteSession(e, s.id);
-                          }}
-                          className="p-1.5 rounded-lg hover:bg-rose-500/20 text-slate-400 dark:text-[var(--foreground-muted)] hover:text-rose-500 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2 transition-colors"
-                          title="Delete Session"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
+              <div className="min-h-0 flex-1">
+                <ChatSidebar {...sidebarProps} />
               </div>
-
-              {/* Mobile Drawer Bottom Info */}
-              <div className="pt-3 border-t border-slate-200/80 dark:border-[var(--border-default)] flex items-center justify-between text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-mono shrink-0">
-                <span>{sessions.length} Saved Sessions</span>
-                <span className="text-indigo-600 dark:text-indigo-400 font-bold uppercase">{selectedModel}</span>
-              </div>
-            </motion.aside>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* Main Split Layout Container */}
-      <div className="flex-grow flex w-full max-w-7xl mx-auto px-0 md:px-6 pt-2 md:pt-4 pb-0 md:pb-6 gap-4 md:gap-6 relative overflow-hidden h-[calc(100dvh-7.8rem)]">
-
-        {/* 2. DESKTOP IN-LINE SIDEBAR PANEL */}
-        <AnimatePresence>
-          {!isMobile && isSidebarOpen && (
-            <motion.aside
-              layout
-              key="desktop-sidebar-aside"
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 288, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="bg-white/95 dark:bg-[var(--background-elevated)] backdrop-blur-xl border border-slate-200/80 dark:border-[var(--border-default)] rounded-2xl flex flex-col p-4 shrink-0 overflow-hidden h-full shadow-xs"
-            >
-              {/* Header with New Chat Button */}
-              <div className="flex items-center justify-between gap-3 mb-4 shrink-0">
-                <span className="text-sm font-semibold text-slate-900 dark:text-[var(--foreground)] flex items-center gap-2">
-                  <History className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Chat Logs
-                </span>
-              </div>
-
-              {/* Create new chat session button */}
-              <button
-                onClick={handleCreateSession}
-                className="w-full py-2.5 px-4 mb-4 text-xs font-semibold flex items-center justify-center gap-2 tracking-wide rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer active:scale-98 transition-all"
-              >
-                <Plus className="w-4 h-4" /> New Session
-              </button>
-
-              {/* Scrollable list of sessions */}
-              <div className="flex-grow overflow-y-auto pr-1 flex flex-col gap-2 scrollbar-thin">
-                {isLoadingSessions ? (
-                  <div className="flex flex-col items-center justify-center py-10 gap-2 text-slate-500 dark:text-[var(--foreground-muted)] text-xs font-mono">
-                    <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
-                    <span>Syncing past logs...</span>
-                  </div>
-                ) : sessions.length === 0 ? (
-                  <div className="text-center py-8 px-4 text-xs text-slate-500 dark:text-[var(--foreground-muted)]">
-                    No active sessions. Send a message or upload a receipt to start!
-                  </div>
-                ) : (
-                  sessions.map((s) => {
-                    const isActive = activeSessionId === s.id;
-                    return (
-                      <div
-                        key={s.id}
-                        onClick={() => setActiveSessionId(s.id)}
-                        className={`flex items-center justify-between px-3.5 py-3 rounded-xl border transition-all text-left text-xs font-medium select-none group cursor-pointer relative overflow-hidden ${isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-500/15 border-indigo-300 dark:border-indigo-500/40 text-indigo-700 dark:text-indigo-400 font-semibold shadow-xs'
-                          : 'bg-slate-50 dark:bg-[var(--background-base)] hover:bg-slate-100 dark:hover:bg-[var(--surface-hover)] border-slate-200/80 dark:border-[var(--border-default)] text-slate-700 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
-                          }`}
-                      >
-                        <div className="flex items-center gap-2.5 truncate pr-6">
-                          <MessageSquare className={`w-4 h-4 shrink-0 ${isActive ? 'text-indigo-500' : 'text-slate-400 dark:text-[var(--foreground-muted)]'}`} />
-                          <span className="truncate tracking-wide">{s.title || 'New Chat'}</span>
-                        </div>
-
-                        {/* In-place Delete Button */}
-                        <button
-                          onClick={(e) => handleDeleteSession(e, s.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 dark:text-[var(--foreground-muted)] hover:text-rose-500 cursor-pointer absolute right-2 top-1/2 -translate-y-1/2"
-                          title="Delete Session"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </motion.aside>
-          )}
-        </AnimatePresence>
-
-        {/* MAIN CHAT CONSOLE */}
-        <motion.main
-          layout
-          className="flex-grow md:bg-white/95 dark:md:bg-[var(--background-elevated)] md:backdrop-blur-xl md:border md:border-slate-200/80 dark:md:border-[var(--border-default)] md:rounded-2xl p-3 md:p-6 flex flex-col justify-between overflow-hidden relative h-full shadow-xs"
-        >
-
-          {/* Error Banner with Retry */}
-          {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-xs flex items-center justify-between gap-4 shrink-0 text-left mb-2">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{error}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  const lastUserMessage = [...messages].reverse().find(m => m.role === 'user');
-                  if (lastUserMessage) {
-                    setMessages(prev => {
-                      const next = [...prev];
-                      if (next.length > 0 && next[next.length - 1].role === 'assistant' && !next[next.length - 1].content) {
-                        next.pop();
-                      }
-                      return next;
-                    });
-                    sendMessage(lastUserMessage.content);
-                  } else {
-                    sendMessage();
-                  }
-                }}
-                className="px-3 py-1.5 bg-rose-500/20 hover:bg-rose-500/30 active:scale-95 text-rose-600 dark:text-rose-300 rounded-lg text-[10px] font-mono tracking-wider uppercase transition-all shrink-0 cursor-pointer"
-              >
-                Retry Dispatch
-              </button>
-            </div>
-          )}
-
-          {/* CHAT VIEWPORT scroll container */}
-          <div className={`flex-grow overflow-y-auto flex flex-col gap-4 md:gap-6 px-1 md:px-0 pt-2 ${isKeyboardOpen ? 'pb-28' : 'pb-44'} md:pb-4 scrollbar-thin scroll-smooth min-h-0`}>
-            {isLoadingMessages ? (
-              <div className="flex-grow flex flex-col items-center justify-center gap-3 py-20">
-                <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-                <span className="text-slate-500 dark:text-[var(--foreground-muted)] text-sm font-medium">Loading conversation...</span>
-              </div>
-            ) : messages.length === 0 ? (
-              /* Premium Onboarding / Empty State */
-              <div className="flex-grow flex flex-col justify-center items-center py-8 text-center max-w-xl mx-auto gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-500/10">
-                  <Sparkles className="w-8 h-8" />
-                </div>
-                <div className="flex flex-col gap-2 px-4">
-                  <h3 className="text-slate-900 dark:text-[var(--foreground)] text-lg font-bold tracking-tight">AI Vision & Personal Finance Assistant</h3>
-                  <p className="text-slate-500 dark:text-[var(--foreground-muted)] text-xs leading-relaxed">
-                    Upload receipt/bill photos to automatically extract item prices, or ask questions to audit your balances, salary deductions, and active lending logs.
-                  </p>
-                </div>
-
-                {/* Suggestions Tags */}
-                <div className="w-full flex flex-col gap-2 mt-4 px-2">
-                  <span className="text-slate-500 dark:text-[var(--foreground-muted)] text-[10px] font-mono uppercase tracking-wider text-left pl-2">Quick Actions & Suggestions</span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    {suggestions.map((s, idx) => {
-                      const Icon = s.icon;
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            if (s.isImagePrompt) {
-                              fileInputRef.current?.click();
-                            } else {
-                              sendMessage(s.text);
-                            }
-                          }}
-                          className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-[var(--background-base)] hover:bg-indigo-50/80 dark:hover:bg-indigo-500/10 border border-slate-200/90 dark:border-[var(--border-default)] hover:border-indigo-300 dark:hover:border-indigo-500/30 text-slate-800 dark:text-[var(--foreground)] rounded-xl text-xs font-medium text-left transition-all cursor-pointer group shadow-2xs"
-                        >
-                          <div className="w-8 h-8 rounded-lg bg-indigo-500/10 group-hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <span>{s.text}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Message Bubbles list */
-              <div className="flex flex-col gap-5 md:gap-6">
-                {messages.map((msg, idx) => {
-                  const isAi = msg.role === 'assistant';
-                  const isStreamingCurrent = isAi && isGenerating && idx === messages.length - 1;
-
-                  // If assistant placeholder is empty while waiting for first token, let Thinking indicator render
-                  if (isAi && !msg.content && isStreamingCurrent) return null;
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`flex flex-col md:flex-row gap-1.5 md:gap-3.5 text-left ${isAi ? 'justify-start items-start' : 'justify-end items-end md:items-start'}`}
-                    >
-                      {isAi && (
-                        <div className={`w-8 h-8 md:w-9 md:h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-xs transition-all ${isStreamingCurrent
-                          ? 'bg-indigo-500/25 border-indigo-500 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                          : 'bg-indigo-500/10 border-indigo-500/25 text-indigo-600 dark:text-indigo-400'
-                          }`}>
-                          <Bot className="w-4 h-4 md:w-5 md:h-5" />
-                        </div>
-                      )}
-
-                      {!isAi && (
-                        <div className="md:hidden w-8 h-8 rounded-xl bg-slate-200 dark:bg-[var(--surface-active)] border border-slate-300 dark:border-[var(--border-default)] text-slate-600 dark:text-[var(--foreground-muted)] flex items-center justify-center shrink-0">
-                          <UserIcon className="w-4 h-4" />
-                        </div>
-                      )}
-
-                      <div className={`p-3.5 md:p-4 rounded-2xl w-full md:w-auto max-w-full md:max-w-xl text-sm leading-relaxed shadow-xs transition-all ${isAi
-                        ? isStreamingCurrent
-                          ? 'bg-white dark:bg-[var(--background-base)] border border-indigo-400 dark:border-indigo-500/40 text-slate-900 dark:text-[var(--foreground)] font-normal shadow-lg shadow-indigo-500/10'
-                          : 'bg-slate-100/90 dark:bg-[var(--background-base)] border border-slate-200/80 dark:border-[var(--border-default)] text-slate-900 dark:text-[var(--foreground)] font-normal shadow-2xs'
-                        : 'bg-indigo-600 text-white font-medium shadow-sm shadow-indigo-600/20'
-                        }`}>
-
-                        {/* Live Streaming Gemini Transcript Banner */}
-                        {isStreamingCurrent && (
-                          <div className="flex items-center justify-between pb-2 mb-2 border-b border-indigo-500/20 text-[10px] font-mono text-indigo-500">
-                            <span className="flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                              <Radio className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
-                              <span>Live Gemini Streaming...</span>
-                            </span>
-                            <span className="text-[9px] uppercase tracking-wider text-slate-500 dark:text-[var(--foreground-muted)] font-mono">{selectedModel}</span>
-                          </div>
-                        )}
-
-                        {/* If user attached image(s) or loaded from DB */}
-                        {(() => {
-                          let extractedImgUrls = [];
-                          if (!isAi) {
-                            if (Array.isArray(msg.imagePreviews) && msg.imagePreviews.length > 0) {
-                              extractedImgUrls = msg.imagePreviews;
-                            } else if (msg.imagePreview) {
-                              extractedImgUrls = [msg.imagePreview];
-                            } else if (msg.content) {
-                              const matches = [...msg.content.matchAll(/!\[(?:Receipt Attachment \d+|Receipt Attachment|Attached Receipt|Receipt)\]\((https?:\/\/[^\s)]+)\)/g)];
-                              extractedImgUrls = matches.map(m => m[1]);
-                            }
-                          }
-
-                          const textContentToRender = msg.content
-                            ? msg.content.replace(/!\[(?:Receipt Attachment \d+|Receipt Attachment|Attached Receipt|Receipt)\]\((https?:\/\/[^\s)]+)\)/g, '').trim()
-                            : '';
-
-                          return (
-                            <>
-                              {!isAi && extractedImgUrls.length > 0 && (
-                                <div className="mb-3">
-                                  <div className={`grid gap-2 ${extractedImgUrls.length === 1
-                                    ? 'grid-cols-1 max-w-sm'
-                                    : extractedImgUrls.length === 2
-                                      ? 'grid-cols-2'
-                                      : extractedImgUrls.length === 3
-                                        ? 'grid-cols-3'
-                                        : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4'
-                                    }`}>
-                                    {extractedImgUrls.map((src, imgIdx) => (
-                                      <div
-                                        key={imgIdx}
-                                        onClick={() => setLightboxImage(src)}
-                                        className="relative group rounded-xl overflow-hidden border border-white/20 shadow-md cursor-pointer aspect-video bg-black/20"
-                                      >
-                                        <img
-                                          src={src}
-                                          alt={`Receipt ${imgIdx + 1}`}
-                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                                        />
-                                        <span className="absolute bottom-1 right-1 bg-black/75 text-[9px] font-mono px-1.5 py-0.2 rounded text-white backdrop-blur-sm">
-                                          {imgIdx + 1}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <span className="text-[10px] text-white/80 font-mono block mt-1.5">
-                                    {extractedImgUrls.length} {extractedImgUrls.length === 1 ? 'Receipt Attachment' : 'Receipt Attachments'} • Cloudflare R2 (Click to zoom)
-                                  </span>
-                                </div>
-                              )}
-
-                              <div className="break-words">
-                                {formatMessageContent(textContentToRender, isAi, user?.currency, () => loadSessions(false))}
-
-                                {/* Live typing cursor during streaming */}
-                                {isStreamingCurrent && (
-                                  <span className="inline-block w-2 h-4 bg-indigo-500 animate-pulse ml-1 translate-y-0.5 rounded-sm shadow-[0_0_8px_rgba(99,102,241,0.8)]"></span>
-                                )}
-                              </div>
-                            </>
-                          );
-                        })()}
-
-                        {/* Completed AI Transcript Actions */}
-                        {isAi && msg.content && !isStreamingCurrent && (
-                          <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-200/80 dark:border-[var(--border-default)] text-[10px] text-slate-500 dark:text-[var(--foreground-muted)] font-medium">
-                            <span className="flex items-center gap-1.5 text-slate-500 dark:text-[var(--foreground-muted)] text-[9px] uppercase font-mono tracking-wider">
-                              <Sparkles className="w-3 h-3 text-indigo-500" />
-                              <span>Gemini Response</span>
-                            </span>
-                            <div className="flex items-center gap-1.5">
-                              {/* Read Aloud TTS Speaker (Sarvam AI Bulbul v3) */}
-                              <button
-                                type="button"
-                                onClick={() => handleSpeak(msg.content, idx)}
-                                disabled={audioLoadingMsgIdx === idx}
-                                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${speakingMsgIdx === idx
-                                  ? 'bg-indigo-500/25 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                                  : audioLoadingMsgIdx === idx
-                                    ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
-                                    : 'hover:bg-slate-200/70 dark:hover:bg-[var(--surface-hover)] text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)]'
-                                  }`}
-                                title={
-                                  audioLoadingMsgIdx === idx
-                                    ? "Synthesizing Sarvam AI voice..."
-                                    : speakingMsgIdx === idx
-                                      ? "Stop speaking"
-                                      : "Listen to transcript (Sarvam AI Voice)"
-                                }
-                              >
-                                {audioLoadingMsgIdx === idx ? (
-                                  <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
-                                ) : speakingMsgIdx === idx ? (
-                                  <VolumeX className="w-3.5 h-3.5" />
-                                ) : (
-                                  <Volume2 className="w-3.5 h-3.5" />
-                                )}
-                              </button>
-
-                              {/* Copy Transcript */}
-                              <button
-                                type="button"
-                                onClick={() => handleCopyTranscript(msg.content, idx)}
-                                className="p-1.5 hover:bg-slate-200/70 dark:hover:bg-[var(--surface-hover)] rounded-lg text-slate-500 dark:text-[var(--foreground-muted)] hover:text-slate-900 dark:hover:text-[var(--foreground)] transition-colors cursor-pointer"
-                                title="Copy full transcript"
-                              >
-                                {copiedMsgIdx === idx ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {!isAi && (
-                        <div className="hidden md:flex w-9 h-9 rounded-xl bg-slate-200 dark:bg-[var(--surface-active)] border border-slate-300 dark:border-[var(--border-default)] text-slate-600 dark:text-[var(--foreground-muted)] flex items-center justify-center shrink-0">
-                          <UserIcon className="w-5 h-5" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Dynamic Thinking / Reasoning indicator while API request is pending */}
-                {isThinking && (
-                  <div className="flex flex-col md:flex-row gap-2 md:gap-3.5 text-left justify-start items-start animate-fade-in my-1">
-                    <div className="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-gradient-to-tr from-indigo-500/25 via-purple-500/20 to-indigo-600/30 border border-indigo-500/40 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 shadow-md shadow-indigo-500/10 animate-pulse">
-                      <Sparkles className="w-4 h-4 md:w-4.5 md:h-4.5 text-indigo-500 animate-spin" style={{ animationDuration: '3s' }} />
-                    </div>
-
-                    <div className="p-3.5 md:p-4 rounded-2xl w-full sm:w-auto max-w-md bg-white/95 dark:bg-[var(--background-base)] border border-indigo-300 dark:border-indigo-500/30 text-slate-800 dark:text-[var(--foreground)] text-xs font-mono shadow-md shadow-indigo-500/5 space-y-2 backdrop-blur-md">
-                      {/* Header with bouncing dots and gradient text */}
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          {/* Animated Bouncing Wave Dots */}
-                          <div className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <span className="w-2 h-2 rounded-full bg-purple-600 dark:bg-purple-400 animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <span className="w-2 h-2 rounded-full bg-pink-500 dark:bg-cyan-400 animate-bounce" style={{ animationDelay: '300ms' }} />
-                          </div>
-
-                          <span className="text-xs font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-500 dark:from-indigo-400 dark:via-purple-300 dark:to-cyan-400 bg-clip-text text-transparent tracking-tight">
-                            Thinking...
-                          </span>
-                        </div>
-
-                        <span className="text-[9px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-mono px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.04]">
-                          {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || selectedModel}
-                        </span>
-                      </div>
-
-                      {/* Rotating Activity / Thought Prompt */}
-                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-white/[0.06] text-[11px] text-slate-500 dark:text-[var(--foreground-muted)]">
-                        <Activity className="w-3.5 h-3.5 text-emerald-500 shrink-0 animate-pulse" />
-                        <span className="truncate">
-                          {messages[messages.length - 1]?.imagePreviews?.length > 0
-                            ? 'Scanning multimodal receipts & OCR extraction...'
-                            : THINKING_PHRASES[thinkingStep]}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Unified Floating AI Chat Input Capsule - Sits cleanly above floating bottom dock on mobile, and at base on desktop */}
-          <div
-            className={`fixed left-3 right-3 max-w-[420px] md:max-w-none mx-auto z-40 md:relative md:bottom-auto md:left-auto md:right-auto md:z-auto md:pt-3 space-y-2 transition-all duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] ${isKeyboardOpen
-              ? 'bottom-[max(8px,calc(env(safe-area-inset-bottom,0px)+4px))]'
-              : 'bottom-[calc(max(10px,calc(env(safe-area-inset-bottom,0px)+6px))+62px)]'
-              }`}
+      {/* Image lightbox */}
+      <AnimatePresence>
+        {lightboxImage && (
+          <motion.div
+            data-ui="v2"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/80 p-4 backdrop-blur-sm"
+            onClick={() => setLightboxImage(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Receipt preview"
           >
-
-            {/* Multi-Image Attachment Preview Strip (up to 10 images) */}
-            {attachedImages.length > 0 && (
-              <div className="p-3 rounded-2xl bg-white/95 dark:bg-[#07070a]/95 backdrop-blur-2xl border border-slate-200/90 dark:border-white/[0.12] shadow-xl dark:shadow-[0_16px_40px_rgba(0,0,0,0.85)] animate-fade-in space-y-2 text-left">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-slate-900 dark:text-white font-semibold flex items-center gap-1.5">
-                    <Images className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                    <span>Attached Receipts ({attachedImages.length}/10)</span>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleClearAllImages}
-                    className="text-rose-500 hover:text-rose-600 dark:text-rose-400 dark:hover:text-rose-300 text-[11px] font-medium transition-colors cursor-pointer"
-                  >
-                    Clear All
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin">
-                  {attachedImages.map((img, idx) => (
-                    <div
-                      key={img.id}
-                      className={`relative shrink-0 w-18 h-18 rounded-xl overflow-hidden border group bg-slate-50 dark:bg-black/40 transition-all ${img.status === 'error'
-                        ? 'border-rose-500/60 bg-rose-500/10'
-                        : 'border-slate-200 dark:border-white/10 hover:border-indigo-500/50'
-                        }`}
-                    >
-                      <img
-                        src={img.previewUrl}
-                        alt={img.name}
-                        onClick={() => setLightboxImage(img.previewUrl)}
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                      />
-
-                      {/* Loading spinner */}
-                      {img.status === 'uploading' && (
-                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px] flex flex-col items-center justify-center gap-1">
-                          <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-                          <span className="text-[8px] font-mono text-white">R2 Sync</span>
-                        </div>
-                      )}
-
-                      {/* Success Ready badge */}
-                      {img.status === 'ready' && (
-                        <div className="absolute bottom-1 right-1 bg-emerald-500 text-white rounded-full p-0.5 shadow-sm">
-                          <Check className="w-2.5 h-2.5" />
-                        </div>
-                      )}
-
-                      {/* Error badge and retry */}
-                      {img.status === 'error' && (
-                        <div
-                          onClick={() => handleRetryUpload(img.id)}
-                          className="absolute inset-0 bg-rose-100/90 dark:bg-rose-950/85 flex flex-col items-center justify-center p-1 text-center cursor-pointer"
-                          title="Upload failed. Click to retry."
-                        >
-                          <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400 mb-0.5" />
-                          <span className="text-[8px] text-rose-700 dark:text-rose-200 font-bold underline">Retry</span>
-                        </div>
-                      )}
-
-                      {/* Individual Remove Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveAttachedImage(img.id);
-                        }}
-                        className="absolute top-1 right-1 p-1 bg-black/70 hover:bg-rose-500 text-white rounded-full transition-colors cursor-pointer shadow-md"
-                        title="Remove image"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-
-                      {/* Order Index */}
-                      <span className="absolute bottom-1 left-1 bg-black/70 text-[8px] font-mono px-1 rounded text-white">
-                        {idx + 1}
-                      </span>
-                    </div>
-                  ))}
-
-                  {/* Add more photo button if under 10 */}
-                  {attachedImages.length < 10 && (
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="shrink-0 w-18 h-18 rounded-xl border border-dashed border-slate-300 dark:border-white/15 hover:border-indigo-500 hover:bg-indigo-500/5 flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer"
-                      title="Add more images"
-                    >
-                      <Plus className="w-4 h-4 text-indigo-500" />
-                      <span className="text-[9px] font-mono">Add Photo</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Unified Single Input Capsule Bar */}
-            <form
-              onSubmit={handleFormSubmit}
-              className={`relative mb-3 floating-bottom-dock rounded-full p-1.5 pl-2 flex items-center gap-1.5 transition-all duration-200 ${isListening
-                ? 'border-rose-500 ring-2 ring-rose-500/30 shadow-rose-500/10'
-                : isTranscribingAudio
-                  ? 'border-indigo-500 ring-2 ring-indigo-500/30 shadow-indigo-500/10'
-                  : 'focus-within:border-[#5E6AD2]/70 focus-within:ring-2 focus-within:ring-[#5E6AD2]/20'
-                }`}
-            >
-              {/* Hidden File Input (supports multiple files) */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept="image/*"
-                className="hidden"
-                onChange={handleImageSelect}
-              />
-
-              {/* Camera / Multi-Image Upload Button */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isGenerating || isLoadingMessages || isTranscribingAudio || isProcessingImage}
-                className={`relative p-2 md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isProcessingImage
-                  ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                  : attachedImages.length > 0
-                    ? 'bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400'
-                    : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
-                  }`}
-                title={
-                  isProcessingImage
-                    ? "Uploading image(s) to R2..."
-                    : attachedImages.length > 0
-                      ? `${attachedImages.length} image(s) attached. Click to add more (up to 10).`
-                      : "Attach receipt image(s) or camera photo (up to 10 images)"
-                }
-              >
-                {isProcessingImage ? (
-                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-indigo-600 dark:text-indigo-400" />
-                ) : (
-                  <>
-                    <Camera className="w-4 h-4 md:w-5 md:h-5" />
-                    {attachedImages.length > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center shadow-xs">
-                        {attachedImages.length}
-                      </span>
-                    )}
-                  </>
-                )}
-              </button>
-
-              {/* Live Speech-to-Text Microphone Button (Sarvam AI Saaras v3) */}
-              <button
-                type="button"
-                onClick={toggleSpeechRecognition}
-                disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
-                className={`p-2  md:p-2.5 rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer ${isListening
-                  ? 'bg-rose-500 text-white animate-pulse shadow-md shadow-rose-500/30'
-                  : isTranscribingAudio
-                    ? 'bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 animate-pulse'
-                    : 'text-slate-400 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-white/[0.08]'
-                  }`}
-                title={
-                  isListening
-                    ? "Recording audio... (Click to transcribe with Sarvam AI)"
-                    : isTranscribingAudio
-                      ? "Sarvam AI Saaras v3 transcribing..."
-                      : "Live Voice-to-Text (Sarvam AI Saaras v3)"
-                }
-              >
-                {isTranscribingAudio ? (
-                  <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin text-indigo-600 dark:text-indigo-400" />
-                ) : isListening ? (
-                  <MicOff className="w-4 h-4 md:w-5 md:h-5" />
-                ) : (
-                  <Mic className="w-4 h-4 md:w-5 md:h-5" />
-                )}
-              </button>
-
-              {/* Text Input */}
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onPaste={handlePaste}
-                placeholder={
-                  isListening
-                    ? "🎙️ Listening... (Tap mic to transcribe)"
-                    : isTranscribingAudio
-                      ? "⚡ Sarvam AI transcribing speech..."
-                      : isGenerating
-                        ? "Gemini is scanning ledger..."
-                        : attachedImages.length > 0
-                          ? `Add note for ${attachedImages.length} receipt${attachedImages.length === 1 ? '' : 's'}...`
-                          : "Ask anything, speak or upload receipt..."
-                }
-                className="flex-grow bg-transparent border-0 px-2 py-2 md:py-2.5 text-xs md:text-sm text-slate-900 dark:text-[#EDEDEF] placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-0 font-normal"
-                disabled={isGenerating || isLoadingMessages || isTranscribingAudio}
-              />
-
-              {/* Send Action Button */}
-              <button
-                type="submit"
-                disabled={isGenerating || isLoadingMessages || isTranscribingAudio || (!input.trim() && attachedImages.length === 0)}
-                className={`w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${input.trim() || attachedImages.length > 0
-                  ? 'bg-gradient-to-tr from-[#5E6AD2] via-[#7056E0] to-[#5E6AD2] text-white shadow-md shadow-indigo-600/30 active:scale-95 cursor-pointer hover:brightness-110'
-                  : 'bg-slate-100 dark:bg-white/[0.06] text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                  }`}
-                title="Send message"
-              >
-                <Send className="w-4 h-4 md:w-4.5 md:h-4.5" />
-              </button>
-            </form>
-          </div>
-
-        </motion.main>
-      </div>
-
-      {/* Lightbox Modal for Receipt Image Preview */}
-      {lightboxImage && (
-        <div
-          onClick={() => setLightboxImage(null)}
-          className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 cursor-pointer"
-        >
-          <div className="relative max-w-3xl max-h-[90vh] bg-white dark:bg-[var(--background-elevated)] border border-slate-200 dark:border-[var(--border-default)] rounded-2xl p-2 shadow-2xl">
-            <img
-              src={lightboxImage}
-              alt="Receipt Zoom"
-              className="max-h-[80vh] max-w-full rounded-xl object-contain"
-            />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={lightboxImage} alt="Receipt preview" className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-pop" />
             <button
+              type="button"
               onClick={() => setLightboxImage(null)}
-              className="absolute top-4 right-4 p-2 bg-slate-100 dark:bg-[var(--background-base)] text-slate-800 dark:text-[var(--foreground)] rounded-full hover:bg-rose-500 hover:text-white transition-colors cursor-pointer"
+              className="absolute right-4 top-4 rounded-full bg-card p-2 text-ink shadow-pop cursor-pointer"
+              aria-label="Close preview"
             >
-              <X className="w-5 h-5" />
+              <X className="h-5 w-5" />
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* FOOTER */}
-      <footer className="hidden md:block border-t border-slate-200/80 dark:border-[var(--border-default)] py-4 shrink-0 z-10 bg-white/60 dark:bg-[var(--background-elevated)]/60 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-6 text-slate-500 dark:text-[var(--foreground-muted)] text-[10px] text-center font-mono uppercase tracking-wider">
-          Powered by {AVAILABLE_MODELS.find(m => m.id === selectedModel)?.name || 'Google Gemini'} with Multimodal Receipt OCR, Database Tools & Ledger Sync.
-        </div>
-      </footer>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

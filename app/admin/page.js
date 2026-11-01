@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   Mail,
   Calendar,
-  Layers
+  Layers,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,6 +44,29 @@ export default function AdminConsolePage() {
   const [notifSending, setNotifSending] = useState(false);
   
   const [loading, setLoading] = useState(true);
+
+  // Spend asset sync (Gemini tagging + logo/icon download)
+  const [assetSyncing, setAssetSyncing] = useState(false);
+  const [assetSyncMsg, setAssetSyncMsg] = useState('');
+
+  const handleSpendAssetSync = async () => {
+    setAssetSyncing(true);
+    setAssetSyncMsg('');
+    try {
+      const res = await fetch('/api/admin/spend-assets/sync', { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        const tagged = (data.users || []).reduce((s, u) => s + u.tagged, 0);
+        setAssetSyncMsg(`Tagged ${tagged} entries · ${data.assetsAvailable}/${data.logosWanted + data.iconsWanted} assets ready`);
+      } else {
+        setAssetSyncMsg(data.error || 'Sync failed');
+      }
+    } catch {
+      setAssetSyncMsg('Network error during sync');
+    } finally {
+      setAssetSyncing(false);
+    }
+  };
   const router = useRouter();
 
   // Fetch Dashboard Aggregated Stats
@@ -187,12 +211,28 @@ export default function AdminConsolePage() {
           </div>
         </div>
 
-        <button 
-          onClick={handleAdminLogout}
-          className="px-4 py-2 bg-white/5 hover:bg-rose-500/15 border border-white/10 hover:border-rose-500/20 text-slate-300 hover:text-rose-400 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2"
-        >
-          <LogOut className="w-4 h-4" /> Sign Out
-        </button>
+        <div className="flex items-center gap-2">
+          {assetSyncMsg && (
+            <span className="hidden sm:inline text-[10px] font-semibold text-slate-400 max-w-[280px] truncate" title={assetSyncMsg}>
+              {assetSyncMsg}
+            </span>
+          )}
+          <button
+            onClick={handleSpendAssetSync}
+            disabled={assetSyncing}
+            title="Tag every spending entry with Gemini and download all merchant logos & item icons to R2"
+            className="px-4 py-2 bg-white/5 hover:bg-violet-500/15 border border-white/10 hover:border-violet-500/20 text-slate-300 hover:text-violet-300 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2 disabled:opacity-60 disabled:cursor-wait"
+          >
+            <RefreshCw className={`w-4 h-4 ${assetSyncing ? 'animate-spin' : ''}`} />
+            {assetSyncing ? 'Syncing…' : 'Sync spend assets'}
+          </button>
+          <button
+            onClick={handleAdminLogout}
+            className="px-4 py-2 bg-white/5 hover:bg-rose-500/15 border border-white/10 hover:border-rose-500/20 text-slate-300 hover:text-rose-400 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer flex items-center gap-2"
+          >
+            <LogOut className="w-4 h-4" /> Sign Out
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 flex flex-col md:flex-row">

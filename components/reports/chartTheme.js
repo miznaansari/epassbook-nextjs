@@ -19,6 +19,12 @@ export function useChartTheme() {
     series: isLight
       ? { sip: '#5E6AD2', stocks: '#eb6834', other: '#1baf7a' }
       : { sip: '#727cf0', stocks: '#d95926', other: '#199e70' },
+    // Categorical slots for compared salary cycles (dashboard). Validated with the
+    // dataviz validator on #FFFFFF / #0a0a0c: CVD ΔE ≥ 8.4, normal-vision ΔE ≥ 19.8.
+    // Light aqua/yellow sit below 3:1 contrast, so every bar carries a text label.
+    cycles: isLight
+      ? ['#5E6AD2', '#eb6834', '#1baf7a', '#eda100']
+      : ['#727cf0', '#d95926', '#199e70', '#c98500'],
   };
 }
 

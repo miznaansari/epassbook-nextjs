@@ -119,6 +119,12 @@ export default function OneSignalProvider() {
     };
 
     const init = async () => {
+      // The OneSignal app is locked to the production domain; on localhost the
+      // SDK only throws "Can only be used on …". Opt in with
+      // NEXT_PUBLIC_ONESIGNAL_ALLOW_LOCAL=true when testing push locally.
+      const isLocalHost = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname);
+      if (isLocalHost && process.env.NEXT_PUBLIC_ONESIGNAL_ALLOW_LOCAL !== 'true') return;
+
       try {
         // =========================
         // 1. INITIALIZE SDK

@@ -3,12 +3,12 @@ export default function manifest() {
     id: "?homescreen=1",
     name: "Manage Monthly Money",
     short_name: "MonthlyMoney",
-    description: "AI-Powered Smart E-Passbook for tracking month-wise salary, lending, loans, and spending with streaming Gemini intelligence.",
+    description: "Know exactly where your salary goes. AI groups every rupee by merchant, compares salary cycles and reads your receipts.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",
-    background_color: "#02040a",
-    theme_color: "#8b5cf6",
+    background_color: "#0B0D14",
+    theme_color: "#4F46E5",
     icons: [
       {
         src: "/icon-192x192.png",
