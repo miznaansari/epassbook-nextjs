@@ -2,129 +2,81 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import TransactionModal from '@/components/TransactionModal';
 import AiQuickAddInput from '@/components/AiQuickAddInput';
+import ScanReceiptButton from '@/components/ScanReceiptButton';
+import LineIcon from '@/components/ui/LineIcon';
+import { ErrorState, Skeleton } from '@/components/ui/States';
 import { getRecentCycles } from '@/lib/spendAnalytics';
-import { useChartTheme } from '@/components/reports/chartTheme';
-import { useCachedFetch, readPref, writePref, DASH_CACHE_PREFIX } from '@/components/dashboard/useCachedFetch';
-import CyclePicker, { MAX_COMPARE } from '@/components/dashboard/CyclePicker';
-import MerchantCompareChart from '@/components/dashboard/MerchantCompareChart';
-import MerchantDetail from '@/components/dashboard/MerchantDetail';
-import DashboardHero from '@/components/dashboard/DashboardHero';
-import TopItems from '@/components/dashboard/TopItems';
-import RecentList from '@/components/dashboard/RecentList';
+import { useCachedFetch, DASH_CACHE_PREFIX } from '@/components/dashboard/useCachedFetch';
 import SalaryModal, { MONTHS } from '@/components/dashboard/SalaryModal';
-import { makeMoney, relativeTime, shortDate, cycleKeyOf } from '@/components/dashboard/format';
-import Surface from '@/components/ui/Surface';
-import Icon3D from '@/components/ui/Icon3D';
-import Button from '@/components/ui/Button';
-import { ErrorState, EmptyState, Skeleton } from '@/components/ui/States';
+import { makeMoney, shortDate, cycleKeyOf } from '@/components/dashboard/format';
+import Hero from '@/components/dashboard/overview/Hero';
+import CycleChips from '@/components/dashboard/overview/CycleChips';
+import InsightCards from '@/components/dashboard/overview/InsightCards';
+import { WhereItWent, CycleBars, SpendingPace } from '@/components/dashboard/overview/Charts';
+import { TopItems, CategoryBreakdown } from '@/components/dashboard/overview/Lists';
+import {
+  VISIBLE_CYCLES,
+  categorySlices,
+  paceVsLast,
+  paceInsight,
+  safeSpendInsight,
+  moverInsight,
+} from '@/components/dashboard/overview/model';
 
-const DEFAULT_PRESETS = [
-  { label: 'Dinner', icon: '🍔', title: 'Dinner', amount: 250, type: 'SPENDING', desc: 'Dining / Food' },
-  { label: 'Coffee', icon: '☕', title: 'Coffee', amount: 50, type: 'SPENDING', desc: 'Daily caffeine run' },
-  { label: 'Cab/Fuel', icon: '🚗', title: 'Cab / Fuel', amount: 150, type: 'SPENDING', desc: 'Transport ride' },
-  { label: 'Groceries', icon: '🛒', title: 'Groceries', amount: 500, type: 'SPENDING', desc: 'Daily essentials' },
-];
-
-/** One-tap presets built from the user's latest distinct transactions. */
-function buildPresets(recent) {
-  if (!recent?.length) return DEFAULT_PRESETS;
-  const seen = new Set();
-  const presets = [];
-  for (const t of recent) {
-    const title = (t.title || 'Untitled').trim();
-    const type = t.type || 'SPENDING';
-    const key = `${title.toLowerCase()}_${type}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    presets.push({
-      label: title.length > 14 ? `${title.substring(0, 12)}..` : title,
-      icon: '💸',
-      title,
-      amount: parseFloat(t.amount || 0),
-      type,
-      desc: t.description || `Recent ${type.toLowerCase()} entry`,
-    });
-    if (presets.length >= 7) break;
-  }
-  return presets.length ? presets : DEFAULT_PRESETS;
-}
-
-/** Saved cycle selection → [{ key, slot }], falling back to current + previous. */
-function loadSelection(uid, options) {
-  const valid = new Set(options.map(o => o.key));
-  const saved = readPref(`${DASH_CACHE_PREFIX}${uid}:cycles`, null);
-  if (Array.isArray(saved)) {
-    const clean = saved.filter(s => valid.has(s?.key) && Number.isInteger(s?.slot) && s.slot >= 0 && s.slot < MAX_COMPARE);
-    if (clean.length) return clean.slice(0, MAX_COMPARE);
-  }
-  return options.slice(0, 2).map((o, i) => ({ key: o.key, slot: i }));
-}
-
-function ChartSkeleton() {
-  return (
-    <div aria-busy="true">
-      <div className="flex items-center gap-2">
-        <Icon3D name="sparkles" size={24} className="animate-pulse" />
-        <p className="text-sm font-semibold text-shimmer">Grouping your spends with AI…</p>
-      </div>
-      <p className="mt-1 text-xs text-ink-2">First time only. Next time this opens instantly.</p>
-      <ul className="mt-4 space-y-4">
-        {[0.92, 0.7, 0.52, 0.38, 0.24].map((w, i) => (
-          <li key={i} className="flex gap-3">
-            <Skeleton className="h-10 w-10 rounded-xl" />
-            <div className="flex-1 space-y-2 pt-1">
-              <Skeleton className="h-3 w-28" />
-              <Skeleton className="h-2.5" style={{ width: `${w * 100}%` }} />
-              <Skeleton className="h-2.5" style={{ width: `${w * 80}%` }} />
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function SyncStatus({ refreshing, error, savedAt, hasData, onRetry, onBrand }) {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tick(t => t + 1), 30000);
-    return () => clearInterval(id);
-  }, []);
-
-  if (!hasData) return null;
+function SyncPill({ refreshing, error, onRetry }) {
   const base = 'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-semibold';
-  const neutral = onBrand ? 'bg-white/15 text-white' : 'bg-card-3 text-ink-2';
-  if (refreshing) {
-    return (
-      <span className={`${base} ${neutral}`} role="status">
-        <RefreshCw className="h-3 w-3 animate-spin" aria-hidden="true" /> Updating…
-      </span>
-    );
-  }
   if (error) {
     return (
-      <button type="button" onClick={onRetry} className={`${base} cursor-pointer ${onBrand ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-warning-soft text-secondary-ink hover:brightness-95'}`}>
-        <AlertCircle className="h-3 w-3" aria-hidden="true" /> Saved data · Retry
+      <button type="button" onClick={onRetry} className={`${base} mm-focus cursor-pointer bg-(--mm-gold-soft) text-(--mm-gold-ink) hover:brightness-95`}>
+        <LineIcon name="alert" size={12} /> Couldn&apos;t refresh · Retry
       </button>
     );
   }
-  return <span className={`${base} ${neutral}`}>Updated {relativeTime(savedAt)}</span>;
+  if (refreshing) {
+    return (
+      <span className={`${base} bg-(--mm-card) text-(--mm-ink-3) ring-1 ring-(--mm-line)`} role="status">
+        <LineIcon name="refresh" size={12} className="animate-spin" /> Updating…
+      </span>
+    );
+  }
+  return null;
+}
+
+function CardSkeleton({ rows = 3, tall = false }) {
+  return (
+    <div className="mm-card p-[22px]" aria-busy="true">
+      <Skeleton className="h-4 w-32" />
+      <Skeleton className="mt-2 h-3 w-44" />
+      {tall ? (
+        <Skeleton className="mt-5 h-[150px] w-full rounded-2xl" />
+      ) : (
+        <div className="mt-5 space-y-4">
+          {Array.from({ length: rows }, (_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-10 w-10 rounded-xl" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3 w-2/5" />
+                <Skeleton className="h-2.5 w-4/5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function Dashboard() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
-  const theme = useChartTheme();
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
   const [salaryModalOpen, setSalaryModalOpen] = useState(false);
-  const [detailSlug, setDetailSlug] = useState(null);
-  const [selectedState, setSelectedState] = useState(null);
+  const [focusState, setFocusState] = useState(null);
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -139,42 +91,22 @@ export default function Dashboard() {
     return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(val || 0);
   }, [currency]);
 
-  // Last 12 cycles, newest first.
-  const options = useMemo(() => getRecentCycles(12, cycleDate).reverse().map((c, i) => ({
+  // Chip labels are known up front, so the picker renders before data arrives.
+  const chipCycles = useMemo(() => getRecentCycles(VISIBLE_CYCLES, cycleDate).reverse().map((c, i) => ({
     key: cycleKeyOf(c),
     label: c.label,
     startDate: c.startDate,
     endDate: c.endDate,
     isCurrent: i === 0,
   })), [cycleDate]);
-
-  const selected = useMemo(
-    () => selectedState ?? (uid ? loadSelection(uid, options) : []),
-    [selectedState, uid, options],
-  );
-  const sortedKeys = useMemo(() => selected.map(s => s.key).sort().reverse(), [selected]);
-  const slotOf = useMemo(() => new Map(selected.map(s => [s.key, s.slot])), [selected]);
-
-  const toggleCycle = (key) => {
-    let next;
-    if (slotOf.has(key)) {
-      if (selected.length === 1) return;
-      next = selected.filter(s => s.key !== key);
-    } else {
-      if (selected.length >= MAX_COMPARE) return;
-      const used = new Set(selected.map(s => s.slot));
-      const slot = [0, 1, 2, 3].find(n => !used.has(n));
-      next = [...selected, { key, slot }];
-    }
-    setSelectedState(next);
-    if (uid) writePref(`${DASH_CACHE_PREFIX}${uid}:cycles`, next);
-  };
+  const currentChip = chipCycles[0];
+  const focusKey = chipCycles.some(c => c.key === focusState) ? focusState : currentChip.key;
 
   // --- Data (stale-while-revalidate) --------------------------------------
-  const spend = useCachedFetch(
-    uid && sortedKeys.length ? `/api/dashboard/spend-groups?cycles=${sortedKeys.join(',')}` : null,
-    uid && sortedKeys.length ? `${DASH_CACHE_PREFIX}${uid}:spend:${sortedKeys.join(',')}` : null,
-    { group: `${DASH_CACHE_PREFIX}${uid}:spend:`, keep: 8, onUnauthorized: logout },
+  const overview = useCachedFetch(
+    uid ? '/api/dashboard/overview' : null,
+    uid ? `${DASH_CACHE_PREFIX}${uid}:overview` : null,
+    { onUnauthorized: logout },
   );
 
   const kpi = useCachedFetch(
@@ -182,32 +114,29 @@ export default function Dashboard() {
     uid ? `${DASH_CACHE_PREFIX}${uid}:kpis` : null,
     {
       onUnauthorized: logout,
-      select: (p) => ({
-        startDate: p.startDate,
-        endDate: p.endDate,
-        kpis: p.kpis,
-        trends: p.trends,
-        recentTransactions: (p.recentTransactions || []).slice(0, 15).map(t => ({
-          title: t.title, amount: t.amount, type: t.type, description: t.description,
-        })),
-      }),
+      select: (p) => ({ startDate: p.startDate, endDate: p.endDate, kpis: p.kpis, trends: p.trends }),
     },
   );
 
-  const shown = spend.data || spend.placeholderData;
-  const isPlaceholder = !spend.data && !!spend.placeholderData;
+  const cycles = useMemo(() => overview.data?.cycles || [], [overview.data]);
+  const current = cycles[0] || null;
+  const focusIdx = Math.max(0, cycles.findIndex(c => c.key === focusKey));
+  const focus = cycles[focusIdx] || null;
+  const previous = cycles[focusIdx + 1] || null;
+  const barCycles = useMemo(() => cycles.slice(0, VISIBLE_CYCLES).reverse(), [cycles]);
+  const slices = useMemo(() => categorySlices(focus, previous), [focus, previous]);
 
-  const chartCycles = useMemo(() => (shown?.cycles || []).map((c, i) => ({
-    ...c,
-    color: theme.cycles[slotOf.get(c.key) ?? i] || theme.cycles[0],
-  })), [shown, slotOf, theme.cycles]);
-
-  const detail = detailSlug ? shown?.merchants?.find(m => m.slug === detailSlug) || null : null;
-  const primaryOption = options.find(o => o.key === sortedKeys[0]);
-  const currentOption = options[0];
+  const kpis = kpi.data?.kpis || null;
+  const spent = kpis?.spending ?? current?.total ?? 0;
+  const pace = useMemo(() => paceVsLast(current, cycles[1], spent), [current, cycles, spent]);
+  const insights = [
+    paceInsight(pace, money),
+    safeSpendInsight(kpis, current, currentChip.endDate, money),
+    moverInsight(focus, previous, money),
+  ];
 
   const refreshAll = () => {
-    spend.refresh();
+    overview.refresh();
     kpi.refresh();
   };
 
@@ -216,127 +145,120 @@ export default function Dashboard() {
     setEntryModalOpen(true);
   };
 
-  const openEdit = useCallback((entry) => {
-    setEntryToEdit({
-      id: entry.id,
-      amount: entry.amount,
-      title: entry.title,
-      description: entry.description,
-      type: entry.type || 'SPENDING',
-      date: entry.date,
-      useSalaryBalance: entry.useSalaryBalance,
-      salaryMonth: entry.salaryMonth,
-      salaryYear: entry.salaryYear,
-    });
+  const openPrefilled = (parsedTx) => {
+    setEntryToEdit(parsedTx);
     setEntryModalOpen(true);
-  }, []);
-
-  const closeDetail = useCallback(() => setDetailSlug(null), []);
+  };
 
   if (loading && !user) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-canvas">
-        <Icon3D name="savings" size={56} className="animate-pulse" />
+      <div className="flex flex-1 items-center justify-center bg-(--mm-canvas)">
+        <span className="grid h-14 w-14 animate-pulse place-items-center rounded-2xl bg-[#4F46E5] text-white">
+          <LineIcon name="wallet" size={28} />
+        </span>
       </div>
     );
   }
 
-  const renderSync = (onBrand) => (
-    <SyncStatus
-      onBrand={onBrand}
-      refreshing={spend.isRefreshing || kpi.isRefreshing}
-      error={spend.error}
-      savedAt={spend.savedAt}
-      hasData={!!shown}
-      onRetry={refreshAll}
-    />
-  );
+  const dateRange = `${shortDate(currentChip.startDate)} – ${shortDate(currentChip.endDate)}`;
+  const hasData = !!(overview.data || kpi.data);
+  const syncError = hasData ? (overview.error || kpi.error) : null;
+  const refreshing = hasData && (overview.isRefreshing || kpi.isRefreshing);
+  const sync = (syncError || refreshing) ? <SyncPill refreshing={refreshing} error={syncError} onRetry={refreshAll} /> : null;
 
   return (
-    <div className="relative flex flex-1 flex-col bg-canvas text-ink overflow-x-hidden">
+    <div data-ui="v2" className="mm relative flex flex-1 flex-col overflow-x-hidden bg-(--mm-canvas)">
+      <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-3.5 px-5 pb-[110px] pt-4 md:gap-5 md:px-10 md:pb-10 md:pt-7">
 
-      <main data-ui="v2" className="w-full max-w-6xl flex-grow mx-auto px-4 sm:px-6 pt-4 md:pt-6 pb-28 md:pb-10 space-y-4 md:space-y-5">
-        <DashboardHero
-          kpis={kpi.data?.kpis}
-          trends={kpi.data?.trends}
-          cycleLabel={currentOption?.label}
-          dateRange={currentOption ? `${shortDate(currentOption.startDate)} – ${shortDate(currentOption.endDate)}` : ''}
-          sync={renderSync}
-          money={money}
-          loading={kpi.isFirstLoad}
-          onIncome={() => setSalaryModalOpen(true)}
-          onNewEntry={openNewEntry}
-        />
-
-        <AiQuickAddInput
-          onPrefill={(parsedTx) => { setEntryToEdit(parsedTx); setEntryModalOpen(true); }}
-          dynamicPresets={buildPresets(kpi.data?.recentTransactions)}
-          formatCurrency={formatCurrency}
-          onOpenCustomModal={openNewEntry}
-        />
-
-        <div className="space-y-2">
-          <div className="hidden md:flex items-baseline justify-between gap-2">
-            <h2 className="font-display text-[15px] font-bold text-ink">Compare cycles</h2>
-            <span className="text-[11px] text-ink-3">
-              {primaryOption ? `${shortDate(primaryOption.startDate)} – ${shortDate(primaryOption.endDate)} · ` : ''}up to {MAX_COMPARE}
-            </span>
+        {/* Desktop header (mobile shows logo + scan in the app bar) */}
+        <header className="order-first hidden items-center justify-between gap-4 md:flex">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mm-lbl">{dateRange}</span>
+              {sync}
+            </div>
+            <h1 className="mt-0.5 text-[28px] font-extrabold leading-tight text-(--mm-ink)">Dashboard</h1>
           </div>
-          <CyclePicker options={options} selected={selected} colors={theme.cycles} onToggle={toggleCycle} />
+          <ScanReceiptButton className="mm-btn mm-btn-ghost">
+            <LineIcon name="camera" /> Scan receipt
+          </ScanReceiptButton>
+        </header>
+        {sync && <div className="order-first md:hidden">{sync}</div>}
+
+        <div className="order-1">
+          <Hero
+            kpis={kpis}
+            spent={spent}
+            pace={pace}
+            cycleLabel={currentChip.label}
+            dateRange={dateRange}
+            money={money}
+            loading={!kpi.data}
+          />
         </div>
 
-        <div className="grid grid-cols-[minmax(0,1fr)] items-start md:gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Surface>
-            {!shown ? (
-              spend.error && !spend.isRefreshing ? (
-                <ErrorState
-                  title="Couldn't load your spending"
-                  message={spend.error}
-                  onRetry={spend.refresh}
-                />
-              ) : (
-                <ChartSkeleton />
-              )
-            ) : shown.merchants.length === 0 ? (
-              <EmptyState
-                icon="receipt"
-                title="No spending in these cycles yet"
-                message="Log a purchase and AI will group it by merchant here."
-                action={<Button variant="secondary" onClick={openNewEntry}>Add an entry</Button>}
-                className={isPlaceholder ? 'opacity-55' : ''}
-              />
-            ) : (
-              <MerchantCompareChart
-                merchants={shown.merchants}
-                cycles={chartCycles}
-                money={money}
-                dimmed={isPlaceholder}
-                onSelect={(m) => setDetailSlug(m.slug)}
-              />
-            )}
-          </Surface>
-
-          <div className="md:space-y-5">
-            {shown?.merchants?.length > 0 && (
-              <Surface>
-                <TopItems merchants={shown.merchants} cycleKey={chartCycles[0]?.key} cycleLabel={chartCycles[0]?.label} money={money} />
-              </Surface>
-            )}
-            <Surface>
-              <RecentList recent={shown?.recent || []} cycleLabel={chartCycles[0]?.label} money={money} onEdit={openEdit} />
-            </Surface>
+        {/* Quick entry. Desktop: [input][New entry][Income]. Mobile: buttons, then input. */}
+        <div className="order-2 grid grid-cols-2 gap-x-2.5 gap-y-3.5 md:order-3 md:flex md:gap-3">
+          <div className="order-last col-span-2 min-w-0 md:order-none md:flex-1">
+            <AiQuickAddInput onPrefill={openPrefilled} />
           </div>
+          <button type="button" onClick={openNewEntry} className="mm-btn mm-btn-amber">
+            <LineIcon name="plus" /> New entry
+          </button>
+          <button type="button" onClick={() => setSalaryModalOpen(true)} className="mm-btn mm-btn-ghost">
+            Income
+          </button>
+        </div>
+
+        <div className="order-3 md:order-2">
+          <CycleChips cycles={chipCycles} focusKey={focusKey} onSelect={setFocusState} />
+        </div>
+
+        <div className="order-4">
+          <InsightCards
+            insights={insights}
+            onAction={(action) => { if (action === 'income') setSalaryModalOpen(true); }}
+          />
+        </div>
+
+        <div className="order-5 grid grid-cols-1 gap-3.5 md:grid-cols-2 md:gap-5 [&>*>*]:h-full">
+          {!focus ? (
+            overview.error && !overview.isRefreshing ? (
+              <div className="mm-card p-[22px] md:col-span-2">
+                <ErrorState title="Couldn't load your spending" message={overview.error} onRetry={overview.refresh} />
+              </div>
+            ) : (
+              <>
+                <div><CardSkeleton tall /></div>
+                <div><CardSkeleton tall /></div>
+                <div><CardSkeleton tall /></div>
+                <div><CardSkeleton /></div>
+                <div className="md:col-span-2"><CardSkeleton rows={4} /></div>
+              </>
+            )
+          ) : (
+            <>
+              <div className="order-1">
+                <WhereItWent cycle={focus} slices={slices} money={money} />
+              </div>
+              <div className="order-2">
+                <CycleBars cycles={barCycles} focusKey={focus.key} onSelect={setFocusState} money={money} />
+              </div>
+              <div className="order-3">
+                <SpendingPace focus={focus} previous={previous} money={money} />
+              </div>
+              <div className="order-5 md:order-4">
+                <TopItems cycle={focus} slices={slices} money={money} />
+              </div>
+              <div className="order-4 md:order-5 md:col-span-2">
+                <CategoryBreakdown cycle={focus} previous={previous} slices={slices} money={money} />
+              </div>
+            </>
+          )}
         </div>
       </main>
 
       <div data-ui="v2">
-        <MerchantDetail
-          merchant={detail}
-          cycles={chartCycles}
-          money={money}
-          onClose={closeDetail}
-          onEditEntry={openEdit}
-        />
         <SalaryModal
           open={salaryModalOpen}
           onClose={() => setSalaryModalOpen(false)}

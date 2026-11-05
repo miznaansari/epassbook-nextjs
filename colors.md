@@ -41,3 +41,19 @@ Old token names (`--background-elevated`, `--foreground-muted`, `--border-defaul
 
 ## 3D icons
 UI icons: `components/ui/Icon3D.jsx` + `lib/uiIcons.js` (files in `public/icons3d/`, fetched with `node scripts/fetch-ui-icons.mjs`). Spend item icons: `lib/spendIcons.js` (stored in R2).
+
+## Dashboard redesign tokens (`--mm-*`)
+The dashboard and the navigation (sidebar, mobile app bar, dock, drawer) use the exact mockup colours from `Artifacat/*.dc.html` as plain CSS variables (`:root` = light, `.dark` / `[data-theme="dark"]` = matched dark values), used as `bg-(--mm-card)`, `text-(--mm-ink)`, etc. Mockup classes are ported as `.mm-card`, `.mm-lbl`, `.mm-h2`, `.mm-btn(-amber|-ghost|-soft)`, `.mm-chip`, `.mm-tag`, `.mm-in`, `.mm-nav` in `@layer components`; put `.mm` on the root for the Plus Jakarta Sans type.
+| Token | Light | Use |
+|---|---|---|
+| `--mm-canvas` / `--mm-card` / `--mm-soft` | `#F6F7FB` / `#FFFFFF` / `#F6F7FB` | Page, cards, soft buttons |
+| `--mm-line` / `--mm-line-2` | `#E6E8F0` / `#EEF0F6` | Card borders / row dividers, bar tracks |
+| `--mm-ink` / `--mm-ink-2` / `--mm-ink-3` | `#14142B` / `#4B4F66` / `#5B6078` | Text / body / labels |
+| `--mm-brand` / `--mm-brand-soft` / `--mm-brand-ink` / `--mm-brand-line` | `#4F46E5` / `#EEF0FF` / `#3730A3` / `#C7CBFF` | Active nav, selected chip |
+| `--mm-amber` / `--mm-sparkle` | `#F59E0B` / `#B45309` | New entry + AI dock button / sparkle icon |
+| `--mm-hero*` | `#3730A3` bg, `#4A43C4` tiles, `#5B54D6` track, `#FBBF24` bar, `#C7CBFF` muted | Indigo hero (same in both themes) |
+| Category series | indigo `#4F46E5`, orange `#EA580C`, green `#10B981`, gold `#F59E0B` (+ `-soft` / `-ink`) | Rank order in donut, breakdown, top items |
+| Cycle series `--mm-cycle-0..4` | `#3730A3 #4F46E5 #EA580C #10B981 #F59E0B` | Newest → oldest cycle (chips + bars) |
+| `--mm-red-soft` / `--mm-red-ink` | `#FEE2E2` / `#B91C1C` | Increases, spend amounts |
+
+Stroke icons for these surfaces: `components/ui/LineIcon.jsx` (mockup paths verbatim).

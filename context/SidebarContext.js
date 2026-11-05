@@ -50,7 +50,7 @@ export function SidebarProvider({ children }) {
     if (typeof document !== 'undefined') {
       document.documentElement.style.setProperty(
         '--sidebar-width',
-        isCollapsed ? '72px' : '260px'
+        isCollapsed ? '72px' : '248px'
       );
     }
   }, [isCollapsed]);

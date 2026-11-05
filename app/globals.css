@@ -412,7 +412,7 @@ html[data-keyboard-open="true"] .floating-bottom-dock-container {
   }
 
   .app-sidebar-offset {
-    padding-left: var(--sidebar-width, 260px);
+    padding-left: var(--sidebar-width, 248px);
     transition: padding-left 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
@@ -722,4 +722,208 @@ html.light nav:not([data-ui="v2"], [data-ui="v2"] *) {
 html.light footer:not([data-ui="v2"], [data-ui="v2"] *) {
   background-color: var(--color-canvas-2) !important;
   border-color: var(--color-line) !important;
+}
+
+/* ========================================================================= */
+/* MONTHLYMONEY REDESIGN — dashboard + navigation                            */
+/* Light values are the exact mockup colours (Artifacat/*.dc.html); dark     */
+/* values are matched equivalents. Surfaces using these set data-ui="v2".    */
+/* ========================================================================= */
+:root {
+  --mm-canvas: #F6F7FB;
+  --mm-card: #FFFFFF;
+  --mm-line: #E6E8F0;
+  --mm-line-2: #EEF0F6;
+  --mm-ink: #14142B;
+  --mm-ink-2: #4B4F66;
+  --mm-ink-3: #5B6078;
+  --mm-soft: #F6F7FB;
+  --mm-brand: #4F46E5;
+  --mm-brand-soft: #EEF0FF;
+  --mm-brand-ink: #3730A3;
+  --mm-brand-line: #C7CBFF;
+  --mm-amber: #F59E0B;
+  --mm-on-amber: #14142B;
+  --mm-sparkle: #B45309;
+  --mm-dash: #9CA3C7;
+  --mm-outline: #14142B;
+
+  /* Hero: brand surface, identical in both themes */
+  --mm-hero: #3730A3;
+  --mm-hero-tile: #4A43C4;
+  --mm-hero-track: #5B54D6;
+  --mm-hero-muted: #C7CBFF;
+  --mm-hero-good: #A7F3D0;
+  --mm-hero-bad: #FECACA;
+  --mm-hero-bar: #FBBF24;
+
+  /* Category series (rank order) with tinted backgrounds and text inks */
+  --mm-indigo: #4F46E5;
+  --mm-indigo-soft: #EEF0FF;
+  --mm-indigo-ink: #3730A3;
+  --mm-orange: #EA580C;
+  --mm-orange-soft: #FFEDD5;
+  --mm-orange-ink: #9A3412;
+  --mm-green: #10B981;
+  --mm-green-soft: #D1FAE5;
+  --mm-green-ink: #047857;
+  --mm-gold: #F59E0B;
+  --mm-gold-soft: #FEF3C7;
+  --mm-gold-ink: #B45309;
+  --mm-red-soft: #FEE2E2;
+  --mm-red-ink: #B91C1C;
+
+  /* Cycle series, newest first */
+  --mm-cycle-0: #3730A3;
+  --mm-cycle-1: #4F46E5;
+  --mm-cycle-2: #EA580C;
+  --mm-cycle-3: #10B981;
+  --mm-cycle-4: #F59E0B;
+}
+
+.dark,
+[data-theme="dark"] {
+  --mm-canvas: #0B0D14;
+  --mm-card: #141824;
+  --mm-line: #262C3D;
+  --mm-line-2: #232A3B;
+  --mm-ink: #F1F3F9;
+  --mm-ink-2: #A3ABBD;
+  --mm-ink-3: #8B93A7;
+  --mm-soft: #1A1F2E;
+  --mm-brand: #818CF8;
+  --mm-brand-soft: rgb(129 140 248 / 0.16);
+  --mm-brand-ink: #C7D2FE;
+  --mm-brand-line: rgb(129 140 248 / 0.45);
+  --mm-amber: #FBBF24;
+  --mm-on-amber: #14142B;
+  --mm-sparkle: #FCD34D;
+  --mm-dash: #6B7488;
+  --mm-outline: #F1F3F9;
+
+  --mm-indigo: #818CF8;
+  --mm-indigo-soft: rgb(129 140 248 / 0.16);
+  --mm-indigo-ink: #C7D2FE;
+  --mm-orange: #FB923C;
+  --mm-orange-soft: rgb(251 146 60 / 0.16);
+  --mm-orange-ink: #FDBA74;
+  --mm-green: #34D399;
+  --mm-green-soft: rgb(52 211 153 / 0.14);
+  --mm-green-ink: #6EE7B7;
+  --mm-gold: #FBBF24;
+  --mm-gold-soft: rgb(251 191 36 / 0.14);
+  --mm-gold-ink: #FCD34D;
+  --mm-red-soft: rgb(248 113 113 / 0.14);
+  --mm-red-ink: #FCA5A5;
+
+  --mm-cycle-0: #A5B4FC;
+  --mm-cycle-1: #6366F1;
+  --mm-cycle-2: #FB923C;
+  --mm-cycle-3: #34D399;
+  --mm-cycle-4: #FBBF24;
+}
+
+/* Mockup classes (.card, .lbl, .btn, .chip, .tag, .in, .nav), prefixed mm-.
+   In the components layer so Tailwind utilities can still override them. */
+@layer components {
+  .mm {
+    font-family: var(--font-display);
+    color: var(--mm-ink);
+    letter-spacing: normal;
+  }
+  .mm-card {
+    background: var(--mm-card);
+    border: 1px solid var(--mm-line);
+    border-radius: 20px;
+  }
+  .mm-lbl {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--mm-ink-3);
+  }
+  .mm-h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--mm-ink);
+  }
+  .mm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    border: 0;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: filter 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  }
+  .mm-btn:active { transform: scale(0.98); }
+  .mm-btn:disabled { cursor: not-allowed; opacity: 0.6; }
+  .mm-btn-amber { background: var(--mm-amber); color: var(--mm-on-amber); }
+  .mm-btn-amber:hover { filter: brightness(1.05); }
+  .mm-btn-ghost { background: var(--mm-card); color: var(--mm-ink); border: 1px solid var(--mm-line); }
+  .mm-btn-ghost:hover { background: var(--mm-soft); }
+  .mm-btn-soft { background: var(--mm-soft); color: var(--mm-ink); }
+  .mm-btn-soft:hover { filter: brightness(0.97); }
+  .mm-chip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 99px;
+    background: var(--mm-card);
+    border: 1px solid var(--mm-line);
+    color: var(--mm-ink);
+    font-weight: 700;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+  }
+  .mm-chip:hover { border-color: var(--mm-brand-line); }
+  .mm-chip i { width: 8px; height: 8px; border-radius: 99px; display: inline-block; }
+  .mm-chip.is-on { background: var(--mm-brand-soft); border-color: var(--mm-brand-line); color: var(--mm-brand-ink); }
+  .mm-tag {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 99px;
+    white-space: nowrap;
+  }
+  .mm-in {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+  .mm-nav {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 14px;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--mm-ink-2);
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .mm-nav:hover { background: var(--mm-soft); color: var(--mm-ink); }
+  .mm-nav.is-on { background: var(--mm-brand-soft); color: var(--mm-brand-ink); }
+  .mm-divide { border-top: 1px solid var(--mm-line-2); }
+  .mm-btn:focus-visible,
+  .mm-chip:focus-visible,
+  .mm-nav:focus-visible,
+  .mm-focus:focus-visible {
+    outline: 2px solid var(--mm-brand);
+    outline-offset: 2px;
+  }
 }

@@ -1,25 +1,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Icon3D from '@/components/ui/Icon3D';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Sparkles,
-  Zap,
-  ArrowRight,
-  Mic,
-  MicOff,
-  X,
-  Loader2,
-  Bot,
-  Plus,
-  Coins
-} from 'lucide-react';
+import LineIcon from '@/components/ui/LineIcon';
 import { parseTransactionPrompt } from '@/lib/quickParser';
 
 const PLACEHOLDER_EXAMPLES = [
+  '250 pizza swiggy',
   '10rs cocacola',
-  '₹250 pizza swiggy',
   'Lent 1000 to Rahul',
   'Spent 150 on fuel',
   '₹500 groceries at supermarket',
@@ -28,13 +15,8 @@ const PLACEHOLDER_EXAMPLES = [
   'Chai and samosa 40'
 ];
 
-export default function AiQuickAddInput({
-  onPrefill,
-  dynamicPresets = [],
-  formatCurrency,
-  onOpenCustomModal,
-  isCompact = false
-}) {
+/** One-line AI entry ("250 pizza swiggy"): parses the text, then opens the entry form prefilled. */
+export default function AiQuickAddInput({ onPrefill }) {
   const [inputPrompt, setInputPrompt] = useState('');
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -167,61 +149,60 @@ export default function AiQuickAddInput({
   });
 
   return (
-    <div className="w-full">
-      <div className="group relative flex items-center gap-2 rounded-2xl border border-line bg-card p-1.5 pl-2 shadow-card transition focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/15">
-        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-secondary-soft" aria-hidden="true">
-          <Icon3D name="sparkles" size={22} />
-        </span>
+    <div className="mm-card flex w-full items-center gap-2.5 py-1 pl-3.5 pr-1 transition-colors focus-within:border-(--mm-brand-line) md:gap-3 md:py-1.5 md:pl-4 md:pr-1.5">
+      <span className="text-(--mm-sparkle)" aria-hidden="true">
+        <LineIcon name="sparkle" />
+      </span>
 
-        <div className="relative min-w-0 flex-1">
-          <label htmlFor="ai-quick-add" className="sr-only">Describe a transaction</label>
-          <input
-            id="ai-quick-add"
-            type="text"
-            value={inputPrompt}
-            onChange={(e) => setInputPrompt(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={isProcessing}
-            placeholder={`Try "${PLACEHOLDER_EXAMPLES[placeholderIndex]}"`}
-            className="w-full bg-transparent pr-7 text-sm font-medium text-ink placeholder:text-ink-3 focus:outline-none"
-          />
-          {inputPrompt && (
-            <button
-              type="button"
-              onClick={() => setInputPrompt('')}
-              className="absolute right-0 top-1/2 -translate-y-1/2 rounded-md p-1 text-ink-3 hover:text-ink cursor-pointer"
-              aria-label="Clear"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        {speechSupported && (
+      <div className="relative min-w-0 flex-1">
+        <label htmlFor="ai-quick-add" className="sr-only">Quick entry: describe a transaction</label>
+        <input
+          id="ai-quick-add"
+          type="text"
+          value={inputPrompt}
+          onChange={(e) => setInputPrompt(e.target.value)}
+          onKeyDown={handleKeyDown}
+          disabled={isProcessing}
+          enterKeyHint="send"
+          placeholder={`Try: ${PLACEHOLDER_EXAMPLES[placeholderIndex]}`}
+          className="min-h-10 w-full border-0 bg-transparent pr-7 text-[14px] font-medium text-(--mm-ink) outline-none placeholder:text-(--mm-ink-3)"
+        />
+        {inputPrompt && !isProcessing && (
           <button
             type="button"
-            onClick={toggleVoiceInput}
-            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition cursor-pointer ${
-              isListening ? 'bg-danger text-white animate-pulse' : 'text-ink-2 hover:bg-card-2 hover:text-ink'
-            }`}
-            aria-label={isListening ? 'Stop listening' : 'Speak a transaction'}
-            title={isListening ? 'Listening… tap to stop' : 'Voice entry'}
+            onClick={() => setInputPrompt('')}
+            className="absolute right-0 top-1/2 -translate-y-1/2 rounded-md p-1 text-(--mm-ink-3) hover:text-(--mm-ink) cursor-pointer"
+            aria-label="Clear"
           >
-            <Mic className="h-4 w-4" />
+            <LineIcon name="close" size={14} />
           </button>
         )}
+      </div>
 
+      {speechSupported && (
+        <button
+          type="button"
+          onClick={toggleVoiceInput}
+          className={`mm-btn px-3 ${isListening ? 'animate-pulse bg-(--mm-red-soft) text-(--mm-red-ink)' : 'mm-btn-soft'}`}
+          aria-label={isListening ? 'Stop listening' : 'Voice entry'}
+          aria-pressed={isListening}
+          title={isListening ? 'Listening… tap to stop' : 'Voice entry'}
+        >
+          <LineIcon name="mic" />
+        </button>
+      )}
+
+      {(inputPrompt.trim() || isProcessing) && (
         <button
           type="button"
           onClick={() => handleProcessPrompt()}
-          disabled={isProcessing || !inputPrompt.trim()}
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 text-sm font-semibold text-primary-fg transition hover:bg-primary-hover disabled:bg-card-3 disabled:text-ink-3 cursor-pointer disabled:cursor-not-allowed"
+          disabled={isProcessing}
+          className="mm-btn bg-(--mm-brand) px-3 text-(--mm-card)"
           aria-label="Add with AI"
         >
-          {isProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-          <span className="hidden sm:inline">{isProcessing ? 'Reading…' : 'Add'}</span>
+          <LineIcon name={isProcessing ? 'spinner' : 'arrow'} className={isProcessing ? 'animate-spin' : ''} />
         </button>
-      </div>
+      )}
     </div>
   );
 }
