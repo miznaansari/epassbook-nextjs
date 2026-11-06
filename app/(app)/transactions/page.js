@@ -1,60 +1,83 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import TransactionModal from '@/components/TransactionModal';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  ReceiptText,
-  Search,
-  Filter,
-  Trash2,
-  Calendar,
-  CalendarDays,
-  Layers,
-  Wallet,
-  ArrowUpRight,
-  ArrowRightLeft,
-  AlertCircle,
-  HelpCircle,
-  PiggyBank,
-  TrendingUp,
-  X,
-  Pencil,
-  Plus,
-  CheckSquare,
-  Square,
-  MinusSquare,
-  Loader2,
-  Check,
-  Sparkles,
-  Bot
-} from 'lucide-react';
+import LineIcon from '@/components/ui/LineIcon';
+import { Skeleton } from '@/components/ui/States';
+import { MONTHS } from '@/components/dashboard/SalaryModal';
+import { useCachedFetch, DASH_CACHE_PREFIX } from '@/components/dashboard/useCachedFetch';
+import { paceVsLast, VISIBLE_CYCLES } from '@/components/dashboard/overview/model';
+import { FILTERS, entryQuery, describeEntry, groupEntries, entriesToCsv, dayKey } from '@/components/passbook/ledger';
+import { EntryRow, LedgerSection } from '@/components/passbook/LedgerList';
+import MonthWise, { paceNote } from '@/components/passbook/MonthWise';
+import SelectionBar from '@/components/passbook/SelectionBar';
 
 const PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 200; // matches the API cap
-
-const monthsList = [
-  { value: 1, name: 'January' },
-  { value: 2, name: 'February' },
-  { value: 3, name: 'March' },
-  { value: 4, name: 'April' },
-  { value: 5, name: 'May' },
-  { value: 6, name: 'June' },
-  { value: 7, name: 'July' },
-  { value: 8, name: 'August' },
-  { value: 9, name: 'September' },
-  { value: 10, name: 'October' },
-  { value: 11, name: 'November' },
-  { value: 12, name: 'December' },
+const VIEWS = [
+  { id: 'day', label: 'Day wise' },
+  { id: 'month', label: 'Month wise' },
 ];
 
-export default function Transactions() {
+/** Ledger amounts keep paise when there are any (₹350, ₹10.50). */
+function makeLedgerMoney(currency) {
+  const code = currency || 'INR';
+  const locale = code === 'INR' ? 'en-IN' : 'en-US';
+  const make = (digits) => {
+    try {
+      return new Intl.NumberFormat(locale, { style: 'currency', currency: code, minimumFractionDigits: digits, maximumFractionDigits: digits });
+    } catch {
+      return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: digits, maximumFractionDigits: digits });
+    }
+  };
+  const whole = make(0);
+  const exact = make(2);
+  return (v) => {
+    const n = Math.round((Number(v) || 0) * 100) / 100;
+    return (Number.isInteger(n) ? whole : exact).format(n);
+  };
+}
+
+function useMedia(query) {
+  const subscribe = useCallback((onChange) => {
+    const m = window.matchMedia(query);
+    m.addEventListener('change', onChange);
+    return () => m.removeEventListener('change', onChange);
+  }, [query]);
+  return useSyncExternalStore(subscribe, () => window.matchMedia(query).matches, () => false);
+}
+
+function ListSkeleton() {
+  return (
+    <div className="flex flex-col gap-[22px]" aria-busy="true" aria-label="Loading entries">
+      {[4, 2, 3].map((rows, i) => (
+        <div key={i}>
+          <Skeleton className="mb-3 ml-0.5 h-4 w-48" />
+          <div className="mm-card overflow-hidden">
+            {Array.from({ length: rows }, (_, r) => (
+              <div key={r} className="mm-tr">
+                <Skeleton className="h-10 w-10 rounded-xl" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-3.5 w-2/5" />
+                  <Skeleton className="h-3 w-3/5" />
+                </div>
+                <Skeleton className="h-4 w-16" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export default function Passbook() {
   const { user, loading, logout } = useAuth();
   const router = useRouter();
 
-  // Transactions State (cursor-paginated: newest first, PAGE_SIZE per page)
+  // Ledger (cursor-paginated: newest first, PAGE_SIZE per page)
   const [entries, setEntries] = useState([]);
   const [nextCursor, setNextCursor] = useState(null);
   const [totalCount, setTotalCount] = useState(0);
@@ -63,24 +86,27 @@ export default function Transactions() {
   const [loadError, setLoadError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filter, setFilter] = useState('ALL');
+  const [view, setView] = useState('day');
+  const [collapsed, setCollapsed] = useState(() => new Set());
   const requestIdRef = useRef(0);
   const sentinelRef = useRef(null);
-  const [typeFilter, setTypeFilter] = useState('ALL');
-  const [groupBy, setGroupBy] = useState('date'); // 'date' | 'month'
 
-  // Multi-select state
-  const [selectedIds, setSelectedIds] = useState([]);
-  const [isDeletingBatch, setIsDeletingBatch] = useState(false);
+  // Selection (bulk delete)
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState(null);
   const [parentLending, setParentLending] = useState(null);
 
-  // Redirect if unauthenticated
+  const isTablet = useMedia('(min-width: 768px)');
+  const isDesktop = useMedia('(min-width: 1024px)');
+
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
+    if (!loading && !user) router.push('/login');
   }, [user, loading, router]);
 
   // Debounce the search box so typing doesn't fire a request per keystroke
@@ -90,26 +116,39 @@ export default function Transactions() {
   }, [searchTerm]);
 
   // Filter + search identify the list; the skeleton shows until that list's first page arrives.
-  const queryKey = `${typeFilter}|${debouncedSearch}`;
+  const queryKey = `${filter}|${debouncedSearch}`;
   const loadingEntries = loadedKey !== queryKey;
+
+  // A new list drops the selection, so hidden rows can never be bulk-deleted.
+  const [selectionKey, setSelectionKey] = useState(queryKey);
+  if (selectionKey !== queryKey) {
+    setSelectionKey(queryKey);
+    setSelectedIds(new Set());
+  }
+
+  const uid = user?.id || user?.uid || null;
+  const cycleDate = user?.salaryCycleDate || 1;
+  const currency = user?.currency || 'INR';
+  const money = useMemo(() => makeLedgerMoney(currency), [currency]);
+  const formatCurrency = useCallback((val) => {
+    const locale = currency === 'INR' ? 'en-IN' : 'en-US';
+    return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(val || 0);
+  }, [currency]);
 
   /** Fetch one page for the current filter/search. Returns null on 401 (after logging out). */
   const fetchPage = useCallback(async ({ cursor = null, limit = PAGE_SIZE } = {}) => {
-    const params = new URLSearchParams({ limit: String(limit) });
-    if (typeFilter === 'AI') params.set('ai', '1');
-    else if (typeFilter !== 'ALL') params.set('type', typeFilter);
-    if (debouncedSearch) params.set('q', debouncedSearch);
+    const params = entryQuery(filter, debouncedSearch);
+    params.set('limit', String(limit));
     if (cursor) params.set('cursor', String(cursor));
 
     const res = await fetch(`/api/entries?${params}`);
     if (res.status === 401) {
-      console.warn('Session expired (401), redirecting to login.');
       logout();
       return null;
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
-  }, [typeFilter, debouncedSearch, logout]);
+  }, [filter, debouncedSearch, logout]);
 
   /**
    * (Re)load the first page. `limit` > PAGE_SIZE is used after edits so the rows
@@ -119,7 +158,6 @@ export default function Transactions() {
     const requestId = ++requestIdRef.current;
     const key = queryKey;
     const isCurrent = () => requestId === requestIdRef.current;
-    // State is only set in promise callbacks, after the response arrives.
     return fetchPage({ limit })
       .then((payload) => {
         if (!isCurrent() || !payload) return;
@@ -130,7 +168,7 @@ export default function Transactions() {
       })
       .catch((err) => {
         console.error('Error fetching transactions:', err);
-        if (isCurrent()) setLoadError('Could not load transactions. Please retry.');
+        if (isCurrent()) setLoadError('Could not load your passbook. Please retry.');
       })
       .finally(() => {
         if (isCurrent()) setLoadedKey(key);
@@ -150,623 +188,379 @@ export default function Transactions() {
       setLoadError('');
     } catch (err) {
       console.error('Error fetching more transactions:', err);
-      if (requestId === requestIdRef.current) setLoadError('Could not load more transactions. Please retry.');
+      if (requestId === requestIdRef.current) setLoadError('Could not load more entries. Please retry.');
     } finally {
       setLoadingMore(false);
     }
   }, [fetchPage, nextCursor]);
 
-  // First page whenever the user, filter or search changes
   useEffect(() => {
     if (user) loadFirstPage();
   }, [user, loadFirstPage]);
 
-  // After a create / edit / delete: refresh what's on screen without collapsing the list
-  const refreshEntries = () => loadFirstPage(Math.min(Math.max(entries.length, PAGE_SIZE), MAX_PAGE_SIZE));
+  // Spending per cycle (shared cache with the dashboard).
+  const overview = useCachedFetch(
+    uid ? '/api/dashboard/overview' : null,
+    uid ? `${DASH_CACHE_PREFIX}${uid}:overview` : null,
+    { onUnauthorized: logout },
+  );
+  const cycles = overview.data?.cycles || null;
+  const current = cycles?.[0] || null;
+  const pace = useMemo(() => paceVsLast(current, cycles?.[1]), [current, cycles]);
+  const spendDays = useMemo(() => {
+    if (!current) return 0;
+    let days = 0;
+    for (let i = 0; i < current.elapsed; i++) {
+      if (current.cumulative[i] > (i ? current.cumulative[i - 1] : 0)) days += 1;
+    }
+    return days;
+  }, [current]);
 
-  // Infinite scroll: fetch the next page when the sentinel nears the viewport
+  // After a create / edit / delete: refresh what's on screen without collapsing the list
+  const refreshAll = () => {
+    loadFirstPage(Math.min(Math.max(entries.length, PAGE_SIZE), MAX_PAGE_SIZE));
+    overview.refresh();
+  };
+
+  // Desktop: infinite scroll (Month wise sits beside the list). Smaller screens use
+  // the Load more button, so the Month wise card below the list stays reachable.
   useEffect(() => {
     const node = sentinelRef.current;
-    if (!node || !nextCursor || loadingEntries || loadingMore || loadError) return;
+    if (!isDesktop || !node || !nextCursor || loadingEntries || loadingMore || loadError) return;
     const observer = new IntersectionObserver(
-      (items) => {
-        if (items[0]?.isIntersecting) loadMore();
-      },
-      { rootMargin: '600px 0px' }
+      (items) => { if (items[0]?.isIntersecting) loadMore(); },
+      { rootMargin: '600px 0px' },
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [nextCursor, loadingEntries, loadingMore, loadError, loadMore]);
+  }, [isDesktop, nextCursor, loadingEntries, loadingMore, loadError, loadMore]);
 
-  // Handle Single Delete Entry
-  const handleDeleteEntry = async (id) => {
-    if (!confirm('Are you sure you want to delete this transaction permanently?')) return;
-    try {
-      const res = await fetch(`/api/entries?id=${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setSelectedIds(prev => prev.filter(i => i !== id));
-        await refreshEntries();
-      } else if (res.status === 401) {
-        console.warn('Session expired (401), redirecting to login.');
-        logout();
-      }
-    } catch (err) {
-      console.error('Delete error:', err);
-    }
-  };
-
-  // Handle Multi-Select Delete
-  const handleDeleteSelected = async () => {
-    if (selectedIds.length === 0 || isDeletingBatch) return;
-    if (!confirm(`Are you sure you want to delete ${selectedIds.length} selected transaction${selectedIds.length === 1 ? '' : 's'} permanently?`)) return;
-
-    setIsDeletingBatch(true);
-    try {
-      const res = await fetch('/api/entries', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ids: selectedIds }),
-      });
-
-      if (res.ok) {
-        setSelectedIds([]);
-        await refreshEntries();
-      } else if (res.status === 401) {
-        console.warn('Session expired (401), redirecting to login.');
-        logout();
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        alert(errData.error || 'Failed to delete selected transactions.');
-      }
-    } catch (err) {
-      console.error('Batch delete error:', err);
-      alert('Error occurred during batch deletion.');
-    } finally {
-      setIsDeletingBatch(false);
-    }
-  };
-
-  // Multi-select helpers
-  const toggleSelectOne = (id) => {
-    setSelectedIds(prev =>
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
-  };
-
-  const toggleSelectGroup = (groupEntries) => {
-    const groupIds = groupEntries.map(e => e.id);
-    const allGroupSelected = groupIds.every(id => selectedIds.includes(id));
-
-    if (allGroupSelected) {
-      setSelectedIds(prev => prev.filter(id => !groupIds.includes(id)));
-    } else {
-      setSelectedIds(prev => Array.from(new Set([...prev, ...groupIds])));
-    }
-  };
-
-  const toggleSelectAllFiltered = (allFiltered) => {
-    const filteredIds = allFiltered.map(e => e.id);
-    const allSelected = filteredIds.length > 0 && filteredIds.every(id => selectedIds.includes(id));
-
-    if (allSelected) {
-      setSelectedIds([]);
-    } else {
-      setSelectedIds(filteredIds);
-    }
-  };
+  const groups = useMemo(() => groupEntries(entries, view, cycleDate), [entries, view, cycleDate]);
 
   if (loading || !user) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-[#050506]">
-        <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
+      <div className="flex flex-1 items-center justify-center bg-(--mm-canvas)">
+        <span className="grid h-14 w-14 animate-pulse place-items-center rounded-2xl bg-[#4F46E5] text-white">
+          <LineIcon name="passbook" size={28} />
+        </span>
       </div>
     );
   }
 
-  // Type, AI and search filtering happen on the server; these are the loaded pages.
-  const filteredEntries = entries;
+  // --- Actions ---------------------------------------------------------------
 
-  // Calculate sum of selected transactions
-  const selectedEntriesList = entries.filter(e => selectedIds.includes(e.id));
-  const selectedTotalAmount = selectedEntriesList.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-
-  const formatCurrency = (val) => {
-    const currencyCode = user?.currency || 'USD';
-    const locale = currencyCode === 'INR' ? 'en-IN' : 'en-US';
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(val || 0);
+  const openEdit = (entry) => {
+    setParentLending(null);
+    setEntryToEdit(entry);
+    setEntryModalOpen(true);
   };
 
-  const formatDateGroupLabel = (dateStr) => {
-    if (groupBy === 'month') return dateStr;
-    const date = new Date(dateStr + 'T00:00:00');
-    const today = new Date();
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const isToday = date.toDateString() === today.toDateString();
-    const isYesterday = date.toDateString() === yesterday.toDateString();
-
-    const formatted = date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-
-    if (isToday) return `Today • ${formatted}`;
-    if (isYesterday) return `Yesterday • ${formatted}`;
-    return formatted;
+  const openRepay = (entry) => {
+    setEntryToEdit(null);
+    setParentLending(entry);
+    setEntryModalOpen(true);
   };
 
-  // Group entries date-wise or month-wise
-  const groupedEntries = {};
-  filteredEntries.forEach(entry => {
-    const d = new Date(entry.date);
-    let key;
-    if (groupBy === 'date') {
-      key = d.toISOString().split('T')[0];
-    } else {
-      key = d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-    }
-    if (!groupedEntries[key]) {
-      groupedEntries[key] = [];
-    }
-    groupedEntries[key].push(entry);
+  const toggleCollapse = (key) => setCollapsed(prev => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    return next;
   });
 
-  const isAllFilteredSelected = filteredEntries.length > 0 && filteredEntries.every(e => selectedIds.includes(e.id));
+  const toggleOne = (id) => setSelectedIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+
+  const toggleGroup = (group) => setSelectedIds(prev => {
+    const ids = group.entries.map(e => e.id);
+    const next = new Set(prev);
+    if (ids.every(id => next.has(id))) ids.forEach(id => next.delete(id));
+    else ids.forEach(id => next.add(id));
+    return next;
+  });
+
+  const toggleAllLoaded = () => setSelectedIds(prev => (
+    entries.length && entries.every(e => prev.has(e.id)) ? new Set() : new Set(entries.map(e => e.id))
+  ));
+
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  };
+
+  const deleteSelected = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length || deleting) return;
+    if (!confirm(`Delete ${ids.length} ${ids.length === 1 ? 'entry' : 'entries'} permanently?`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch('/api/entries', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (res.ok) {
+        stopSelecting();
+        refreshAll();
+      } else if (res.status === 401) {
+        logout();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Could not delete the selected entries.');
+      }
+    } catch (err) {
+      console.error('Batch delete error:', err);
+      alert('Could not delete the selected entries.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  /** Every entry matching the current filter + search, as a CSV download. */
+  const exportCsv = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const all = [];
+      let cursor = null;
+      do {
+        const page = await fetchPage({ cursor, limit: MAX_PAGE_SIZE });
+        if (!page) return;
+        all.push(...page.items);
+        cursor = page.nextCursor;
+      } while (cursor);
+      // BOM so Excel reads the file (₹, names) as UTF-8.
+      const blob = new Blob([String.fromCharCode(0xfeff), entriesToCsv(all, money)], { type: 'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `passbook-${dayKey(new Date())}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err) {
+      console.error('Export error:', err);
+      alert('Could not export your passbook. Please retry.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // --- Derived ---------------------------------------------------------------
+
+  const total = Math.max(totalCount, entries.length);
+  const matching = debouncedSearch ? ` matching “${debouncedSearch}”` : '';
+  const selectedTotal = entries.reduce((s, e) => (selectedIds.has(e.id) ? s + Math.abs(parseFloat(e.amount) || 0) : s), 0);
+  const hasQuery = filter !== 'ALL' || !!debouncedSearch;
+  const showMonthWise = !(overview.error && !overview.data);
+  const note = paceNote(pace, money, current?.label);
+  const paceDown = pace?.pct !== null && pace?.pct < 0;
+
+  const segment = (className) => (
+    <div className={`mm-seg ${className}`} role="group" aria-label="Group entries">
+      {VIEWS.map(v => (
+        <button key={v.id} type="button" aria-pressed={view === v.id} onClick={() => setView(v.id)} className={view === v.id ? 'is-on' : ''}>
+          {v.label}
+        </button>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="relative flex-1 flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
+    <div data-ui="v2" className="mm relative flex flex-1 flex-col overflow-x-hidden bg-(--mm-canvas)">
+      <main className="mx-auto flex w-full max-w-[1100px] flex-col gap-3.5 px-5 pb-[110px] pt-[max(1rem,env(safe-area-inset-top))] md:gap-5 md:px-10 md:pb-10 md:pt-7">
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-28">
-
-        {/* Header Titles & Controls */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
-              <ReceiptText className="w-7 h-7 text-[#818cf8]" /> E-Passbook
-            </h1>
-            <p className="text-[#8A8F98] text-xs mt-1">
+        <header className="flex items-center justify-between gap-4 md:items-end">
+          <div className="min-w-0">
+            <h1 className="text-[24px] font-extrabold leading-tight text-(--mm-ink) md:text-[28px]">E-Passbook</h1>
+            <div className="mm-lbl mt-0.5 truncate" aria-live="polite">
               {loadingEntries
                 ? 'Loading your ledger…'
-                : `Showing ${entries.length.toLocaleString()} of ${Math.max(totalCount, entries.length).toLocaleString()} ${totalCount === 1 ? 'entry' : 'entries'}${debouncedSearch ? ` matching “${debouncedSearch}”` : ''}`}
-            </p>
+                : <>{isTablet ? 'Showing ' : ''}{entries.length.toLocaleString()} of {total.toLocaleString()} {total === 1 ? 'entry' : 'entries'}{matching}</>}
+            </div>
           </div>
-
-          {/* Search, Type Filter, View Switcher & Batch Selection */}
-          <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
-
-            {/* Search Input */}
-            <div className="relative flex-1 sm:w-56 min-w-[160px]">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search ledger..."
-                className="w-full pl-8 pr-3 py-2 bg-[#0a0a0c] border border-white/10 rounded-lg text-xs text-white placeholder-[#8A8F98]/50 focus:outline-none focus:border-[#5E6AD2]"
-              />
-              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-[#8A8F98]" />
-            </div>
-
-            {/* View Mode Toggle: Date Wise vs Month Wise */}
-            <div className="flex items-center bg-[#0a0a0c] border border-white/10 rounded-lg p-0.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => setGroupBy('date')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${groupBy === 'date'
-                  ? 'bg-[#5E6AD2] text-white shadow-sm'
-                  : 'text-[#8A8F98] hover:text-white'
-                  }`}
-                title="Group transactions date-wise"
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Date Wise</span>
-                <span className="sm:hidden">Date</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setGroupBy('month')}
-                className={`px-2.5 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer ${groupBy === 'month'
-                  ? 'bg-[#5E6AD2] text-white shadow-sm'
-                  : 'text-[#8A8F98] hover:text-white'
-                  }`}
-                title="Group transactions month-wise"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Month Wise</span>
-                <span className="sm:hidden">Month</span>
-              </button>
-            </div>
-
-            {/* Category / Source Selector Dropdown */}
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="bg-[#0a0a0c] border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#5E6AD2] font-medium shrink-0 cursor-pointer"
+          <div className="flex shrink-0 items-center gap-2.5">
+            {segment('hidden md:inline-flex')}
+            <button
+              type="button"
+              onClick={exportCsv}
+              disabled={exporting || loadingEntries || !entries.length}
+              className="mm-btn mm-btn-ghost w-11 px-0 md:w-auto md:px-[18px]"
+              aria-label="Export as CSV"
             >
-              <option value="ALL">All Categories</option>
-              <option value="SPENDING">Spendings</option>
-              <option value="LENDING">Lendings</option>
-              <option value="LOAN">Loans</option>
-              <option value="ADVANCE">Advances</option>
-              <option value="SAVINGS">Savings / SIPs</option>
-              <option value="AI">✨ AI Added Only</option>
-            </select>
+              <LineIcon name={exporting ? 'spinner' : 'download'} className={exporting ? 'animate-spin' : ''} />
+              <span className="hidden md:inline">{exporting ? 'Exporting…' : 'Export'}</span>
+            </button>
+          </div>
+        </header>
 
-            {/* Select All Filtered Toggle */}
-            {filteredEntries.length > 0 && (
-              <button
-                type="button"
-                onClick={() => toggleSelectAllFiltered(filteredEntries)}
-                className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${isAllFilteredSelected
-                  ? 'bg-[#5E6AD2]/20 border-[#5E6AD2] text-white'
-                  : 'bg-[#0a0a0c] border-white/10 text-[#8A8F98] hover:text-white hover:border-white/20'
-                  }`}
-              >
-                {isAllFilteredSelected ? (
-                  <>
-                    <CheckSquare className="w-3.5 h-3.5 text-[#818cf8]" />
-                    <span>Deselect All</span>
-                  </>
-                ) : (
-                  <>
-                    <Square className="w-3.5 h-3.5" />
-                    <span>{nextCursor ? `Select loaded (${filteredEntries.length})` : `Select All (${filteredEntries.length})`}</span>
-                  </>
+        {/* Mobile: current cycle at a glance */}
+        {showMonthWise && (
+          <div className="flex items-center justify-between gap-3 rounded-[20px] bg-(--mm-hero) p-[18px] text-white md:hidden">
+            <div className="min-w-0">
+              <div className="text-[12px] font-semibold text-(--mm-hero-muted)">{current ? `${current.label} spending` : 'This cycle'}</div>
+              {current ? (
+                <div className="text-[30px] font-extrabold leading-tight tabular-nums">{money(current.total)}</div>
+              ) : (
+                <span className="mt-1 block h-8 w-36 animate-pulse rounded-lg bg-white/15" aria-hidden="true" />
+              )}
+            </div>
+            {current && (
+              <div className="shrink-0 text-right text-[12px] font-bold">
+                {pace?.pct !== null && (
+                  <div className={paceDown ? 'text-(--mm-hero-good)' : 'text-(--mm-hero-bad)'}>
+                    {paceDown ? '↓' : '↑'} {Math.round(Math.abs(pace.pct))}% vs {pace.prevMonth}
+                  </div>
                 )}
-              </button>
+                <div className="text-(--mm-hero-muted)">{spendDays} {spendDays === 1 ? 'day' : 'days'} with spending</div>
+              </div>
             )}
           </div>
+        )}
+
+        {segment('flex md:hidden [&>button]:flex-1')}
+
+        <div className="flex flex-col gap-3.5 md:flex-row md:flex-wrap md:items-center md:gap-3">
+          <label className="mm-card flex items-center gap-2.5 rounded-xl px-3.5 focus-within:border-(--mm-brand-line) md:min-w-[260px] md:flex-1">
+            <span className="text-(--mm-ink-3)"><LineIcon name="search" /></span>
+            <span className="sr-only">Search ledger</span>
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={isTablet ? 'Search title, category or amount' : 'Search ledger'}
+              className="min-h-11 min-w-0 flex-1 border-0 bg-transparent text-[14px] font-medium text-(--mm-ink) outline-none placeholder:text-(--mm-ink-3) [&::-webkit-search-cancel-button]:hidden"
+            />
+            {searchTerm && (
+              <button type="button" onClick={() => setSearchTerm('')} className="mm-focus rounded-md p-1 text-(--mm-ink-3) hover:text-(--mm-ink) cursor-pointer" aria-label="Clear search">
+                <LineIcon name="close" size={16} />
+              </button>
+            )}
+          </label>
+
+          <div className="-mx-5 flex gap-2 overflow-x-auto px-5 [scrollbar-width:none] md:mx-0 md:flex-wrap md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden">
+            {FILTERS.map(f => (
+              <button key={f.id} type="button" aria-pressed={filter === f.id} onClick={() => setFilter(f.id)} className={`mm-ft ${filter === f.id ? 'is-on' : ''}`}>
+                {f.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-pressed={selecting}
+              onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+              className={`mm-ft ${selecting ? 'is-on' : ''}`}
+              disabled={loadingEntries || !entries.length}
+            >
+              <LineIcon name="select" size={16} /> {selecting ? 'Done' : 'Select'}
+            </button>
+          </div>
         </div>
 
-        {/* Grouped Passbook History list */}
-        {loadingEntries ? (
-          <div className="space-y-6">
-            {[1, 2, 3].map(n => (
-              <div key={n} className="space-y-3">
-                <div className="w-40 h-5 bg-white/5 rounded animate-pulse" />
-                <div className="glass-card p-6 border border-white/[0.06] space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-10 bg-white/5 rounded-lg animate-pulse" />
+        <div className="grid grid-cols-1 items-start gap-3.5 md:gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="flex min-w-0 flex-col gap-[22px]">
+            {loadingEntries ? (
+              <ListSkeleton />
+            ) : loadError && !entries.length ? (
+              <div className="mm-card flex flex-col items-center gap-3 p-8 text-center" role="alert">
+                <span className="mm-in bg-(--mm-red-soft) text-(--mm-red-ink)"><LineIcon name="alert" /></span>
+                <p className="text-[14px] font-bold text-(--mm-ink)">{loadError}</p>
+                <button type="button" onClick={() => loadFirstPage()} className="mm-btn mm-btn-ghost">
+                  <LineIcon name="refresh" /> Retry
+                </button>
+              </div>
+            ) : groups.length === 0 ? (
+              <div className="mm-card flex flex-col items-center gap-2 p-8 text-center">
+                <span className="mm-in bg-(--mm-indigo-soft) text-(--mm-brand-ink)"><LineIcon name="passbook" /></span>
+                <p className="mt-1 text-[15px] font-extrabold text-(--mm-ink)">{hasQuery ? 'No entries match' : 'Your passbook is empty'}</p>
+                <p className="max-w-xs text-[13px] text-(--mm-ink-2)">
+                  {hasQuery ? 'Try another search or filter.' : 'Every spend, saving and loan you log shows up here, day by day.'}
+                </p>
+                {hasQuery ? (
+                  <button type="button" onClick={() => { setFilter('ALL'); setSearchTerm(''); }} className="mm-btn mm-btn-ghost mt-2">Clear filters</button>
+                ) : (
+                  <button type="button" onClick={() => openEdit(null)} className="mm-btn mm-btn-amber mt-2"><LineIcon name="plus" /> Add entry</button>
+                )}
+              </div>
+            ) : (
+              groups.map(group => (
+                <LedgerSection
+                  key={group.key}
+                  group={group}
+                  money={money}
+                  collapsed={collapsed.has(group.key)}
+                  onToggleCollapse={() => toggleCollapse(group.key)}
+                  selecting={selecting}
+                  selectedIds={selectedIds}
+                  onToggleGroup={toggleGroup}
+                >
+                  {group.entries.map(entry => (
+                    <EntryRow
+                      key={entry.id}
+                      entry={entry}
+                      view={describeEntry(entry, money, { withDate: view === 'month' })}
+                      money={money}
+                      selecting={selecting}
+                      selected={selectedIds.has(entry.id)}
+                      onToggle={() => toggleOne(entry.id)}
+                      onEdit={() => openEdit(entry)}
+                      onRepay={() => openRepay(entry)}
+                    />
                   ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : Object.keys(groupedEntries).length === 0 ? (
-          <div className="glass-card py-16 text-center border border-white/[0.06] rounded-2xl">
-            <Wallet className="w-8 h-8 text-[#8A8F98] mx-auto mb-3 opacity-30" />
-            <h3 className="text-white text-sm font-semibold">No Transactions Found</h3>
-            <p className="text-[#8A8F98] text-xs mt-1 max-w-sm mx-auto">
-              No entries match your search query or filter.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6 text-left">
-            {Object.entries(groupedEntries).map(([groupKey, list], groupIdx) => {
-              const allGroupSelected = list.length > 0 && list.every(e => selectedIds.includes(e.id));
-              const someGroupSelected = list.some(e => selectedIds.includes(e.id)) && !allGroupSelected;
-              const groupLabel = formatDateGroupLabel(groupKey);
+                </LedgerSection>
+              ))
+            )}
 
-              const groupSpendTotal = list
-                .filter(e => e.type === 'SPENDING' || e.type === 'LENDING' || e.type === 'SAVINGS')
-                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-
-              const groupIncomeTotal = list
-                .filter(e => e.type === 'LOAN' || e.type === 'ADVANCE')
-                .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-
-              return (
-                <motion.div
-                  key={groupKey}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: Math.min(groupIdx, 6) * 0.03 }}
-                  className="space-y-2.5"
-                >
-                  {/* Date / Month Section Header with Batch Select Toggle */}
-                  <div className="flex items-center justify-between px-1">
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleSelectGroup(list)}
-                        className="text-[#8A8F98] hover:text-white transition-colors cursor-pointer p-0.5"
-                        title={allGroupSelected ? `Deselect all in ${groupLabel}` : `Select all in ${groupLabel}`}
-                      >
-                        {allGroupSelected ? (
-                          <CheckSquare className="w-4 h-4 text-[#818cf8]" />
-                        ) : someGroupSelected ? (
-                          <MinusSquare className="w-4 h-4 text-[#818cf8]" />
-                        ) : (
-                          <Square className="w-4 h-4" />
-                        )}
-                      </button>
-
-                      <h3 className="text-sm font-semibold text-white flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-[#818cf8]" /> {groupLabel}
-                      </h3>
-                      <span className="text-[10px] bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded-full text-[#8A8F98] font-mono">
-                        {list.length} {list.length === 1 ? 'entry' : 'entries'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-3 text-[11px] font-mono text-[#8A8F98]">
-                      {groupSpendTotal > 0 && (
-                        <span className="nline text-rose-400/80">
-                          Out: -{formatCurrency(groupSpendTotal)}
-                        </span>
-                      )}
-                      {groupIncomeTotal > 0 && (
-                        <span className="inline text-emerald-400/80">
-                          In: +{formatCurrency(groupIncomeTotal)}
-                        </span>
-                      )}
-                      {list.filter(e => selectedIds.includes(e.id)).length > 0 && (
-                        <span className="text-[#818cf8] font-semibold">
-                          {list.filter(e => selectedIds.includes(e.id)).length} selected
-                        </span>
-                      )}
-                    </div>
+            {/* Pagination: infinite-scroll sentinel (desktop), Load more, errors */}
+            {!loadingEntries && entries.length > 0 && (
+              <div className="flex flex-col items-center gap-2">
+                {loadError ? (
+                  <div className="flex flex-wrap items-center justify-center gap-2 text-[13px] font-semibold text-(--mm-red-ink)" role="alert">
+                    <LineIcon name="alert" size={16} /> {loadError}
+                    <button type="button" onClick={() => (nextCursor ? loadMore() : loadFirstPage())} className="mm-btn mm-btn-ghost min-h-9 px-3 text-[13px]">Retry</button>
                   </div>
-
-                  {/* Ledger table */}
-                  <div className="glass-card p-4 sm:p-5 border border-white/[0.06] rounded-2xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs text-[#8A8F98]">
-                        <thead>
-                          <tr className="border-b border-white/[0.06] text-[#8A8F98] text-[10px] font-mono uppercase tracking-widest">
-                            <th className="pb-3 w-8 text-center">
-                              <span className="sr-only">Select</span>
-                            </th>
-                            <th className="pb-3">Title & Details</th>
-                            <th className="pb-3">Category</th>
-                            {groupBy === 'month' && <th className="pb-3">Date</th>}
-                            <th className="pb-3 text-right">Amount</th>
-                            <th className="pb-3 text-center">Action</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/[0.04]">
-                          {list.map((entry) => {
-                            const isSelected = selectedIds.includes(entry.id);
-                            const isAi = Boolean(entry.isAiGenerated || /logged via ai|ai assistant|gemini/i.test(entry.description || ''));
-
-                            const typeConfigs = {
-                              SPENDING: { text: 'text-rose-400 bg-rose-500/10 border-rose-500/20', sign: '-' },
-                              LENDING: { text: 'text-blue-400 bg-blue-500/10 border-blue-500/20', sign: '-' },
-                              LOAN: { text: 'text-orange-400 bg-orange-500/10 border-orange-500/20', sign: '+' },
-                              ADVANCE: { text: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20', sign: '+' },
-                              SAVINGS: { text: 'text-amber-400 bg-amber-500/10 border-amber-500/20', sign: '-' },
-                            };
-                            const conf = typeConfigs[entry.type] || { text: 'text-[#8A8F98] bg-white/5 border-white/10', sign: '' };
-
-                            return (
-                              <tr
-                                key={entry.id}
-                                className={`transition-colors group ${isSelected
-                                  ? 'bg-[#5E6AD2]/10 hover:bg-[#5E6AD2]/15'
-                                  : 'hover:bg-white/[0.02]'
-                                  }`}
-                              >
-                                <td className="py-3 pr-2 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={() => toggleSelectOne(entry.id)}
-                                    className="w-4 h-4 rounded border-white/20 bg-[#0a0a0c] text-[#5E6AD2] focus:ring-0 focus:ring-offset-0 cursor-pointer accent-[#5E6AD2]"
-                                  />
-                                </td>
-                                <td className="py-3 pr-2">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-medium text-white group-hover:text-[#EDEDEF]">{entry.title}</span>
-                                    {isAi && (
-                                      <span
-                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-semibold bg-gradient-to-r from-indigo-500/15 to-purple-500/15 border border-indigo-500/30 text-indigo-300 font-mono tracking-tight shadow-sm"
-                                        title="Added via AI Assistant"
-                                      >
-                                        <Sparkles className="w-2.5 h-2.5 text-indigo-400 animate-pulse" />
-                                        <span>AI Added</span>
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {entry.description && (
-                                    <div className="text-[10px] text-[#8A8F98] mt-0.5 max-w-sm truncate">
-                                      {entry.description}
-                                    </div>
-                                  )}
-                                  {entry.type === 'LENDING' && (
-                                    <div className="text-[10px] mt-0.5">
-                                      {entry.unpaidAmount === 0 ? (
-                                        <span className="text-emerald-400 font-medium">✓ Fully Repaid</span>
-                                      ) : (
-                                        <span className="text-[#8A8F98]">Unpaid: <strong className="text-blue-400">{formatCurrency(entry.unpaidAmount)}</strong></span>
-                                      )}
-                                    </div>
-                                  )}
-                                </td>
-                                <td className="py-3 pr-2">
-                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-mono border uppercase tracking-wider ${conf.text}`}>
-                                    {entry.type}
-                                  </span>
-                                  {entry.useSalaryBalance && (
-                                    <span className="block text-[8px] text-[#8A8F98] mt-0.5 font-mono">
-                                      Deducted ({entry.salaryMonth}/{entry.salaryYear})
-                                    </span>
-                                  )}
-                                </td>
-                                {groupBy === 'month' && (
-                                  <td className="py-3 pr-2 text-[11px] text-[#8A8F98] font-mono">
-                                    {new Date(entry.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                                  </td>
-                                )}
-                                <td className={`py-3 pr-2 text-right font-mono font-medium text-xs sm:text-sm ${entry.type === 'SPENDING' || entry.type === 'LENDING' ? 'text-rose-400' : 'text-emerald-400'}`}>
-                                  {conf.sign}{formatCurrency(entry.amount)}
-                                </td>
-                                <td className="py-3 text-center">
-                                  <div className="flex items-center justify-center gap-1">
-                                    {entry.type === 'LENDING' && entry.unpaidAmount > 0 && (
-                                      <button
-                                        onClick={() => {
-                                          setParentLending(entry);
-                                          setEntryModalOpen(true);
-                                        }}
-                                        title="Receive Repayment"
-                                        className="p-1.5 text-[#8A8F98] hover:text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => {
-                                        setEntryToEdit(entry);
-                                        setEntryModalOpen(true);
-                                      }}
-                                      className="p-1.5 text-[#8A8F98] hover:text-white hover:bg-white/[0.05] rounded-lg transition-colors cursor-pointer"
-                                    >
-                                      <Pencil className="w-3 h-3" />
-                                    </button>
-                                    <button
-                                      onClick={() => handleDeleteEntry(entry.id)}
-                                      className="p-1.5 text-[#8A8F98] hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination: infinite-scroll sentinel, load-more fallback, errors */}
-        {!loadingEntries && (
-          <div className="mt-6 flex flex-col items-center gap-2 text-xs text-[#8A8F98]">
-            {loadError ? (
-              <div className="flex items-center gap-2 text-rose-300">
-                <AlertCircle className="w-3.5 h-3.5" />
-                <span>{loadError}</span>
-                <button
-                  type="button"
-                  onClick={() => (nextCursor && entries.length ? loadMore() : loadFirstPage())}
-                  className="ml-1 rounded-lg border border-white/10 px-2.5 py-1 font-semibold text-white hover:bg-white/5 cursor-pointer"
-                >
-                  Retry
-                </button>
+                ) : nextCursor ? (
+                  <>
+                    <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
+                    <button type="button" onClick={loadMore} disabled={loadingMore} className="mm-btn mm-btn-ghost">
+                      {loadingMore
+                        ? <><LineIcon name="spinner" className="animate-spin" /> Loading more…</>
+                        : `Load more (${Math.max(totalCount - entries.length, 0).toLocaleString()} left)`}
+                    </button>
+                  </>
+                ) : entries.length > PAGE_SIZE ? (
+                  <span className="mm-lbl">You&apos;ve reached the first entry.</span>
+                ) : null}
               </div>
-            ) : nextCursor ? (
-              <>
-                <div ref={sentinelRef} aria-hidden="true" className="h-px w-full" />
-                <button
-                  type="button"
-                  onClick={loadMore}
-                  disabled={loadingMore}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-[#0a0a0c] px-4 py-2 font-medium text-white hover:border-white/20 disabled:opacity-60 cursor-pointer"
-                >
-                  {loadingMore ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading more…
-                    </>
-                  ) : (
-                    `Load more (${Math.max(totalCount - entries.length, 0).toLocaleString()} left)`
-                  )}
-                </button>
-              </>
-            ) : entries.length > PAGE_SIZE ? (
-              <span className="font-mono">You&apos;ve reached the first entry.</span>
-            ) : null}
+            )}
           </div>
-        )}
+
+          {showMonthWise && (
+            <aside className="lg:sticky lg:top-7" aria-label="Spending per cycle">
+              <MonthWise cycles={cycles ? cycles.slice(0, VISIBLE_CYCLES) : null} note={note} money={money} />
+            </aside>
+          )}
+        </div>
       </main>
 
-      {/* Floating Multi-Select Action Bar */}
-      <AnimatePresence>
-        {selectedIds.length > 0 && (
-          <motion.div
-            initial={{ y: 80, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: 80, opacity: 0, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-2xl bg-[#0a0a0c]/95 backdrop-blur-2xl border border-white/15 shadow-[0_15px_50px_rgba(0,0,0,0.85)] p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-left"
-          >
-            {/* Left Selection Info */}
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
-              <div className="w-8 h-8 rounded-xl bg-[#5E6AD2]/20 border border-[#5E6AD2]/40 text-[#8B95F6] flex items-center justify-center font-bold text-xs shrink-0">
-                {selectedIds.length}
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-white">
-                  {selectedIds.length} {selectedIds.length === 1 ? 'transaction' : 'transactions'} selected
-                </div>
-                <div className="text-[11px] text-[#8A8F98] font-mono">
-                  Total: <strong className="text-emerald-400 font-bold">{formatCurrency(selectedTotalAmount)}</strong>
-                </div>
-              </div>
+      {selecting && (
+        <SelectionBar
+          count={selectedIds.size}
+          total={selectedTotal}
+          loaded={entries.length}
+          money={money}
+          deleting={deleting}
+          onSelectAll={toggleAllLoaded}
+          onDelete={deleteSelected}
+          onDone={stopSelecting}
+        />
+      )}
 
-              {/* Clear button on mobile */}
-              <button
-                type="button"
-                onClick={() => setSelectedIds([])}
-                className="sm:hidden p-1.5 text-[#8A8F98] hover:text-white rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
-                title="Clear selection"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Right Action Buttons */}
-            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-              <button
-                type="button"
-                onClick={() => setSelectedIds([])}
-                className="hidden sm:inline-flex px-3 py-2 bg-white/5 hover:bg-white/10 text-[#8A8F98] hover:text-white rounded-xl text-xs font-medium transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                disabled={isDeletingBatch}
-                onClick={handleDeleteSelected}
-                className="w-full sm:w-auto px-4 py-2 bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 hover:text-rose-200 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-lg shadow-rose-950/40"
-              >
-                {isDeletingBatch ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Deleting {selectedIds.length}...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete Selected ({selectedIds.length})</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* FOOTER */}
-      <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
-        <div className="max-w-7xl mx-auto px-6 text-[#8A8F98] text-xs text-center font-mono">
-          © {new Date().getFullYear()} MonthlyMoney. Historical Audit Ledger.
-        </div>
-      </footer>
-
+      {/* Legacy component: stays outside data-ui="v2" so the light-mode remap still applies to it. */}
       <TransactionModal
         isOpen={entryModalOpen}
         onClose={() => {
@@ -776,9 +570,9 @@ export default function Transactions() {
         }}
         entryToEdit={entryToEdit}
         parentLending={parentLending}
-        onSuccess={refreshEntries}
+        onSuccess={refreshAll}
         user={user}
-        monthsList={monthsList}
+        monthsList={MONTHS}
         formatCurrency={formatCurrency}
       />
     </div>

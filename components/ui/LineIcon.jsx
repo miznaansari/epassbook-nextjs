@@ -20,10 +20,17 @@ const ICONS = {
   bag: (<><path d="M6 8h12l1 12H5z" /><path d="M9 8a3 3 0 016 0" /></>),
   person: (<><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0116 0" /></>),
   food: (<path d="M7 3v8M5 3v5a2 2 0 004 0V3M7 11v10M17 3c-2 2-2 6 0 8v10" />),
+  calendar: (<><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></>),
+  phone: (<><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></>),
+  love: (<path d="M12 20s-8-5-8-11a4.5 4.5 0 018-2.5A4.5 4.5 0 0120 9c0 6-8 11-8 11z" />),
+  cash: (<><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="3" /></>),
+  repeat: (<path d="M4 12a8 8 0 0114-5M20 12a8 8 0 01-14 5M18 3v4h-4M6 21v-4h4" />),
+  download: (<path d="M12 4v11M7 11l5 5 5-5M5 20h14" />),
+  search: (<><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>),
+  pencil: (<path d="M4 20h4L19 9l-4-4L4 16z" />),
 
   // --- same style, not in the mockup ---
   house: (<><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /><path d="M10 20v-5h4v5" /></>),
-  calendar: (<><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M8 3v4M16 3v4M4 10h16" /></>),
   code: (<path d="M8 8l-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" />),
   settings: (<><circle cx="12" cy="12" r="3" /><path d="M12 3v2.5M12 18.5V21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M3 12h2.5M18.5 12H21M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" /></>),
   logout: (<><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" /><path d="M10 17l-5-5 5-5M5 12h11" /></>),
@@ -43,6 +50,10 @@ const ICONS = {
   book: (<><path d="M2 9l10-5 10 5-10 5z" /><path d="M6 11v5c3 2 9 2 12 0v-5" /></>),
   card: (<><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 10h18M7 15h4" /></>),
   spinner: (<path d="M12 3a9 9 0 109 9" />),
+  check: (<path d="M5 12l5 5 9-10" />),
+  select: (<><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M8 12l3 3 5-6" /></>),
+  trash: (<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />),
+  chevronDown: (<path d="M6 9l6 6 6-6" />),
 };
 
 export default function LineIcon({ name, size = 20, strokeWidth = 1.8, className = '' }) {

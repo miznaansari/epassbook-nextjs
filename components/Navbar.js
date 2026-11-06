@@ -46,8 +46,10 @@ const DOCK_LINKS = [
   { name: 'Savings', path: '/savings', icon: 'wallet' },
 ];
 
-// Pages that render their own header (title + scan button) in place of the desktop top bar.
-const OWN_HEADER = new Set(['/dashboard']);
+// Pages that render their own desktop header in place of the top bar.
+const OWN_HEADER = new Set(['/dashboard', '/transactions']);
+// Pages whose own mobile header replaces the app bar (logo + scan).
+const OWN_MOBILE_HEADER = new Set(['/transactions']);
 
 function pageTitle(pathname) {
   for (const g of NAV_GROUPS) {
@@ -236,6 +238,7 @@ export default function Navbar() {
       )}
 
       {/* ============ Mobile app bar (< md) ============ */}
+      {!OWN_MOBILE_HEADER.has(pathname) && (
       <header
         data-ui="v2"
         className="mm md:hidden sticky top-0 z-50 w-full bg-(--mm-canvas)/90 backdrop-blur-md"
@@ -251,6 +254,7 @@ export default function Navbar() {
           </ScanReceiptButton>
         </div>
       </header>
+      )}
 
       {/* ============ Mobile dock (< md) ============ */}
       <div

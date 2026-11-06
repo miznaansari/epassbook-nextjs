@@ -43,7 +43,7 @@ Old token names (`--background-elevated`, `--foreground-muted`, `--border-defaul
 UI icons: `components/ui/Icon3D.jsx` + `lib/uiIcons.js` (files in `public/icons3d/`, fetched with `node scripts/fetch-ui-icons.mjs`). Spend item icons: `lib/spendIcons.js` (stored in R2).
 
 ## Dashboard redesign tokens (`--mm-*`)
-The dashboard and the navigation (sidebar, mobile app bar, dock, drawer) use the exact mockup colours from `Artifacat/*.dc.html` as plain CSS variables (`:root` = light, `.dark` / `[data-theme="dark"]` = matched dark values), used as `bg-(--mm-card)`, `text-(--mm-ink)`, etc. Mockup classes are ported as `.mm-card`, `.mm-lbl`, `.mm-h2`, `.mm-btn(-amber|-ghost|-soft)`, `.mm-chip`, `.mm-tag`, `.mm-in`, `.mm-nav` in `@layer components`; put `.mm` on the root for the Plus Jakarta Sans type.
+The dashboard, the E-Passbook and the navigation (sidebar, mobile app bar, dock, drawer) use the exact mockup colours from `Artifacat/*.dc.html` as plain CSS variables (`:root` = light, `.dark` / `[data-theme="dark"]` = matched dark values), used as `bg-(--mm-card)`, `text-(--mm-ink)`, etc. Mockup classes are ported as `.mm-card`, `.mm-lbl`, `.mm-h2`, `.mm-btn(-amber|-ghost|-soft)`, `.mm-chip`, `.mm-tag`, `.mm-in`, `.mm-nav`, and for the passbook `.mm-seg`, `.mm-ft`, `.mm-tr`, in `@layer components`; put `.mm` on the root for the Plus Jakarta Sans type.
 | Token | Light | Use |
 |---|---|---|
 | `--mm-canvas` / `--mm-card` / `--mm-soft` | `#F6F7FB` / `#FFFFFF` / `#F6F7FB` | Page, cards, soft buttons |
@@ -55,5 +55,7 @@ The dashboard and the navigation (sidebar, mobile app bar, dock, drawer) use the
 | Category series | indigo `#4F46E5`, orange `#EA580C`, green `#10B981`, gold `#F59E0B` (+ `-soft` / `-ink`) | Rank order in donut, breakdown, top items |
 | Cycle series `--mm-cycle-0..4` | `#3730A3 #4F46E5 #EA580C #10B981 #F59E0B` | Newest → oldest cycle (chips + bars) |
 | `--mm-red-soft` / `--mm-red-ink` | `#FEE2E2` / `#B91C1C` | Increases, spend amounts |
+| `--mm-savings-ink` | `#92400E` | Passbook savings tag + amount (on `--mm-gold-soft`) |
+| `--mm-seg` / `--mm-ft-on` | `#EAECF5` / `#3730A3` | Passbook Day/Month segmented control / active type filter |
 
 Stroke icons for these surfaces: `components/ui/LineIcon.jsx` (mockup paths verbatim).

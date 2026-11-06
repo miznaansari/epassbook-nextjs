@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { requireUser } from '@/lib/requireUser';
 import { getMonthlyBalances } from '@/lib/balances';
+import { spendGroupOf } from '@/lib/spendCategories';
 
 const monthNames = [
   "", "January", "February", "March", "April", "May", "June",
@@ -92,6 +93,9 @@ async function refundedByMonth(repaymentIds) {
 //   cursor  id of the last entry from the previous page
 //   q       search in title / description
 //   ai=1    only entries added by the AI assistant
+//   type    one type, or several comma-separated (e.g. LOAN,ADVANCE)
+// Paginated items also carry `spendGroup` (dashboard category, SPENDING only) and
+// `itemKey` (AI item icon key) from the entry's SpendTag.
 // `total` is only computed for the first page (no cursor); later pages return null.
 export async function GET(req) {
   try {
@@ -115,14 +119,24 @@ export async function GET(req) {
     const conditions = [];
 
     if (type) {
-      if (!ENTRY_TYPES.includes(type)) {
+      const types = [...new Set(type.split(',').map(t => t.trim()).filter(Boolean))];
+      if (!types.length || types.some(t => !ENTRY_TYPES.includes(t))) {
         return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
       }
-      where.type = type;
+      where.type = types.length === 1 ? types[0] : { in: types };
     }
 
     if (q) {
-      conditions.push({ OR: [{ title: { contains: q } }, { description: { contains: q } }] });
+      // Title, note, AI merchant/item tag ("Family & People", "Atta") and, for a number, the exact amount.
+      const match = [
+        { title: { contains: q } },
+        { description: { contains: q } },
+        { spendTag: { is: { merchant: { contains: q } } } },
+        { spendTag: { is: { item: { contains: q } } } },
+      ];
+      const asAmount = q.replace(/[₹,\s]/g, '');
+      if (/^\d+(\.\d{1,2})?$/.test(asAmount)) match.push({ amount: { equals: asAmount } });
+      conditions.push({ OR: match });
     }
     if (aiOnly) {
       conditions.push({
@@ -168,7 +182,7 @@ export async function GET(req) {
     const [rows, total] = await Promise.all([
       db.financialEntry.findMany({
         where,
-        include: { deductions: true },
+        include: { deductions: true, spendTag: { select: { merchant: true, merchantSlug: true, item: true, itemKey: true } } },
         orderBy: ENTRY_ORDER,
         take: limit + 1, // one extra row tells us whether another page exists
         ...(hasCursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -179,8 +193,14 @@ export async function GET(req) {
     const hasMore = rows.length > limit;
     const page = hasMore ? rows.slice(0, limit) : rows;
 
+    const items = (await enrichEntries(page)).map(({ spendTag, ...entry }) => ({
+      ...entry,
+      spendGroup: entry.type === 'SPENDING' ? spendGroupOf(entry, spendTag) : null,
+      itemKey: spendTag?.itemKey || null,
+    }));
+
     return NextResponse.json({
-      items: await enrichEntries(page),
+      items,
       nextCursor: hasMore ? page[page.length - 1].id : null,
       total,
     });

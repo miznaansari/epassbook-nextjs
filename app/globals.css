@@ -772,6 +772,13 @@ html.light footer:not([data-ui="v2"], [data-ui="v2"] *) {
   --mm-gold-ink: #B45309;
   --mm-red-soft: #FEE2E2;
   --mm-red-ink: #B91C1C;
+  --mm-savings-ink: #92400E;
+
+  /* Passbook: segmented control + filter chips */
+  --mm-seg: #EAECF5;
+  --mm-seg-shadow: 0 1px 3px #14142B1A;
+  --mm-ft-on: #3730A3;
+  --mm-ft-on-ink: #FFFFFF;
 
   /* Cycle series, newest first */
   --mm-cycle-0: #3730A3;
@@ -815,6 +822,12 @@ html.light footer:not([data-ui="v2"], [data-ui="v2"] *) {
   --mm-gold-ink: #FCD34D;
   --mm-red-soft: rgb(248 113 113 / 0.14);
   --mm-red-ink: #FCA5A5;
+  --mm-savings-ink: #FCD34D;
+
+  --mm-seg: #1A1F2E;
+  --mm-seg-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
+  --mm-ft-on: #818CF8;
+  --mm-ft-on-ink: #0B0D14;
 
   --mm-cycle-0: #A5B4FC;
   --mm-cycle-1: #6366F1;
@@ -919,6 +932,60 @@ html.light footer:not([data-ui="v2"], [data-ui="v2"] *) {
   .mm-nav:hover { background: var(--mm-soft); color: var(--mm-ink); }
   .mm-nav.is-on { background: var(--mm-brand-soft); color: var(--mm-brand-ink); }
   .mm-divide { border-top: 1px solid var(--mm-line-2); }
+  /* Passbook mockup: .seg (Day wise / Month wise), .ft (type filters), .tr (ledger row) */
+  .mm-seg {
+    display: inline-flex;
+    background: var(--mm-seg);
+    border-radius: 12px;
+    padding: 4px;
+  }
+  .mm-seg > button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border-radius: 9px;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--mm-ink-2);
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+  .mm-seg > button.is-on { background: var(--mm-card); color: var(--mm-brand-ink); box-shadow: var(--mm-seg-shadow); }
+  .mm-ft {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: 99px;
+    border: 1px solid var(--mm-line);
+    background: var(--mm-card);
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--mm-ink-2);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  .mm-ft:hover { border-color: var(--mm-brand-line); }
+  .mm-ft.is-on { background: var(--mm-ft-on); border-color: var(--mm-ft-on); color: var(--mm-ft-on-ink); }
+  .mm-ft:disabled { opacity: 0.5; cursor: not-allowed; }
+  .mm-tr {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--mm-line-2);
+  }
+  .mm-tr:first-child { border-top: 0; }
+  .mm-seg > button:focus-visible,
+  .mm-ft:focus-visible {
+    outline: 2px solid var(--mm-brand);
+    outline-offset: 2px;
+  }
   .mm-btn:focus-visible,
   .mm-chip:focus-visible,
   .mm-nav:focus-visible,
