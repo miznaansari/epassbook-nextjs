@@ -554,13 +554,14 @@ export default function StocksPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: '#0a0a0c',
-                        border: '1px solid rgba(255,255,255,0.08)',
+                        backgroundColor: 'var(--color-card)',
+                        color: 'var(--color-ink)',
+                        border: '1px solid var(--color-line)',
                         borderRadius: '12px',
                         fontSize: '11px',
-                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                        boxShadow: 'var(--shadow-pop)',
                       }}
-                      itemStyle={{ color: '#fff', fontFamily: 'monospace' }}
+                      itemStyle={{ color: 'var(--color-ink)', fontFamily: 'monospace' }}
                       formatter={(value) => formatCurrency(value)}
                     />
                   </PieChart>
@@ -638,17 +639,18 @@ export default function StocksPage() {
             <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={performanceData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" vertical={false} />
                   <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
                   <YAxis stroke="#64748B" fontSize={10} tickLine={false} tickFormatter={(val) => formatCurrency(val).replace(/\.00$/, '')} />
                   <Tooltip
                     contentStyle={{
-                      backgroundColor: '#0a0a0c',
-                      border: '1px solid rgba(255,255,255,0.08)',
+                      backgroundColor: 'var(--color-card)',
+                      color: 'var(--color-ink)',
+                      border: '1px solid var(--color-line)',
                       borderRadius: '12px',
                       fontSize: '11px',
                       fontFamily: 'monospace',
-                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                      boxShadow: 'var(--shadow-pop)',
                     }}
                     formatter={(value) => [formatCurrency(value), '']}
                   />

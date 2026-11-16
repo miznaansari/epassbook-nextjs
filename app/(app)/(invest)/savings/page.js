@@ -746,7 +746,7 @@ export default function SavingsManagement() {
                       </filter>
                     </defs>
 
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.05)" vertical={false} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" vertical={false} />
 
                     <XAxis
                       dataKey="name"
@@ -779,7 +779,7 @@ export default function SavingsManagement() {
                       activeDot={{
                         r: 6,
                         fill: "#818cf8",
-                        stroke: "#ffffff",
+                        stroke: "var(--color-card)",
                         strokeWidth: 2,
                         className: "shadow-lg shadow-indigo-500/50"
                       }}

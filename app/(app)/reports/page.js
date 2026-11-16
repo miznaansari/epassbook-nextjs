@@ -868,17 +868,18 @@ export default function Reports() {
                         }))}
                         margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                       >
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={10} tickLine={false} />
                         <Tooltip
                           contentStyle={{
-                            backgroundColor: '#0a0a0c',
-                            border: '1px solid rgba(255,255,255,0.08)',
+                            backgroundColor: 'var(--color-card)',
+                            color: 'var(--color-ink)',
+                            border: '1px solid var(--color-line)',
                             borderRadius: '12px',
                             fontSize: '11px',
                             fontFamily: 'monospace',
-                            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.5)',
+                            boxShadow: 'var(--shadow-pop)',
                           }}
                           formatter={(value) => [formatCurrency(value), '']}
                         />

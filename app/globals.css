@@ -724,6 +724,82 @@ html.light footer:not([data-ui="v2"], [data-ui="v2"] *) {
   border-color: var(--color-line) !important;
 }
 
+/* 5. Light-only remaps for dark surfaces and pale text the rules above miss  */
+/*    (translucent hex panels, slate-900 fills, admin + set-password pages). */
+html.light .bg-\[\#02040a\]:not([data-ui="v2"] *),
+html.light .bg-\[\#030712\]:not([data-ui="v2"] *),
+html.light .bg-\[\#090e1a\]:not([data-ui="v2"] *) {
+  background-color: var(--color-canvas) !important;
+}
+
+html.light .bg-\[\#0a0a0c\]\/80:not([data-ui="v2"] *),
+html.light .bg-\[\#08080a\]\/95:not([data-ui="v2"] *),
+html.light .bg-\[\#0e0e12\]:not([data-ui="v2"] *),
+html.light .bg-\[\#0b101c\]\/60:not([data-ui="v2"] *),
+html.light .bg-\[\#0b101c\]\/40:not([data-ui="v2"] *),
+html.light .bg-\[\#070b14\]\/75:not([data-ui="v2"] *),
+html.light .bg-\[\#05080f\]\/40:not([data-ui="v2"] *),
+html.light .bg-slate-900:not([data-ui="v2"] *),
+html.light .bg-slate-800:not([data-ui="v2"] *) {
+  background-color: var(--color-card) !important;
+}
+
+html.light .bg-\[\#050506\]\/80:not([data-ui="v2"] *),
+html.light .bg-\[\#050506\]\/70:not([data-ui="v2"] *),
+html.light .bg-\[\#050506\]\/60:not([data-ui="v2"] *),
+html.light .bg-\[\#050506\]\/50:not([data-ui="v2"] *),
+html.light .bg-\[\#070b14\]\/50:not([data-ui="v2"] *),
+html.light .bg-slate-950\/50:not([data-ui="v2"] *),
+html.light .bg-slate-950\/40:not([data-ui="v2"] *),
+html.light .bg-slate-900\/60:not([data-ui="v2"] *),
+html.light .bg-slate-900\/40:not([data-ui="v2"] *),
+html.light .bg-white\/\[0\.1\]:not([data-ui="v2"] *) {
+  background-color: var(--color-card-2) !important;
+}
+
+html.light .from-\[\#0a0a0c\]:not([data-ui="v2"] *) {
+  --tw-gradient-from: var(--color-card) !important;
+}
+
+html.light .hover\:bg-white\/5:hover:not([data-ui="v2"] *),
+html.light .hover\:bg-white\/\[0\.01\]:hover:not([data-ui="v2"] *),
+html.light .hover\:bg-white\/\[0\.02\]:hover:not([data-ui="v2"] *),
+html.light .hover\:bg-white\/\[0\.1\]:hover:not([data-ui="v2"] *),
+html.light .hover\:bg-white\/20:hover:not([data-ui="v2"] *) {
+  background-color: var(--color-card-3) !important;
+}
+
+/* Pale slate text is unreadable on light surfaces. Elements that already     */
+/* carry their own dark: text variant are theme-aware and are left alone.     */
+html.light .text-slate-100:not([data-ui="v2"] *, [class*="dark:text-"]),
+html.light .text-slate-200:not([data-ui="v2"] *, [class*="dark:text-"]),
+html.light .hover\:text-slate-200:hover:not([data-ui="v2"] *, [class*="dark:hover:text-"]),
+html.light .text-white\/85:not([data-ui="v2"] *) {
+  color: var(--color-ink) !important;
+}
+
+html.light .text-slate-300:not([data-ui="v2"] *, [class*="dark:text-"]),
+html.light .text-slate-400:not([data-ui="v2"] *, [class*="dark:text-"]),
+html.light .text-white\/75:not([data-ui="v2"] *) {
+  color: var(--color-ink-2) !important;
+}
+
+html.light .border-white\/15:not([data-ui="v2"] *),
+html.light .border-slate-500\/20:not([data-ui="v2"] *) {
+  border-color: var(--color-line) !important;
+}
+
+html.light .hover\:border-white\/15:hover:not([data-ui="v2"] *),
+html.light .hover\:border-white\/\[0\.1\]:hover:not([data-ui="v2"] *),
+html.light .hover\:border-slate-700:hover:not([data-ui="v2"] *) {
+  border-color: var(--color-line-strong) !important;
+}
+
+html.light .divide-white\/\[0\.04\]:not([data-ui="v2"] *) > * + *,
+html.light .divide-white\/\[0\.03\]:not([data-ui="v2"] *) > * + * {
+  border-color: var(--color-line) !important;
+}
+
 /* ========================================================================= */
 /* MONTHLYMONEY REDESIGN — dashboard + navigation                            */
 /* Light values are the exact mockup colours (Artifacat/*.dc.html); dark     */

@@ -418,7 +418,7 @@ export default function ReportsMobile({
                             <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                         <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
@@ -444,7 +444,7 @@ export default function ReportsMobile({
                   <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                         <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
@@ -469,7 +469,7 @@ export default function ReportsMobile({
                   <div className="h-44 w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
                         <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                         <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                         <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} />} />
@@ -515,13 +515,14 @@ export default function ReportsMobile({
                           }))}
                           margin={{ top: 5, right: 5, left: -25, bottom: 0 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" />
                           <XAxis dataKey="name" stroke="#64748B" fontSize={8} tickLine={false} />
                           <YAxis stroke="#64748B" fontSize={8} tickLine={false} />
                           <Tooltip
                             contentStyle={{
-                              backgroundColor: '#0a0a0c',
-                              border: '1px solid rgba(255,255,255,0.08)',
+                              backgroundColor: 'var(--color-card)',
+                              color: 'var(--color-ink)',
+                              border: '1px solid var(--color-line)',
                               borderRadius: '12px',
                               fontSize: '10px',
                               fontFamily: 'monospace',
