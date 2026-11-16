@@ -46,13 +46,14 @@ function SyncPill({ refreshing, error, onRetry }) {
   return null;
 }
 
-function CardSkeleton({ rows = 3, tall = false }) {
+/** Placeholder with the same footprint (`size` = min-height classes) as the card it stands in for. */
+function CardSkeleton({ rows = 3, tall = false, size = '' }) {
   return (
-    <div className="mm-card p-[22px]" aria-busy="true">
+    <div className={`mm-card p-[22px] ${size}`} aria-busy="true">
       <Skeleton className="h-4 w-32" />
       <Skeleton className="mt-2 h-3 w-44" />
       {tall ? (
-        <Skeleton className="mt-5 h-[150px] w-full rounded-2xl" />
+        <Skeleton className="mt-5 h-[140px] w-full rounded-2xl" />
       ) : (
         <div className="mt-5 space-y-4">
           {Array.from({ length: rows }, (_, i) => (
@@ -196,13 +197,14 @@ export default function Dashboard() {
             <LineIcon name="camera" /> Scan receipt
           </ScanReceiptButton>
         </header>
-        {sync && <div className="order-first md:hidden">{sync}</div>}
-
-        <div className="order-1">
+        <div className="relative order-1">
+          {/* Mobile: the sync pill floats over the hero instead of pushing the page down. */}
+          {sync && <div className="absolute right-3 top-3 z-10 md:hidden">{sync}</div>}
           <Hero
             kpis={kpis}
             spent={spent}
             pace={pace}
+            pacePending={!overview.data}
             cycleLabel={currentChip.label}
             dateRange={dateRange}
             money={money}
@@ -242,11 +244,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <>
-                <div><CardSkeleton tall /></div>
-                <div><CardSkeleton tall /></div>
-                <div><CardSkeleton tall /></div>
-                <div><CardSkeleton /></div>
-                <div className="md:col-span-2"><CardSkeleton rows={4} /></div>
+                <div className="order-1"><CardSkeleton tall size="min-h-[378px] md:min-h-[290px]" /></div>
+                <div className="order-2"><CardSkeleton tall size="min-h-[270px] md:min-h-[290px]" /></div>
+                <div className="order-3"><CardSkeleton tall size="min-h-[246px] md:min-h-[289px]" /></div>
+                <div className="order-5 md:order-4"><CardSkeleton size="min-h-[289px]" /></div>
+                <div className="order-4 md:order-5 md:col-span-2"><CardSkeleton rows={4} size="min-h-[389px] md:min-h-[368px]" /></div>
               </>
             )
           ) : (

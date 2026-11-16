@@ -3,14 +3,18 @@
 import LineIcon from '@/components/ui/LineIcon';
 import { Skeleton } from '@/components/ui/States';
 
+// Fixed minimum height (title + two body lines) so cards don't resize when data arrives.
+const CARD = 'mm-card flex min-h-[94px] items-start gap-3 p-4';
+
 function InsightCard({ insight, onAction }) {
   if (!insight) {
     return (
-      <div className="mm-card flex items-start gap-3 p-4" aria-busy="true">
+      <div className={CARD} aria-busy="true">
         <Skeleton className="h-10 w-10 shrink-0 rounded-xl" />
         <div className="flex-1 space-y-2 pt-1">
-          <Skeleton className="h-3.5 w-40" />
-          <Skeleton className="h-3 w-52 max-w-full" />
+          <Skeleton className="h-3.5 w-40 max-w-full" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-3/5" />
         </div>
       </div>
     );
@@ -33,13 +37,13 @@ function InsightCard({ insight, onAction }) {
       <button
         type="button"
         onClick={() => onAction(insight.action)}
-        className="mm-card mm-focus flex items-start gap-3 p-4 text-left cursor-pointer transition-colors hover:border-(--mm-brand-line)"
+        className={`${CARD} mm-focus text-left cursor-pointer transition-colors hover:border-(--mm-brand-line)`}
       >
         {body}
       </button>
     );
   }
-  return <div className="mm-card flex items-start gap-3 p-4">{body}</div>;
+  return <div className={CARD}>{body}</div>;
 }
 
 export default function InsightCards({ insights, onAction }) {

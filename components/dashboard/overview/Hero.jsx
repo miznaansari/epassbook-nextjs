@@ -12,13 +12,18 @@ function salaryUsedPct(kpis) {
   return Math.min(100, Math.max(0, ((total - left) / total) * 100));
 }
 
-function Delta({ pace }) {
-  if (!pace || pace.pct === null) return null;
+/** Always one 18px line, so nothing below moves when the comparison arrives. */
+function Delta({ pace, pending }) {
+  const line = 'h-[18px] text-[12px] font-bold leading-[18px]';
+  if (pending) {
+    return <div className={line} aria-hidden="true"><span className="mt-[3px] block h-3 w-28 animate-pulse rounded bg-white/15" /></div>;
+  }
+  if (!pace || pace.pct === null) return <div className={line} aria-hidden="true" />;
   const n = Math.round(Math.abs(pace.pct));
-  if (n === 0) return <div className="text-[12px] font-bold text-(--mm-hero-muted)">Same pace as last cycle</div>;
+  if (n === 0) return <div className={`${line} text-(--mm-hero-muted)`}>Same pace as last cycle</div>;
   const down = pace.pct < 0;
   return (
-    <div className={`text-[12px] font-bold ${down ? 'text-(--mm-hero-good)' : 'text-(--mm-hero-bad)'}`}>
+    <div className={`${line} ${down ? 'text-(--mm-hero-good)' : 'text-(--mm-hero-bad)'}`}>
       {down ? '↓' : '↑'} {n}% vs last cycle
     </div>
   );
@@ -45,9 +50,12 @@ function UsedBar({ used, thick }) {
   );
 }
 
-export default function Hero({ kpis, spent, pace, cycleLabel, dateRange, money, loading }) {
-  const used = salaryUsedPct(kpis);
+/** `loading`: KPI numbers pending. `pacePending`: the vs-last-cycle comparison is pending. */
+export default function Hero({ kpis, spent, pace, pacePending = false, cycleLabel, dateRange, money, loading }) {
   const ready = !loading;
+  // While loading, assume the salary bar will be there (the usual case) so the card keeps its height.
+  const used = ready ? salaryUsedPct(kpis) : 0;
+  const pct = ready && used !== null ? `${Math.round(used)}%` : '';
   const tiles = [
     { label: 'Balance', short: 'Balance', value: kpis?.currentBalance },
     { label: 'Salary left', short: 'Left', value: kpis?.salaryBalance },
@@ -59,13 +67,13 @@ export default function Hero({ kpis, spent, pace, cycleLabel, dateRange, money, 
       <section className="hidden md:grid grid-cols-[1.4fr_1fr_1fr] items-center gap-5 rounded-3xl bg-(--mm-hero) p-7 text-white">
         <div className="min-w-0">
           <div className="text-[13px] font-semibold text-(--mm-hero-muted)">Spent this cycle · {cycleLabel}</div>
-          <Amount value={money(spent)} ready={ready} className="my-1 text-[48px] leading-[1.15]" skeleton="my-2 h-12 w-56" />
-          <Delta pace={pace} />
+          <Amount value={money(spent)} ready={ready} className="my-1 text-[48px] leading-[1.15]" skeleton="my-[7px] h-[49px] w-56" />
+          <Delta pace={pace} pending={pacePending} />
           {used !== null && (
             <>
               <div className="mt-[18px] flex justify-between text-[12px] font-semibold text-(--mm-hero-muted)">
                 <span>Salary used</span>
-                <span>{Math.round(used)}%</span>
+                <span>{pct}</span>
               </div>
               <div className="mt-1.5"><UsedBar used={used} thick /></div>
             </>
@@ -85,12 +93,12 @@ export default function Hero({ kpis, spent, pace, cycleLabel, dateRange, money, 
           {cycleLabel}{dateRange ? ` · ${dateRange}` : ''}
         </div>
         <Amount value={money(spent)} ready={ready} className="my-1 text-[40px] leading-[1.15]" skeleton="my-2 h-10 w-48" />
-        <Delta pace={pace} />
+        <Delta pace={pace} pending={pacePending} />
         {used !== null && (
           <>
             <div className="mt-3.5 flex justify-between text-[11px] font-semibold text-(--mm-hero-muted)">
               <span>Salary used</span>
-              <span>{Math.round(used)}%</span>
+              <span>{pct}</span>
             </div>
             <div className="mb-3.5 mt-1.5"><UsedBar used={used} /></div>
           </>
