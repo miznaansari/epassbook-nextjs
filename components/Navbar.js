@@ -313,7 +313,8 @@ export default function Navbar() {
       </div>
 
       {/* ============ Mobile drawer ============
-          Always mounted and moved with a GPU transform, so opening it costs no
+          Always mounted and slid with the `translate` property (what Tailwind v4's
+          translate-x-* sets, so that is what must be transitioned), so opening it costs no
           React mount work. */}
       <div data-ui="v2" className="mm md:hidden">
         <div
@@ -329,7 +330,7 @@ export default function Navbar() {
           aria-modal="true"
           aria-label="Menu"
           inert={!drawerOpen}
-          className={`fixed inset-y-0 right-0 z-[101] flex w-[86vw] max-w-[360px] transform-gpu flex-col border-l border-(--mm-line) bg-(--mm-card) shadow-pop transition-[transform,visibility] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          className={`fixed inset-y-0 right-0 z-[101] flex w-[86vw] max-w-[360px] flex-col border-l border-(--mm-line) bg-(--mm-card) shadow-pop will-change-[translate] transition-[translate,visibility] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
             drawerOpen ? 'visible translate-x-0' : 'invisible translate-x-full'
           }`}
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}

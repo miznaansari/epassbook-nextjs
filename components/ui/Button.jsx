@@ -24,7 +24,7 @@ const SIZES = {
 export function buttonClasses({ variant = 'primary', size = 'md', className = '' } = {}) {
   return [
     'inline-flex items-center justify-center font-semibold whitespace-nowrap select-none cursor-pointer',
-    'transition-[background-color,color,box-shadow,transform,filter] duration-200 active:scale-[0.98]',
+    'transition-[background-color,color,box-shadow,scale,filter] duration-200 active:scale-[0.98]',
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
     'disabled:opacity-60 disabled:cursor-not-allowed disabled:active:scale-100',
     VARIANTS[variant] || VARIANTS.primary,
