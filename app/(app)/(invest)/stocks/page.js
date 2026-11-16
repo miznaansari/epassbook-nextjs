@@ -592,7 +592,7 @@ export default function StocksPage() {
           </section>
 
           {/* Profit & loss and allocation */}
-          <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
             <Card title="Profit & loss by stock" sub="Tap a stock to see its purchases">
               <DivergingBars rows={pnlRows} format={formatCurrency} onSelect={openHolding} />
             </Card>

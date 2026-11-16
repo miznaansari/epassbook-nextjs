@@ -589,12 +589,12 @@ export default function SavingsManagement() {
 
       {/* Split + biggest pots */}
       {loadingData ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <CardSkeleton rows={2} height={200} />
           <CardSkeleton rows={3} height={200} />
         </div>
       ) : !nothingYet && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card title="Where your savings sit" sub="Current value by pot type">
             <SegmentedBar parts={splitParts} format={formatCurrency} label="Savings by pot type" />
           </Card>
@@ -643,7 +643,7 @@ export default function SavingsManagement() {
 
       {/* Pot list */}
       {loadingData ? (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <CardSkeleton rows={2} />
           <CardSkeleton rows={2} />
         </div>
@@ -657,7 +657,7 @@ export default function SavingsManagement() {
           />
         </div>
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
+        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {filteredPots.map((pot) => {
             const isStock = Boolean(pot.isStock);
             const stock = pot.stockInfo;
@@ -670,11 +670,11 @@ export default function SavingsManagement() {
             const tone = isStock ? 'indigo' : pot.linkedSip ? 'orange' : isWithdrawn ? 'gold' : 'green';
 
             return (
-              <li key={pot.key} className="mm-card mm-lift flex flex-col gap-3.5 p-4 md:p-[18px]">
+              <li key={pot.key} className="mm-card min-w-0 mm-lift flex flex-col gap-3.5 p-4 md:p-[18px]">
                 <div className="flex items-start gap-3">
                   <Icon3DTile name={avatar} tone={tone} size={48} />
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate text-[15px] font-extrabold text-(--mm-ink)">{pot.title}</h3>
+                    <h3 className="line-clamp-2 break-words text-[15px] font-extrabold leading-snug text-(--mm-ink)">{pot.title}</h3>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       {isStock && <Pill tone="brand">Stock{stock ? ` · ${stock.quantity} sh` : ''}</Pill>}
                       {pot.linkedSip && <Pill tone="warn">SIP · {pot.linkedSip.frequency}</Pill>}
@@ -682,15 +682,17 @@ export default function SavingsManagement() {
                       {isWithdrawn && <Pill tone="bad">Fully redeemed</Pill>}
                     </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <div className="mm-lbl">{isStock ? 'Market value' : 'Balance'}</div>
-                    <div className="text-[19px] font-extrabold tabular-nums text-(--mm-ink)">{formatCurrency(pot.currentBalance)}</div>
-                  </div>
+                </div>
+
+                {/* Balance on its own row, so a long name or a large amount never squeezes the other. */}
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="mm-lbl">{isStock ? 'Market value' : 'Balance'}</span>
+                  <span className="min-w-0 truncate text-[22px] font-extrabold leading-tight tabular-nums text-(--mm-ink)">{formatCurrency(pot.currentBalance)}</span>
                 </div>
 
                 {isStock && stock ? (
                   <div className="flex flex-col gap-1 text-[12px] font-semibold text-(--mm-ink-2)">
-                    <div className="flex justify-between gap-3">
+                    <div className="flex flex-wrap justify-between gap-x-3 gap-y-1">
                       <span>Invested <b className="tabular-nums text-(--mm-ink)">{formatCurrency(stock.investedValue)}</b></span>
                       <span>Price <b className="tabular-nums text-(--mm-ink)">{formatCurrency(stock.currentPrice)}/sh</b></span>
                     </div>
@@ -700,7 +702,7 @@ export default function SavingsManagement() {
                   </div>
                 ) : (
                   <div>
-                    <div className="mb-1.5 flex justify-between gap-3 text-[12px] font-semibold text-(--mm-ink-2)">
+                    <div className="mb-1.5 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[12px] font-semibold text-(--mm-ink-2)">
                       <span>Deposited <b className="tabular-nums text-(--mm-ink)">{formatCurrency(pot.totalDeposited)}</b></span>
                       <span>Withdrawn <b className="tabular-nums text-(--mm-ink)">{formatCurrency(pot.totalWithdrawn)}</b></span>
                     </div>
