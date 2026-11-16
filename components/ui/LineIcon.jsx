@@ -36,6 +36,7 @@ const ICONS = {
   logout: (<><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3" /><path d="M10 17l-5-5 5-5M5 12h11" /></>),
   close: (<path d="M6 6l12 12M18 6L6 18" />),
   chevron: (<path d="M9 6l6 6-6 6" />),
+  chevronLeft: (<path d="M15 6l-6 6 6 6" />),
   panelClose: (<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M15.5 10l-2 2 2 2" /></>),
   panelOpen: (<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16M13.5 10l2 2-2 2" /></>),
   arrow: (<path d="M5 12h14M13 6l6 6-6 6" />),

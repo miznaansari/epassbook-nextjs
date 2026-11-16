@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { AlertCircle, ArrowUp, Loader2, Mic, MicOff, Plus, X } from 'lucide-react';
 import Icon3D from '@/components/ui/Icon3D';
+import LineIcon from '@/components/ui/LineIcon';
 
 const MAX_IMAGES = 10;
 
@@ -127,11 +128,11 @@ export default function Composer({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || isProcessingImage}
-          className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary-soft transition hover:brightness-95 dark:hover:brightness-125 disabled:opacity-50 cursor-pointer"
+          className="relative inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary-soft text-secondary-ink transition hover:brightness-95 dark:hover:brightness-125 disabled:opacity-50 cursor-pointer"
           aria-label="Attach receipt photos"
           title="Attach receipt photos (up to 10)"
         >
-          {isProcessingImage ? <Loader2 className="h-4 w-4 animate-spin text-secondary-ink" /> : <Icon3D name="camera" size={22} />}
+          {isProcessingImage ? <Loader2 className="h-4 w-4 animate-spin text-secondary-ink" /> : <LineIcon name="camera" size={22} />}
           {attachedImages.length > 0 && !isProcessingImage && (
             <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-fg">
               {attachedImages.length}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Sheet from '@/components/ui/Sheet';
 import { PiggyBank, X } from 'lucide-react';
 
 export const MONTHS = [
@@ -60,27 +61,15 @@ export default function SalaryModal({ open, onClose, user, onSaved }) {
 
   return (
     <>
-      <AnimatePresence>
-        {open && (
-          <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={onClose}
-              className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-pointer"
-            />
-            <motion.div
-              role="dialog"
-              aria-modal="true"
-              aria-label="Log salary or bonus"
-              initial={{ y: '100%', opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: '100%', opacity: 0 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="relative w-full md:max-w-md bg-card border border-line rounded-t-3xl md:rounded-2xl p-6 shadow-2xl"
-              style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
-            >
+      <Sheet
+        open={open}
+        onClose={onClose}
+        label="Log salary or bonus"
+        zIndex={115}
+        dismissible={!saving}
+        className="bg-card border border-line text-ink shadow-2xl"
+        bodyClassName="px-6 pt-1 md:pt-6"
+      >
               <div className="flex justify-between items-center mb-5">
                 <h3 className="text-base font-bold text-ink flex items-center gap-2">
                   <PiggyBank className="w-4 h-4 text-emerald-500" /> Add income
@@ -133,10 +122,7 @@ export default function SalaryModal({ open, onClose, user, onSaved }) {
                   {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : `Save ${label}`}
                 </button>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </Sheet>
 
       <AnimatePresence>
         {celebrate && (

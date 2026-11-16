@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Sheet from '@/components/ui/Sheet';
 import { X, AlertCircle, Coins, Calendar, Info, Sparkles, Check } from 'lucide-react';
 
 const monthNames = [
@@ -272,26 +273,15 @@ export default function TransactionModal({
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-[120] flex items-end md:items-center justify-center p-0 md:p-6 overflow-hidden">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer z-0"
-          />
-
-          <motion.div
-            initial={{ y: "100%", opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: "100%", opacity: 0 }}
-            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full md:max-w-md bg-[#0a0a0c] border border-white/10 rounded-t-3xl md:rounded-2xl shadow-2xl p-6 overflow-y-auto max-h-[92vh] md:max-h-[85vh] z-10 flex flex-col justify-between text-left"
-          >
-            <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-
+    <Sheet
+      open={isOpen}
+      onClose={onClose}
+      label={entryToEdit?.id ? 'Edit transaction' : 'Log transaction'}
+      zIndex={120}
+      dismissible={!loading}
+      className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
+      bodyClassName="px-6 pt-1 md:pt-6"
+    >
             {/* Split view: Insufficient Balance Selector */}
             {splitViewOpen ? (
               <div className="space-y-4">
@@ -651,9 +641,6 @@ export default function TransactionModal({
                 </form>
               </div>
             )}
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+    </Sheet>
   );
 }

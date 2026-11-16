@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
+import Sheet from '@/components/ui/Sheet';
 import {
   TrendingUp,
   TrendingDown,
@@ -973,15 +974,16 @@ export default function StocksPage() {
       </footer>
 
       {/* Add Stock Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.96, y: 10 }}
-              className="relative w-full max-w-md bg-[#0a0a0c] border border-white/[0.08] rounded-2xl shadow-linear-elevated p-6 overflow-hidden max-h-[90vh] overflow-y-auto text-left"
-            >
+        <Sheet
+          open={isModalOpen}
+          onClose={() => { setIsModalOpen(false); resetForm(); }}
+          label="Log share purchase"
+          zIndex={115}
+          className="bg-[#0a0a0c] border border-white/[0.08] text-left shadow-linear-elevated"
+          bodyClassName="relative px-6 pt-1 md:pt-6"
+        >
+          {isModalOpen && (
+            <>
               {/* Top hairline specular highlight */}
               <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
 
@@ -1225,10 +1227,9 @@ export default function StocksPage() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </Sheet>
     </div>
   );
 }

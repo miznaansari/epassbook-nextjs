@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
+import Sheet from '@/components/ui/Sheet';
 import {
   Coins,
   Calendar,
@@ -516,15 +517,17 @@ export default function SipTracker() {
       </main>
 
       {/* Confirmation Modal */}
-      <AnimatePresence>
-        {confirmModalOpen && selectedSip && selectedPeriod && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-[#0a0a0c] p-6 border border-white/10 rounded-2xl max-w-md w-full shadow-2xl space-y-4"
-            >
+        <Sheet
+          open={confirmModalOpen && !!selectedSip && !!selectedPeriod}
+          onClose={() => setConfirmModalOpen(false)}
+          label="Confirm SIP payment"
+          zIndex={115}
+          dismissible={!submitting}
+          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
+          bodyClassName="px-6 pt-1 md:pt-6 space-y-4"
+        >
+          {selectedSip && selectedPeriod && (
+            <>
               <div className="flex items-start gap-3">
                 <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
                   <Coins className="w-5 h-5" />
@@ -582,18 +585,20 @@ export default function SipTracker() {
                   {confirmLoading ? 'Confirming...' : 'Confirm & Log'}
                 </button>
               </div>
-            </motion.div>
-          </div>
-        )}
+            </>
+          )}
+        </Sheet>
 
-        {paidTxModalOpen && selectedTx && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ scale: 0.96, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.96, opacity: 0 }}
-              className="bg-[#0a0a0c] p-6 border border-white/10 rounded-2xl max-w-md w-full shadow-2xl space-y-4"
-            >
+        <Sheet
+          open={paidTxModalOpen && !!selectedTx}
+          onClose={() => setPaidTxModalOpen(false)}
+          label="SIP payment details"
+          zIndex={115}
+          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
+          bodyClassName="px-6 pt-1 md:pt-6 space-y-4"
+        >
+          {selectedTx && (
+            <>
               <div className="flex items-start gap-3">
                 <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
                   <CheckCircle2 className="w-5 h-5" />
@@ -641,10 +646,9 @@ export default function SipTracker() {
                   Done
                 </button>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </Sheet>
 
       <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
         <div className="max-w-7xl mx-auto px-6 text-[#8A8F98] text-xs text-center font-mono">

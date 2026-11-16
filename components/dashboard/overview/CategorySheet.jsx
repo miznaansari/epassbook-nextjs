@@ -1,19 +1,12 @@
 'use client';
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import Sheet, { SheetDragArea } from '@/components/ui/Sheet';
 import LineIcon from '@/components/ui/LineIcon';
 import { ErrorState, Skeleton } from '@/components/ui/States';
 import { shortDate } from '@/components/dashboard/format';
 import { describeEntry } from '@/components/passbook/ledger';
 import { changeTag, groupByPlace } from './model';
-
-const subscribeDesktop = (onChange) => {
-  const mq = window.matchMedia('(min-width: 768px)');
-  mq.addEventListener('change', onChange);
-  return () => mq.removeEventListener('change', onChange);
-};
-const useIsDesktop = () => useSyncExternalStore(subscribeDesktop, () => window.matchMedia('(min-width: 768px)').matches, () => false);
 
 function EntryButton({ entry, money, onEdit }) {
   const view = describeEntry({ ...entry, spendGroup: entry.group }, money);
@@ -47,24 +40,14 @@ function EntryButton({ entry, money, onEdit }) {
  * Transactions of one "Category breakdown" row, grouped by where the money went.
  * `slice` null = closed. `data` is the /api/dashboard/category payload (null while loading).
  */
-export default function CategorySheet({ slice, cycle, data, loading, error, onRetry, money, onClose, onEdit }) {
-  const isDesktop = useIsDesktop();
+export default function CategorySheet({ slice: openSlice, cycle, data, loading, error, onRetry, money, onClose, onEdit }) {
+  // Keep the last category on screen while the sheet animates out.
+  const [slice, setSlice] = useState(openSlice);
+  if (openSlice && openSlice !== slice) setSlice(openSlice);
   const sliceKey = slice ? `${cycle?.key}:${slice.id}` : null;
   // Search text belongs to the category it was typed for.
   const [search, setSearch] = useState({ key: null, q: '' });
   const query = search.key === sliceKey ? search.q : '';
-
-  useEffect(() => {
-    if (!slice) return;
-    const onKey = (e) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
-  }, [slice, onClose]);
 
   const entries = data?.entries;
   const places = useMemo(() => {
@@ -79,30 +62,17 @@ export default function CategorySheet({ slice, cycle, data, loading, error, onRe
   const count = data?.count ?? 0;
 
   return (
-    <AnimatePresence>
+    <Sheet
+      open={!!openSlice}
+      onClose={onClose}
+      label={slice ? `${slice.name} transactions in ${cycle.label}` : undefined}
+      variant="drawer"
+      scroll={false}
+      className="mm border-t border-(--mm-line) bg-(--mm-card) text-(--mm-ink) shadow-pop md:border-l md:border-t-0"
+    >
       {slice && (
-        <div className="mm fixed inset-0 z-[110] flex items-end md:items-stretch md:justify-end">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            aria-hidden="true"
-            className="absolute inset-0 cursor-pointer bg-black/45"
-          />
-          <motion.aside
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${slice.name} transactions in ${cycle.label}`}
-            initial={isDesktop ? { x: '100%' } : { y: '100%' }}
-            animate={isDesktop ? { x: 0 } : { y: 0 }}
-            exit={isDesktop ? { x: '100%' } : { y: '100%' }}
-            transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="relative flex max-h-[88dvh] w-full flex-col rounded-t-3xl border-t border-(--mm-line) bg-(--mm-card) shadow-pop md:h-full md:max-h-none md:w-[460px] md:rounded-none md:border-l md:border-t-0"
-          >
-            <div className="mx-auto mt-2.5 h-1 w-10 shrink-0 rounded-full bg-(--mm-line) md:hidden" aria-hidden="true" />
-
-            <header className="border-b border-(--mm-line-2) px-5 pb-4 pt-3 md:pt-5">
+        <>
+            <SheetDragArea as="header" className="border-b border-(--mm-line-2) px-5 pb-4 pt-1 md:pt-5">
               <div className="flex items-center gap-3">
                 <span className="mm-in" style={{ background: slice.color.soft, color: slice.color.mark }}>
                   <LineIcon name={slice.icon} />
@@ -138,7 +108,7 @@ export default function CategorySheet({ slice, cycle, data, loading, error, onRe
                   />
                 </label>
               )}
-            </header>
+            </SheetDragArea>
 
             <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4" style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}>
               {!data ? (
@@ -181,9 +151,8 @@ export default function CategorySheet({ slice, cycle, data, loading, error, onRe
                 </div>
               )}
             </div>
-          </motion.aside>
-        </div>
+        </>
       )}
-    </AnimatePresence>
+    </Sheet>
   );
 }

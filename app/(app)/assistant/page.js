@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useKeyboard } from '@/context/KeyboardContext';
 import { getPendingCameraPhoto } from '@/lib/cameraBridge';
 import Icon3D from '@/components/ui/Icon3D';
+import LineIcon from '@/components/ui/LineIcon';
 import { ErrorState } from '@/components/ui/States';
 import ChatSidebar from '@/components/assistant/ChatSidebar';
 import WelcomeScreen from '@/components/assistant/WelcomeScreen';
@@ -36,6 +37,8 @@ export default function Assistant() {
   const { user, loading } = useAuth();
   const { isKeyboardOpen } = useKeyboard();
   const router = useRouter();
+  // Back to where the user came from; a directly-opened chat goes home.
+  const goBack = () => (window.history.length > 1 ? router.back() : router.push('/dashboard'));
 
   const [selectedModel, setSelectedModel] = useState(() => {
     if (typeof window === 'undefined') return AVAILABLE_MODELS[0].id;
@@ -950,7 +953,7 @@ export default function Assistant() {
   };
 
   return (
-    <div className="relative flex h-[calc(100dvh-var(--app-header-h))] flex-col overflow-hidden bg-canvas text-ink">
+    <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-canvas text-ink">
 
       <div data-ui="v2" className="flex min-h-0 flex-1">
         {/* Desktop history panel */}
@@ -967,7 +970,18 @@ export default function Assistant() {
 
         <section className="flex min-w-0 flex-1 flex-col">
           {/* Chat header */}
-          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-canvas/80 px-3 backdrop-blur-xl md:px-4">
+          <div
+            className="flex shrink-0 items-center gap-1.5 border-b border-line bg-canvas/80 px-2 backdrop-blur-xl md:gap-2 md:px-4"
+            style={{ paddingTop: 'env(safe-area-inset-top, 0px)', minHeight: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }}
+          >
+            <button
+              type="button"
+              onClick={goBack}
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink hover:bg-card-2 cursor-pointer md:hidden"
+              aria-label="Back"
+            >
+              <LineIcon name="chevronLeft" size={22} />
+            </button>
             <button
               type="button"
               onClick={() => setIsSidebarOpen(o => !o)}
@@ -980,10 +994,10 @@ export default function Assistant() {
             <button
               type="button"
               onClick={() => setMobileHistoryOpen(true)}
-              className="md:hidden inline-flex h-9 w-9 items-center justify-center rounded-xl text-ink-2 hover:bg-card-2 cursor-pointer"
+              className="md:hidden order-last inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-2 hover:bg-card-2 cursor-pointer"
               aria-label="Open chat history"
             >
-              <History className="h-4 w-4" />
+              <History className="h-5 w-5" />
             </button>
 
             <div className="min-w-0 flex-1">
@@ -1054,8 +1068,8 @@ export default function Assistant() {
             </div>
           </div>
 
-          {/* Composer (clears the mobile dock unless the keyboard is open) */}
-          <div className={`shrink-0 px-3 pt-2 md:px-4 ${isKeyboardOpen ? 'pb-2' : 'pb-[calc(92px+env(safe-area-inset-bottom))] md:pb-4'}`}>
+          {/* Composer (the mobile dock is hidden on this page) */}
+          <div className={`shrink-0 px-3 pt-2 md:px-4 ${isKeyboardOpen ? 'pb-2' : 'pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-4'}`}>
             <div className="mx-auto w-full max-w-3xl space-y-2">
               {error && (
                 <div className="flex items-center gap-2 rounded-2xl border border-line bg-card p-2.5 pl-3 shadow-card">

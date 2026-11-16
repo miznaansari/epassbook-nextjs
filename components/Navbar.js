@@ -11,30 +11,23 @@ import ThemeToggle from '@/components/ui/ThemeToggle';
 import ScanReceiptButton from '@/components/ScanReceiptButton';
 
 // Navigation model (shared by sidebar, drawer and page titles). Icons: components/ui/LineIcon.jsx
+// `match` lists the tab routes grouped under one menu item (see the (invest) and
+// (account) route-group layouts), so the item stays highlighted on any of them.
 const NAV_GROUPS = [
   {
     category: 'Money',
     items: [
       { name: 'Dashboard', path: '/dashboard', icon: 'home' },
       { name: 'Passbook', path: '/transactions', icon: 'passbook' },
-      { name: 'Savings', path: '/savings', icon: 'wallet' },
-      { name: 'Stocks', path: '/stocks', icon: 'stocks' },
-      { name: 'SIP plans', path: '/sips', icon: 'calendar' },
+      { name: 'Investments', path: '/savings', icon: 'wallet', match: ['/savings', '/stocks', '/sips'] },
     ],
   },
   {
-    category: 'Insights',
+    category: 'More',
     items: [
       { name: 'AI Assistant', path: '/assistant', icon: 'sparkle' },
       { name: 'Reports', path: '/reports', icon: 'grid' },
-      { name: 'Alerts', path: '/notifications', icon: 'bell' },
-    ],
-  },
-  {
-    category: 'Account',
-    items: [
-      { name: 'Developer API', path: '/mcp', icon: 'code' },
-      { name: 'Settings', path: '/settings', icon: 'settings' },
+      { name: 'Settings', path: '/settings', icon: 'settings', match: ['/settings', '/notifications', '/mcp'] },
     ],
   },
 ];
@@ -43,17 +36,21 @@ const DOCK_LINKS = [
   { name: 'Home', path: '/dashboard', icon: 'home' },
   { name: 'Passbook', path: '/transactions', icon: 'passbook' },
   { name: 'AI', path: '/assistant', icon: 'sparkle', center: true },
-  { name: 'Savings', path: '/savings', icon: 'wallet' },
+  { name: 'Invest', path: '/savings', icon: 'wallet', match: ['/savings', '/stocks', '/sips'] },
 ];
 
+const isActive = (item, pathname) => (item.match ? item.match.includes(pathname) : item.path === pathname);
+
 // Pages that render their own desktop header in place of the top bar.
-const OWN_HEADER = new Set(['/dashboard', '/transactions']);
+const OWN_HEADER = new Set(['/dashboard', '/transactions', '/assistant']);
 // Pages whose own mobile header replaces the app bar (logo + scan).
-const OWN_MOBILE_HEADER = new Set(['/transactions']);
+const OWN_MOBILE_HEADER = new Set(['/transactions', '/assistant']);
+// Focused screens without the mobile dock (they have a back button instead).
+const HIDE_DOCK = new Set(['/assistant']);
 
 function pageTitle(pathname) {
   for (const g of NAV_GROUPS) {
-    const hit = g.items.find(i => i.path === pathname);
+    const hit = g.items.find(i => isActive(i, pathname));
     if (hit) return hit.name;
   }
   return 'MonthlyMoney';
@@ -177,7 +174,7 @@ export default function Navbar() {
               )}
               <ul className="flex flex-col gap-1">
                 {group.items.map(item => {
-                  const active = activePath === item.path;
+                  const active = isActive(item, activePath);
                   return (
                     <li key={item.path} className="group relative">
                       <Link
@@ -259,7 +256,7 @@ export default function Navbar() {
       {/* ============ Mobile dock (< md) ============ */}
       <div
         data-ui="v2"
-        className="mm floating-bottom-dock-container fixed inset-x-3 z-50 mx-auto max-w-[440px] md:hidden"
+        className={`mm floating-bottom-dock-container fixed inset-x-3 z-50 mx-auto max-w-[440px] md:hidden ${HIDE_DOCK.has(pathname) ? 'hidden' : ''}`}
         style={{
           bottom: 'max(12px, calc(env(safe-area-inset-bottom, 0px) + 6px))',
           transform: isKeyboardOpen ? 'translate3d(0, 110px, 0)' : 'translate3d(0, 0, 0)',
@@ -273,7 +270,7 @@ export default function Navbar() {
           aria-label="Quick navigation"
         >
           {DOCK_LINKS.map(link => {
-            const active = !drawerOpen && activePath === link.path;
+            const active = !drawerOpen && isActive(link, activePath);
             if (link.center) {
               return (
                 <Link
@@ -369,7 +366,7 @@ export default function Navbar() {
                 <p className="mm-lbl px-3.5 pb-1.5 uppercase tracking-[0.08em]">{group.category}</p>
                 <ul className="flex flex-col gap-1">
                   {group.items.map(item => {
-                    const active = activePath === item.path;
+                    const active = isActive(item, activePath);
                     return (
                       <li key={item.path}>
                         <Link

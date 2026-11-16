@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import SpotlightCard from '@/components/ui/SpotlightCard';
 import { motion, AnimatePresence } from 'framer-motion';
+import Sheet from '@/components/ui/Sheet';
 import {
   PiggyBank,
   Coins,
@@ -1046,23 +1047,17 @@ export default function SavingsManagement() {
       </main>
 
       {/* WITHDRAWAL MODAL */}
-      <AnimatePresence>
-        {withdrawModalOpen && selectedPotForWithdraw && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !withdrawSubmitting && setWithdrawModalOpen(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative w-full max-w-md bg-[#0a0a0c] border border-white/10 rounded-2xl p-6 shadow-2xl z-10 text-left space-y-4"
-            >
+        <Sheet
+          open={withdrawModalOpen && !!selectedPotForWithdraw}
+          onClose={() => setWithdrawModalOpen(false)}
+          label="Withdraw from savings"
+          zIndex={115}
+          dismissible={!withdrawSubmitting}
+          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
+          bodyClassName="px-6 pt-1 md:pt-6 space-y-4"
+        >
+          {selectedPotForWithdraw && (
+            <>
               <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
@@ -1191,29 +1186,22 @@ export default function SavingsManagement() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </Sheet>
 
       {/* DEPOSIT MODAL */}
-      <AnimatePresence>
-        {depositModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => !depositSubmitting && setDepositModalOpen(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative w-full max-w-md bg-[#0a0a0c] border border-white/10 rounded-2xl p-6 shadow-2xl z-10 text-left space-y-4"
-            >
+        <Sheet
+          open={depositModalOpen}
+          onClose={() => setDepositModalOpen(false)}
+          label="Add to savings"
+          zIndex={115}
+          dismissible={!depositSubmitting}
+          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
+          bodyClassName="px-6 pt-1 md:pt-6 space-y-4"
+        >
+          {depositModalOpen && (
+            <>
               <div className="flex items-center justify-between pb-3 border-b border-white/[0.06]">
                 <div className="flex items-center gap-2">
                   <div className="p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
@@ -1375,29 +1363,23 @@ export default function SavingsManagement() {
                   </button>
                 </div>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </Sheet>
 
       {/* HISTORY DRAWER / MODAL */}
-      <AnimatePresence>
-        {historyDrawerOpen && selectedPotForHistory && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setHistoryDrawerOpen(false)}
-              className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-pointer"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 16 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 16 }}
-              className="relative w-full max-w-2xl bg-[#0a0a0c] border border-white/10 rounded-2xl p-6 shadow-2xl z-10 text-left space-y-4 max-h-[85vh] flex flex-col"
-            >
+        <Sheet
+          open={historyDrawerOpen && !!selectedPotForHistory}
+          onClose={() => setHistoryDrawerOpen(false)}
+          label="Savings history"
+          zIndex={115}
+          size="wide"
+          scroll={false}
+          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
+          bodyClassName="px-6 pb-6 pt-1 md:pt-6 space-y-4"
+        >
+          {selectedPotForHistory && (
+            <>
               <div className="flex items-center justify-between pb-3 border-b border-white/[0.06] shrink-0">
                 <div>
                   <h3 className="text-base font-semibold text-white flex items-center gap-2">
@@ -1498,10 +1480,9 @@ export default function SavingsManagement() {
                   })
                 )}
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+            </>
+          )}
+        </Sheet>
 
       {/* FOOTER */}
       <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
