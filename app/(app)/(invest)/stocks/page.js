@@ -2,29 +2,96 @@
 
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import SpotlightCard from '@/components/ui/SpotlightCard';
-import { motion, AnimatePresence } from 'framer-motion';
 import Sheet from '@/components/ui/Sheet';
+import LineIcon from '@/components/ui/LineIcon';
 import {
-  TrendingUp,
-  TrendingDown,
-  Plus,
-  Trash2,
-  RefreshCw,
-  Search,
-  Briefcase,
-  Loader2,
-  X,
-  ArrowUpRight,
-  HelpCircle,
-  Percent,
-  Coins,
-  ChevronDown,
-  ChevronUp
-} from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+  InvestPage,
+  PageHead,
+  HeroBand,
+  StatTile,
+  Card,
+  Empty,
+  ErrorNote,
+  Pill,
+  SheetHead,
+  Field,
+  CardSkeleton,
+  SHEET_CLASS,
+  SHEET_BODY,
+} from '@/components/invest/kit';
+import { RankedBars, DivergingBars } from '@/components/invest/charts';
 import { isMarketHours } from '@/lib/market';
 import PortfolioChart, { usePortfolioHistory } from '@/components/stocks/PortfolioChart';
+
+/** Signed amount: always carries + or − so direction never depends on colour. */
+const signed = (val, fmt) => `${val >= 0 ? '+' : '−'}${fmt(Math.abs(val))}`;
+const signedPct = (val) => `${val >= 0 ? '+' : '−'}${Math.abs(val).toFixed(2)}%`;
+const tone = (val) => (val >= 0 ? 'text-(--mm-good)' : 'text-(--mm-bad)');
+const shortSymbol = (symbol) => symbol.split('.')[0];
+const initials = (symbol) => shortSymbol(symbol).slice(0, 2).toUpperCase();
+
+function Avatar({ symbol }) {
+  return (
+    <span
+      className="mm-in text-[13px] font-extrabold tracking-wide text-(--mm-indigo-ink)"
+      style={{ background: 'var(--mm-indigo-soft)' }}
+      aria-hidden="true"
+    >
+      {initials(symbol)}
+    </span>
+  );
+}
+
+function PnlPill({ value, pct }) {
+  const up = value >= 0;
+  return (
+    <Pill tone={up ? 'good' : 'bad'}>
+      <span aria-hidden="true">{up ? '▲' : '▼'}</span>
+      <span className="tabular-nums">{signedPct(pct)}</span>
+    </Pill>
+  );
+}
+
+/** Purchase lots of one holding, each with a delete action. */
+function Lots({ holding: h, formatCurrency, onDelete }) {
+  return (
+    <ul className="overflow-hidden rounded-2xl border border-(--mm-line) bg-(--mm-card)">
+      {h.purchases.map((p) => {
+        const invested = p.quantity * p.buyPrice;
+        const returns = p.quantity * h.currentPrice - invested;
+        const pct = p.buyPrice > 0 ? ((h.currentPrice - p.buyPrice) / p.buyPrice) * 100 : 0;
+        return (
+          <li key={p.id} className="mm-tr">
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-bold text-(--mm-ink)">
+                {new Date(p.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+              </div>
+              <div className="mm-lbl tabular-nums">
+                {p.quantity} × {formatCurrency(p.buyPrice)} · Cost {formatCurrency(invested)}
+              </div>
+            </div>
+            <div className="text-right">
+              <div className={`text-[13px] font-bold tabular-nums ${tone(returns)}`}>{signed(returns, formatCurrency)}</div>
+              <div className={`text-[12px] font-semibold tabular-nums ${tone(returns)}`}>{signedPct(pct)}</div>
+            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete(p.id, `${h.name} (Bought for ${formatCurrency(p.buyPrice)})`);
+              }}
+              className="mm-btn mm-btn-ghost w-11 shrink-0 px-0"
+              aria-label={`Delete purchase of ${p.quantity} ${h.name} on ${new Date(p.createdAt).toLocaleDateString()}`}
+              title="Delete this purchase record"
+            >
+              <LineIcon name="trash" size={17} />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 export default function StocksPage() {
   const { user, loading: authLoading } = useAuth();
@@ -314,37 +381,48 @@ export default function StocksPage() {
     }).format(val || 0);
   };
 
-  // Chart Data preparation
-  const chartData = holdings.map(h => ({
-    name: h.symbol.split('.')[0], // Short symbol
-    value: h.currentValue,
-  })).filter(item => item.value > 0);
-
-  const performanceData = holdings.map(h => ({
-    name: h.symbol.split('.')[0],
-    Invested: h.investedValue,
-    Current: h.currentValue,
+  // Chart rows
+  const pnlRows = holdings.map(h => ({
+    key: h.symbol,
+    label: shortSymbol(h.symbol),
+    sub: signedPct(h.returnsPercentage),
+    value: h.totalReturns,
   }));
 
-  const COLORS = [
-    '#5E6AD2', // Linear Indigo
-    '#06B6D4', // Cyan
-    '#10B981', // Emerald
-    '#F59E0B', // Amber
-    '#EC4899', // Pink
-    '#8B5CF6', // Purple
-    '#38BDF8', // Sky
-  ];
+  const allocationRows = holdings.map(h => ({
+    key: h.symbol,
+    label: shortSymbol(h.symbol),
+    value: h.currentValue,
+  }));
+
+  // Tapping a chart row opens that holding below and scrolls to it
+  const openHolding = (row) => {
+    setExpandedSymbol(row.key);
+    setTimeout(() => {
+      const els = document.querySelectorAll(`[data-holding="${CSS.escape(row.key)}"]`);
+      const visible = [...els].find(el => el.offsetParent !== null);
+      visible?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 60);
+  };
 
   if (authLoading || loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-[#050506] px-6 text-center select-none relative overflow-hidden">
-        <div className="w-12 h-12 rounded-2xl bg-[#5E6AD2]/10 border border-[#5E6AD2]/30 flex items-center justify-center shadow-lg shadow-[#5E6AD2]/10 mb-4 animate-pulse">
-          <Briefcase className="w-6 h-6 text-[#5E6AD2]" />
+      <InvestPage>
+        <PageHead title="Stocks" sub="Syncing market quotes" />
+        <HeroBand
+          icon="stocks"
+          label="Portfolio value"
+          loading
+          tiles={[{ label: 'Invested' }, { label: 'Returns' }, { label: 'Today' }]}
+        />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {['Net returns', 'Return', 'Today', 'Positions'].map(l => (
+            <StatTile key={l} icon="chart-up" label={l} loading />
+          ))}
         </div>
-        <h3 className="text-white font-semibold text-base tracking-tight mb-1">Portfolio Ledger</h3>
-        <p className="text-slate-400 text-xs font-mono">Syncing market quotes...</p>
-      </div>
+        <CardSkeleton rows={4} height={380} />
+        <CardSkeleton rows={3} />
+      </InvestPage>
     );
   }
 
@@ -381,651 +459,321 @@ export default function StocksPage() {
   const dayPrevValue = movers.reduce((sum, m) => sum + m.prevValue, 0);
   const dayPnlPct = dayPrevValue > 0 ? (dayPnl / dayPrevValue) * 100 : 0;
   const isDayUp = dayPnl >= 0;
+  const dayLabel = inMarketHours ? "Today's P&L" : 'Last session P&L';
+  const hasDay = movers.length > 0;
+
+  const moverRows = movers.map(m => ({
+    key: m.symbol,
+    label: shortSymbol(m.symbol),
+    sub: signedPct(m.dayChangePct),
+    value: m.dayChange,
+  }));
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    resetForm();
+  };
+
+  const logButton = (
+    <button type="button" onClick={openModal} className="mm-btn mm-btn-amber">
+      <LineIcon name="plus" size={17} strokeWidth={2.4} />
+      Log purchase
+    </button>
+  );
 
   return (
-    <div className="relative flex-1 flex flex-col justify-between text-slate-100 selection:bg-[#5E6AD2]/30">
-
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 pb-32 sm:pb-8 relative z-10">
-        {/* Header Title and Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 glass-card p-5">
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="px-2 py-0.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 text-[#818cf8] text-[10px] font-mono uppercase tracking-wider rounded-md">
-                Groww Portfolio
-              </span>
-              <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 font-mono">
-                <span className={`w-1.5 h-1.5 rounded-full ${inMarketHours ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`}></span>
-                {inMarketHours ? 'MARKET OPEN' : 'MARKET CLOSED'}
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Stock Portfolio
-            </h1>
-            <p className="text-xs text-slate-400 mt-1">Live market valuations and capital return metrics</p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+    <InvestPage>
+      <PageHead
+        title="Stocks"
+        sub={inMarketHours ? 'Live prices, updated every 5 seconds' : 'Prices from the last session'}
+        actions={
+          <>
             {inMarketHours ? (
-              <div className="px-3.5 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium rounded-xl flex items-center justify-center gap-2 w-full sm:w-auto select-none">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span className="font-mono text-[11px]">LIVE STREAMING (5s)</span>
-              </div>
+              <Pill tone="good">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" /> Market open
+              </Pill>
             ) : (
-              <button
-                onClick={handleRefresh}
-                disabled={refreshing || apiLimitRemaining <= 0}
-                className={`btn-linear-secondary text-xs flex items-center justify-center gap-2 w-full sm:w-auto ${
-                  apiLimitRemaining <= 0 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                title={`Daily Refresh Limit: 10 refreshes. Remaining today: ${apiLimitRemaining}`}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-slate-400 ${refreshing ? 'animate-spin text-[#5E6AD2]' : ''}`} />
-                <span className="font-mono text-[11px]">
-                  Refresh ({apiLimitRemaining}/10)
-                </span>
-              </button>
+              <>
+                <Pill tone="mute">Market closed</Pill>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={refreshing || apiLimitRemaining <= 0}
+                  className="mm-btn mm-btn-ghost"
+                  title={`Daily refresh limit: 10. Remaining today: ${apiLimitRemaining}`}
+                >
+                  <LineIcon name="refresh" size={17} className={refreshing ? 'animate-spin' : ''} />
+                  Refresh <span className="tabular-nums text-(--mm-ink-3)">{apiLimitRemaining}/10</span>
+                </button>
+              </>
             )}
+            {logButton}
+          </>
+        }
+      />
 
-            <button
-              onClick={() => setIsModalOpen(true)}
-              className="btn-linear-primary text-xs flex items-center justify-center gap-1.5 w-full sm:w-auto shrink-0"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Holding</span>
-            </button>
+      {error && <ErrorNote message={error} onRetry={() => { setError(''); fetchHoldings(); }} />}
+
+      <HeroBand
+        icon="stocks"
+        label="Portfolio value"
+        value={formatCurrency(summary.totalCurrentValue)}
+        delta={`${isProfit ? '▲' : '▼'} ${signed(summary.totalReturns, formatCurrency)} (${signedPct(summary.totalReturnsPercentage)}) all time`}
+        deltaTone={isProfit ? 'good' : 'bad'}
+        tiles={[
+          { label: 'Invested', value: formatCompact(summary.totalInvested) },
+          { label: 'Returns', value: `${summary.totalReturns >= 0 ? '+' : '−'}${formatCompact(Math.abs(summary.totalReturns))}` },
+          { label: inMarketHours ? 'Today' : 'Last session', value: hasDay ? `${dayPnl >= 0 ? '+' : '−'}${formatCompact(Math.abs(dayPnl))}` : '—' },
+        ]}
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile
+          icon={isProfit ? 'chart-up' : 'chart-down'}
+          tone={isProfit ? 'green' : 'red'}
+          label="Net returns"
+          value={signed(summary.totalReturns, formatCurrency)}
+          delta={`on ${formatCurrency(summary.totalInvested)} invested`}
+          good={isProfit}
+        />
+        <StatTile
+          icon="balance"
+          tone="indigo"
+          label="Total return"
+          value={signedPct(summary.totalReturnsPercentage)}
+          delta={isProfit ? 'Gain' : 'Loss'}
+          good={isProfit}
+        />
+        <StatTile
+          icon={hasDay && !isDayUp ? 'chart-down' : 'chart-up'}
+          tone={hasDay ? (isDayUp ? 'green' : 'red') : 'gold'}
+          label={dayLabel}
+          value={hasDay ? signed(dayPnl, formatCurrency) : '—'}
+          delta={hasDay ? signedPct(dayPnlPct) : undefined}
+          good={hasDay ? isDayUp : undefined}
+        />
+        <StatTile
+          icon="gem"
+          tone="gold"
+          label="Positions"
+          value={String(holdings.length)}
+          delta={holdings.length === 1 ? 'stock held' : 'stocks held'}
+        />
+      </div>
+
+      {holdings.length === 0 ? (
+        <Card>
+          <Empty
+            icon="stocks"
+            title="No stocks yet"
+            message="Log a share purchase to track its value and returns."
+            action={logButton}
+          />
+        </Card>
+      ) : (
+        <>
+          {/* Value over time */}
+          <section className="mm-card p-[18px] md:p-[22px]" aria-labelledby="stocks-value-h">
+            <h2 id="stocks-value-h" className="sr-only">Portfolio value over time</h2>
+            <PortfolioChart
+              data={chartHistory}
+              isStale={chartStale}
+              error={chartError}
+              range={chartRange}
+              onRangeChange={setChartRange}
+              holdings={holdings}
+              summary={summary}
+              liveTicks={liveTicks}
+              inMarketHours={inMarketHours}
+              formatCurrency={formatCurrency}
+              formatCompact={formatCompact}
+            />
+          </section>
+
+          {/* Profit & loss and allocation */}
+          <div className="grid gap-4 md:grid-cols-2 md:gap-5">
+            <Card title="Profit & loss by stock" sub="Tap a stock to see its purchases">
+              <DivergingBars rows={pnlRows} format={formatCurrency} onSelect={openHolding} />
+            </Card>
+            <Card title="Where your money is" sub="Share of current value">
+              <RankedBars rows={allocationRows} format={formatCurrency} onSelect={openHolding} />
+            </Card>
           </div>
-        </div>
 
-        {error && (
-          <div className="mb-6 p-3.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium rounded-xl flex items-center gap-2">
-            <span>{error}</span>
-          </div>
-        )}
+          {hasDay && (
+            <Card title={inMarketHours ? "Today's movers" : 'Last session movers'} sub="Change vs previous close">
+              <DivergingBars rows={moverRows} format={formatCurrency} onSelect={openHolding} />
+            </Card>
+          )}
 
-        {/* Portfolio Summary Dashboard Card & Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-          {/* Main Portfolio Overview Panel */}
-          <SpotlightCard
-            className="lg:col-span-2 p-4 sm:p-6 flex flex-col justify-between min-h-[220px]"
-            spotlightColor="rgba(94, 106, 210, 0.12)"
-          >
-            {holdings.length > 0 ? (
-              <PortfolioChart
-                data={chartHistory}
-                isStale={chartStale}
-                error={chartError}
-                range={chartRange}
-                onRangeChange={setChartRange}
-                holdings={holdings}
-                summary={summary}
-                liveTicks={liveTicks}
-                inMarketHours={inMarketHours}
-                formatCurrency={formatCurrency}
-                formatCompact={formatCompact}
-              />
-            ) : (
-              <div className="flex justify-between items-start">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]"></span>
-                    Portfolio Valuation
-                  </span>
-                  <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mt-2">
-                    {formatCurrency(summary.totalCurrentValue)}
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-2">Add a holding to see your live growth chart.</p>
-                </div>
-                <div className="w-10 h-10 rounded-xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                  <Briefcase className="w-5 h-5 text-[#5E6AD2]" />
-                </div>
-              </div>
-            )}
-
-            {/* Total Invested and Returns Segment */}
-            <div className="mt-6 pt-4 border-t border-white/[0.06] grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Invested Capital</span>
-                <p className="text-base sm:text-lg font-mono font-semibold text-slate-200 mt-1">
-                  {formatCurrency(summary.totalInvested)}
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Net Returns</span>
-                <p className={`text-base sm:text-lg font-mono font-semibold mt-1 flex items-center gap-1 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {isProfit ? '+' : ''}{formatCurrency(summary.totalReturns)}
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Total Gain / Loss</span>
-                <p className={`text-base sm:text-lg font-mono font-bold mt-1 flex items-center gap-1.5 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {isProfit ? <TrendingUp className="w-4 h-4 text-emerald-400" /> : <TrendingDown className="w-4 h-4 text-rose-400" />}
-                  {isProfit ? '+' : ''}{summary.totalReturnsPercentage.toFixed(2)}%
-                </p>
-              </div>
-
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">
-                  {inMarketHours ? "Today's P&L" : 'Last Session P&L'}
-                </span>
-                {movers.length > 0 ? (
-                  <p className={`text-base sm:text-lg font-mono font-semibold mt-1 ${isDayUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {isDayUp ? '+' : '-'}{formatCurrency(Math.abs(dayPnl))}
-                    <span className="block text-[10px] font-normal opacity-80">{isDayUp ? '+' : ''}{dayPnlPct.toFixed(2)}%</span>
-                  </p>
-                ) : (
-                  <p className="text-base sm:text-lg font-mono font-semibold text-slate-500 mt-1">—</p>
-                )}
-              </div>
-            </div>
-          </SpotlightCard>
-
-          {/* Allocation Recharts Card */}
-          <SpotlightCard
-            className="p-5 flex flex-col justify-between min-h-[220px]"
-            spotlightColor="rgba(6, 182, 212, 0.1)"
-          >
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[#06B6D4] rounded-full"></span>
-                Asset Allocation
-              </span>
+          {/* Holdings */}
+          <section aria-labelledby="stocks-holdings-h" className="flex flex-col gap-3">
+            <div className="flex items-end justify-between gap-3">
+              <h2 id="stocks-holdings-h" className="mm-h2">Your holdings</h2>
+              <span className="mm-lbl tabular-nums">{holdings.length} {holdings.length === 1 ? 'position' : 'positions'}</span>
             </div>
 
-            <div className="h-40 w-full flex items-center justify-center my-2">
-              {chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={chartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={46}
-                      outerRadius={68}
-                      paddingAngle={4}
-                      stroke="rgba(10,10,12,0.8)"
-                      strokeWidth={2}
-                      dataKey="value"
-                    >
-                      {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: 'var(--color-card)',
-                        color: 'var(--color-ink)',
-                        border: '1px solid var(--color-line)',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        boxShadow: 'var(--shadow-pop)',
-                      }}
-                      itemStyle={{ color: 'var(--color-ink)', fontFamily: 'monospace' }}
-                      formatter={(value) => formatCurrency(value)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex flex-col items-center text-slate-500 text-xs gap-2 py-4">
-                  <Coins className="w-8 h-8 opacity-25" />
-                  <span>No holdings logged</span>
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-2 justify-center max-h-16 overflow-y-auto">
-              {chartData.map((item, idx) => (
-                <div key={idx} className="flex items-center gap-1.5 text-[10px] font-mono text-slate-300">
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></span>
-                  <span>{item.name}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Today's movers */}
-            {movers.length > 0 && (
-              <div className="mt-5 pt-4 border-t border-white/[0.06]">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2 mb-3">
-                  <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-                  {inMarketHours ? "Today's Movers" : 'Last Session Movers'}
-                </span>
-                <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                  {movers.map(m => {
-                    const up = m.dayChangePct >= 0;
+            {/* Desktop table */}
+            <div className="mm-card hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[760px] border-collapse text-left text-[13px]">
+                <thead>
+                  <tr className="mm-lbl">
+                    <th scope="col" className="px-4 py-3 font-bold">Company</th>
+                    <th scope="col" className="px-3 py-3 text-right font-bold">Qty</th>
+                    <th scope="col" className="px-3 py-3 text-right font-bold">Avg buy</th>
+                    <th scope="col" className="px-3 py-3 text-right font-bold">Price</th>
+                    <th scope="col" className="px-3 py-3 text-right font-bold">Invested</th>
+                    <th scope="col" className="px-3 py-3 text-right font-bold">Value</th>
+                    <th scope="col" className="px-3 py-3 text-right font-bold">P&amp;L</th>
+                    <th scope="col" className="px-4 py-3 text-right font-bold"><span className="sr-only">Purchases</span></th>
+                  </tr>
+                </thead>
+                <tbody className="tabular-nums">
+                  {holdings.map((h) => {
+                    const isExpanded = expandedSymbol === h.symbol;
                     return (
-                      <div key={m.symbol} className="flex items-center justify-between gap-2 text-xs font-mono">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-white truncate">{m.symbol.split('.')[0]}</div>
-                          <div className="text-[10px] text-slate-500">{formatCurrency(m.price)}</div>
-                        </div>
-                        <div className={`text-right shrink-0 ${up ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          <div className="font-semibold flex items-center justify-end gap-1">
-                            {up ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                            {up ? '+' : ''}{m.dayChangePct.toFixed(2)}%
-                          </div>
-                          <div className="text-[10px] opacity-80">{up ? '+' : '-'}{formatCurrency(Math.abs(m.dayChange))}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </SpotlightCard>
-        </div>
-
-        {/* Portfolio Performance Chart */}
-        {holdings.length > 0 && (
-          <SpotlightCard className="p-6 mb-6 text-left" spotlightColor="rgba(94, 106, 210, 0.08)">
-            <div className="mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 bg-[#5E6AD2] rounded-full"></span>
-                  Capital Allocation vs Value
-                </span>
-                <h2 className="text-base font-semibold text-white mt-1">Invested vs Current Market Price</h2>
-              </div>
-              <div className="flex gap-4 text-xs font-mono text-slate-400">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-[#5E6AD2]"></span> Invested
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-sm bg-[#06B6D4]"></span> Current
-                </div>
-              </div>
-            </div>
-
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={performanceData} margin={{ top: 10, right: 10, left: -10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-line)" vertical={false} />
-                  <XAxis dataKey="name" stroke="#64748B" fontSize={10} tickLine={false} />
-                  <YAxis stroke="#64748B" fontSize={10} tickLine={false} tickFormatter={(val) => formatCurrency(val).replace(/\.00$/, '')} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: 'var(--color-card)',
-                      color: 'var(--color-ink)',
-                      border: '1px solid var(--color-line)',
-                      borderRadius: '12px',
-                      fontSize: '11px',
-                      fontFamily: 'monospace',
-                      boxShadow: 'var(--shadow-pop)',
-                    }}
-                    formatter={(value) => [formatCurrency(value), '']}
-                  />
-                  <Bar dataKey="Invested" fill="#5E6AD2" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                  <Bar dataKey="Current" fill="#06B6D4" radius={[4, 4, 0, 0]} maxBarSize={36} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </SpotlightCard>
-        )}
-
-        {/* Holdings Table Section */}
-        <div className="bg-[#0a0a0c]/80 border border-white/[0.06] rounded-2xl shadow-linear-card backdrop-blur-xl p-6">
-          <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-            <div>
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-[#5E6AD2]" /> Holdings Ledger
-              </h2>
-              <p className="text-[11px] text-slate-400 font-mono mt-0.5">Active equity positions and individual cost basis</p>
-            </div>
-            <span className="text-[10px] font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] px-2.5 py-1 rounded-lg self-start sm:self-auto">
-              {holdings.length} {holdings.length === 1 ? 'POSITION' : 'POSITIONS'}
-            </span>
-          </div>
-
-          {holdings.length === 0 ? (
-            <div className="py-16 text-center flex flex-col items-center justify-center gap-3 border border-dashed border-white/[0.06] rounded-xl">
-              <Coins className="w-10 h-10 text-slate-600 opacity-40 animate-pulse" />
-              <h4 className="text-slate-300 font-medium text-sm">No Stock Holdings Registered</h4>
-              <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
-                Add your shares of stock to automatically track live portfolio valuations and returns.
-              </p>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="mt-2 btn-linear-secondary text-xs flex items-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Log First Share</span>
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* Desktop View Table */}
-              <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[640px]">
-                  <thead>
-                    <tr className="border-b border-white/[0.06] text-[10px] uppercase font-mono tracking-wider text-slate-400">
-                      <th className="py-3 px-4">Company</th>
-                      <th className="py-3 px-4 text-right">Qty</th>
-                      <th className="py-3 px-4 text-right">Avg Buy</th>
-                      <th className="py-3 px-4 text-right">Current</th>
-                      <th className="py-3 px-4 text-right">Invested</th>
-                      <th className="py-3 px-4 text-right">Market Value</th>
-                      <th className="py-3 px-4 text-right">P&L Returns</th>
-                      <th className="py-3 px-4 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/[0.04] text-xs font-mono">
-                    {holdings.map((h) => {
-                      const rowProfit = h.totalReturns >= 0;
-                      const isExpanded = expandedSymbol === h.symbol;
-                      return (
-                        <Fragment key={h.symbol}>
-                          <tr 
-                            onClick={() => setExpandedSymbol(isExpanded ? null : h.symbol)}
-                            className="hover:bg-white/[0.02] transition-colors cursor-pointer select-none"
-                          >
-                            <td className="py-4 px-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className="text-slate-500 shrink-0">
-                                  {isExpanded ? <ChevronUp className="w-4 h-4 text-[#5E6AD2]" /> : <ChevronDown className="w-4 h-4" />}
-                                </div>
-                                <div>
-                                  <div className="font-semibold text-slate-200 font-sans text-xs">{h.name}</div>
-                                  <div className="text-[10px] text-[#818cf8] font-mono mt-0.5">{h.symbol}</div>
-                                </div>
+                      <Fragment key={h.symbol}>
+                        <tr
+                          data-holding={h.symbol}
+                          onClick={() => setExpandedSymbol(isExpanded ? null : h.symbol)}
+                          className="cursor-pointer border-t border-(--mm-line-2) transition-colors hover:bg-(--mm-soft)"
+                        >
+                          <th scope="row" className="px-4 py-3 text-left font-normal">
+                            <div className="flex items-center gap-3">
+                              <Avatar symbol={h.symbol} />
+                              <div className="min-w-0">
+                                <div className="truncate font-bold text-(--mm-ink)">{h.name}</div>
+                                <div className="mm-lbl">{h.symbol}</div>
                               </div>
-                            </td>
-                            <td className="py-4 px-4 text-right text-slate-300 font-semibold">{h.quantity}</td>
-                            <td className="py-4 px-4 text-right text-slate-400">{formatCurrency(h.buyPrice)}</td>
-                            <td className="py-4 px-4 text-right text-slate-200 font-semibold">{formatCurrency(h.currentPrice)}</td>
-                            <td className="py-4 px-4 text-right text-slate-400">{formatCurrency(h.investedValue)}</td>
-                            <td className="py-4 px-4 text-right font-bold text-white">{formatCurrency(h.currentValue)}</td>
-                            <td className="py-4 px-4 text-right">
-                              <div className={`font-semibold ${rowProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                {rowProfit ? '+' : ''}{formatCurrency(h.totalReturns)}
+                            </div>
+                          </th>
+                          <td className="px-3 py-3 text-right font-semibold text-(--mm-ink)">{h.quantity}</td>
+                          <td className="px-3 py-3 text-right text-(--mm-ink-2)">{formatCurrency(h.buyPrice)}</td>
+                          <td className="px-3 py-3 text-right font-semibold text-(--mm-ink)">{formatCurrency(h.currentPrice)}</td>
+                          <td className="px-3 py-3 text-right text-(--mm-ink-2)">{formatCurrency(h.investedValue)}</td>
+                          <td className="px-3 py-3 text-right font-extrabold text-(--mm-ink)">{formatCurrency(h.currentValue)}</td>
+                          <td className="px-3 py-3 text-right">
+                            <div className={`font-bold ${tone(h.totalReturns)}`}>{signed(h.totalReturns, formatCurrency)}</div>
+                            <div className="mt-0.5 flex justify-end"><PnlPill value={h.totalReturns} pct={h.returnsPercentage} /></div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedSymbol(isExpanded ? null : h.symbol);
+                              }}
+                              aria-expanded={isExpanded}
+                              aria-label={`${isExpanded ? 'Hide' : 'Show'} purchases for ${h.name}`}
+                              className="mm-btn mm-btn-soft w-11 px-0"
+                            >
+                              <LineIcon name="chevronDown" size={17} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                            </button>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-(--mm-soft)">
+                            <td colSpan={8} className="px-4 pb-4 pt-3">
+                              <div className="mm-lbl mb-2">Purchases of {h.name}</div>
+                              <div className="max-w-2xl">
+                                <Lots holding={h} formatCurrency={formatCurrency} onDelete={handleDeleteHolding} />
                               </div>
-                              <div className={`text-[10px] font-mono mt-0.5 ${rowProfit ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
-                                {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
-                              </div>
-                            </td>
-                            <td className="py-4 px-4 text-center">
-                              <span className="text-[10px] font-mono text-slate-400 bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 rounded hover:border-white/[0.12] transition-all">
-                                {isExpanded ? 'Hide' : 'Details'}
-                              </span>
                             </td>
                           </tr>
-                          {isExpanded && (
-                            <tr className="bg-[#050506]/70">
-                              <td colSpan={8} className="py-3 px-6">
-                                <div className="border-l-2 border-[#5E6AD2]/60 pl-4 py-2 my-1 space-y-2 text-left">
-                                  <div className="text-[10px] font-mono text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2]"></span>
-                                    Purchase History & Cost Lots
-                                  </div>
-                                  <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#0a0a0c] max-w-3xl">
-                                    <table className="w-full text-left border-collapse text-xs">
-                                      <thead>
-                                        <tr className="border-b border-white/[0.06] bg-white/[0.02] text-[9px] uppercase font-mono tracking-wider text-slate-400">
-                                          <th className="py-2 px-3">Date</th>
-                                          <th className="py-2 px-3 text-right">Qty</th>
-                                          <th className="py-2 px-3 text-right">Buy Price</th>
-                                          <th className="py-2 px-3 text-right">Cost</th>
-                                          <th className="py-2 px-3 text-right">Unrealized P&L</th>
-                                          <th className="py-2 px-3 text-center">Action</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-white/[0.03] font-mono text-xs">
-                                        {h.purchases.map((p) => {
-                                          const pInvested = p.quantity * p.buyPrice;
-                                          const pCurrentValue = p.quantity * h.currentPrice;
-                                          const pReturns = pCurrentValue - pInvested;
-                                          const pReturnsPercentage = p.buyPrice > 0 ? ((h.currentPrice - p.buyPrice) / p.buyPrice) * 100 : 0;
-                                          const pProfit = pReturns >= 0;
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-                                          return (
-                                            <tr key={p.id} className="hover:bg-white/[0.02]">
-                                              <td className="py-2 px-3 text-slate-400 text-[11px]">
-                                                {new Date(p.createdAt).toLocaleDateString(undefined, {
-                                                  year: 'numeric',
-                                                  month: 'short',
-                                                  day: 'numeric'
-                                                })}
-                                              </td>
-                                              <td className="py-2 px-3 text-right text-slate-300 font-semibold">{p.quantity}</td>
-                                              <td className="py-2 px-3 text-right text-slate-400">{formatCurrency(p.buyPrice)}</td>
-                                              <td className="py-2 px-3 text-right text-slate-300">{formatCurrency(pInvested)}</td>
-                                              <td className="py-2 px-3 text-right">
-                                                <div className={`font-semibold ${pProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                                  {pProfit ? '+' : ''}{formatCurrency(pReturns)}
-                                                </div>
-                                                <div className={`text-[9px] ${pProfit ? 'text-emerald-400/80' : 'text-rose-400/80'}`}>
-                                                  {pProfit ? '+' : ''}{pReturnsPercentage.toFixed(2)}%
-                                                </div>
-                                              </td>
-                                              <td className="py-2 px-3 text-center">
-                                                <button
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleDeleteHolding(p.id, `${h.name} (Bought for ${formatCurrency(p.buyPrice)})`);
-                                                  }}
-                                                  className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
-                                                  title="Delete this purchase record"
-                                                >
-                                                  <Trash2 className="w-3.5 h-3.5" />
-                                                </button>
-                                              </td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </Fragment>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile View Card Grid */}
-              <div className="md:hidden space-y-3">
-                {holdings.map((h) => {
-                  const rowProfit = h.totalReturns >= 0;
-                  const isExpanded = expandedSymbol === h.symbol;
-                  return (
-                    <div 
-                      key={h.symbol} 
-                      className="bg-[#0a0a0c] border border-white/[0.06] rounded-xl p-4 flex flex-col gap-3 relative hover:border-white/[0.1] transition-all"
-                    >
-                      {/* Ticker & Name & Expand toggle */}
-                      <div className="flex items-start justify-between">
-                        <div className="min-w-0 pr-10 text-left">
-                          <h4 className="font-semibold text-white truncate text-xs font-sans">{h.name}</h4>
-                          <span className="inline-block text-[9px] text-[#818cf8] bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 px-1.5 py-0.5 rounded font-mono mt-1">
-                            {h.symbol}
-                          </span>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpandedSymbol(isExpanded ? null : h.symbol);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-white bg-white/[0.04] border border-white/[0.06] rounded-lg transition-all cursor-pointer"
-                          title="Toggle Purchase History"
-                        >
-                          {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-[#5E6AD2]" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        </button>
+            {/* Phone cards */}
+            <ul className="flex flex-col gap-3 md:hidden">
+              {holdings.map((h) => {
+                const isExpanded = expandedSymbol === h.symbol;
+                return (
+                  <li key={h.symbol} data-holding={h.symbol} className="mm-card p-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar symbol={h.symbol} />
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-[15px] font-extrabold text-(--mm-ink)">{h.name}</h3>
+                        <div className="mm-lbl tabular-nums">{h.symbol} · {h.quantity} × {formatCurrency(h.buyPrice)}</div>
                       </div>
-
-                      {/* Info Row 1: Qty & Buy Price */}
-                      <div className="grid grid-cols-2 gap-2 text-xs py-2 border-y border-white/[0.04] font-mono">
-                        <div className="text-left">
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Quantity</span>
-                          <span className="font-semibold text-slate-200 text-xs">{h.quantity}</span>
-                        </div>
-                        <div className="text-left">
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Avg Buy</span>
-                          <span className="font-semibold text-slate-300 text-xs">{formatCurrency(h.buyPrice)}</span>
-                        </div>
-                      </div>
-
-                      {/* Info Row 2: Invested vs Current Value */}
-                      <div className="grid grid-cols-2 gap-4 text-xs py-1 font-mono">
-                        <div className="text-left">
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Invested</span>
-                          <span className="text-slate-400 text-xs">{formatCurrency(h.investedValue)}</span>
-                        </div>
-                        <div className="text-left">
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Market Value</span>
-                          <span className="font-bold text-white text-xs">{formatCurrency(h.currentValue)}</span>
-                        </div>
-                      </div>
-
-                      {/* Info Row 3: Current Price and Returns */}
-                      <div className="bg-[#050506] border border-white/[0.04] p-2.5 rounded-lg flex items-center justify-between font-mono">
-                        <div className="text-left">
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Current Price</span>
-                          <span className="text-slate-300 font-semibold text-xs">{formatCurrency(h.currentPrice)}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Total Returns</span>
-                          <div className={`font-semibold text-xs ${rowProfit ? 'text-emerald-400' : 'text-rose-400'} flex items-center justify-end gap-1.5`}>
-                            {rowProfit ? '+' : ''}{formatCurrency(h.totalReturns)}
-                            <span className={`text-[9px] px-1.5 py-0.5 rounded ${rowProfit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'}`}>
-                              {rowProfit ? '+' : ''}{h.returnsPercentage.toFixed(2)}%
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Collapsible Mobile Purchase History */}
-                      {isExpanded && (
-                        <div className="mt-2 pt-3 border-t border-white/[0.06] space-y-2 text-left">
-                          <span className="text-[9px] text-slate-500 font-mono uppercase tracking-wider block">
-                            Purchase Transactions
-                          </span>
-                          <div className="space-y-2">
-                            {h.purchases.map((p) => {
-                              const pInvested = p.quantity * p.buyPrice;
-                              const pCurrentValue = p.quantity * h.currentPrice;
-                              const pReturns = pCurrentValue - pInvested;
-                              const pReturnsPercentage = p.buyPrice > 0 ? ((h.currentPrice - p.buyPrice) / p.buyPrice) * 100 : 0;
-                              const pProfit = pReturns >= 0;
-
-                              return (
-                                <div 
-                                  key={p.id} 
-                                  className="bg-[#050506] border border-white/[0.04] rounded-lg p-2.5 flex items-center justify-between text-xs font-mono"
-                                >
-                                  <div>
-                                    <div className="text-slate-400 text-[10px]">
-                                      {new Date(p.createdAt).toLocaleDateString(undefined, {
-                                        month: 'short',
-                                        day: 'numeric',
-                                        year: 'numeric'
-                                      })}
-                                    </div>
-                                    <div className="text-[11px] text-slate-300 mt-0.5">
-                                      {p.quantity} shares @ {formatCurrency(p.buyPrice)}
-                                    </div>
-                                    <div className="text-[10px] text-slate-400 mt-0.5">
-                                      Cost: {formatCurrency(pInvested)}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="text-right">
-                                      <div className={`text-xs font-semibold ${pProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {pProfit ? '+' : ''}{formatCurrency(pReturns)}
-                                      </div>
-                                      <span className={`inline-block text-[9px] px-1 py-0.2 rounded ${pProfit ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                        {pProfit ? '+' : ''}{pReturnsPercentage.toFixed(2)}%
-                                      </span>
-                                    </div>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteHolding(p.id, `${h.name} (Bought for ${formatCurrency(p.buyPrice)})`);
-                                      }}
-                                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
-                                      title="Delete this transaction"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
+                      <PnlPill value={h.totalReturns} pct={h.returnsPercentage} />
                     </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/[0.06] bg-[#050506]/60 backdrop-blur-xl py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-slate-500 text-xs font-mono">
-          <p>© {new Date().getFullYear()} ePassbook Portfolio. Real-time Equity Analytics.</p>
-          <div className="flex gap-4">
-            <span className="text-slate-400">Finnhub & Yahoo Finance APIs</span>
-          </div>
-        </div>
-      </footer>
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="mm-lbl">Current value</div>
+                        <div className="truncate text-[22px] font-extrabold leading-tight tabular-nums text-(--mm-ink)">{formatCurrency(h.currentValue)}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="mm-lbl">P&amp;L</div>
+                        <div className={`text-[15px] font-extrabold tabular-nums ${tone(h.totalReturns)}`}>{signed(h.totalReturns, formatCurrency)}</div>
+                      </div>
+                    </div>
 
-      {/* Add Stock Modal */}
-        <Sheet
-          open={isModalOpen}
-          onClose={() => { setIsModalOpen(false); resetForm(); }}
-          label="Log share purchase"
-          zIndex={115}
-          className="bg-[#0a0a0c] border border-white/[0.08] text-left shadow-linear-elevated"
-          bodyClassName="relative px-6 pt-1 md:pt-6"
-        >
-          {isModalOpen && (
-            <>
-              {/* Top hairline specular highlight */}
-              <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+                    <dl className="mm-divide mt-3 grid grid-cols-2 gap-3 pt-3">
+                      <div>
+                        <dt className="mm-lbl">Invested</dt>
+                        <dd className="text-[14px] font-bold tabular-nums text-(--mm-ink)">{formatCurrency(h.investedValue)}</dd>
+                      </div>
+                      <div className="text-right">
+                        <dt className="mm-lbl">Price now</dt>
+                        <dd className="text-[14px] font-bold tabular-nums text-(--mm-ink)">{formatCurrency(h.currentPrice)}</dd>
+                      </div>
+                    </dl>
 
-              <button
-                onClick={() => {
-                  setIsModalOpen(false);
-                  resetForm();
-                }}
-                className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white hover:bg-white/[0.06] rounded-lg transition-all cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedSymbol(isExpanded ? null : h.symbol)}
+                      aria-expanded={isExpanded}
+                      className="mm-btn mm-btn-soft mt-3 w-full"
+                    >
+                      {isExpanded ? 'Hide purchases' : `Purchases (${h.purchases.length})`}
+                      <LineIcon name="chevronDown" size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </button>
 
-              <div className="flex items-center gap-2.5 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/10 border border-[#5E6AD2]/25 flex items-center justify-center text-[#5E6AD2]">
-                  <Plus className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white">Log Share Purchase</h3>
-                  <span className="text-[10px] text-slate-400 font-mono">Add equity position or lots</span>
-                </div>
-              </div>
+                    {isExpanded && (
+                      <div className="mt-3">
+                        <Lots holding={h} formatCurrency={formatCurrency} onDelete={handleDeleteHolding} />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </>
+      )}
 
-              {formError && (
-                <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs font-medium rounded-xl">
-                  {formError}
-                </div>
-              )}
+      {/* Log purchase sheet */}
+      <Sheet
+        open={isModalOpen}
+        onClose={closeModal}
+        label="Log share purchase"
+        zIndex={115}
+        className={SHEET_CLASS}
+        bodyClassName={SHEET_BODY}
+      >
+        {isModalOpen && (
+          <>
+            <SheetHead icon="stocks" tone="indigo" title="Log share purchase" sub="Add a stock or another lot" onClose={closeModal} />
 
-              <form onSubmit={handleAddStock} className="space-y-4">
-                {/* Autocomplete Search input */}
-                <div className="relative" ref={searchContainerRef}>
-                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
-                    Search Ticker or Company
-                  </label>
+            {formError && <ErrorNote message={formError} />}
+
+            <form onSubmit={handleAddStock} className="space-y-4">
+              {/* Autocomplete search */}
+              <div ref={searchContainerRef}>
+                <Field label="Search ticker or company" htmlFor="stock-search">
                   <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500 pointer-events-none">
-                      {searching ? <Loader2 className="w-4 h-4 animate-spin text-[#5E6AD2]" /> : <Search className="w-4 h-4" />}
+                    <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-(--mm-ink-3)">
+                      <LineIcon name={searching ? 'spinner' : 'search'} size={17} className={searching ? 'animate-spin' : ''} />
                     </span>
                     <input
+                      id="stock-search"
                       type="text"
                       value={searchQuery}
                       onChange={(e) => {
@@ -1033,205 +781,169 @@ export default function StocksPage() {
                         if (selectedStock) setSelectedStock(null);
                       }}
                       placeholder="e.g. AAPL, RELIANCE, TSLA"
-                      className="w-full pl-9 pr-4 py-2.5 bg-[#050506] border border-white/[0.08] rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/40 transition-all font-mono"
+                      className="mm-field"
+                      style={{ paddingLeft: 40 }}
                       autoComplete="off"
                     />
                   </div>
+                </Field>
 
-                  {/* Autocomplete Dropdown List */}
-                  {showDropdown && searchResults.length > 0 && (
-                    <div className="absolute left-0 right-0 mt-1 bg-[#0a0a0c] border border-white/[0.08] rounded-xl shadow-2xl overflow-hidden max-h-48 overflow-y-auto z-[110] divide-y divide-white/[0.04]">
-                      {searchResults.map((item, idx) => (
+                {showDropdown && searchResults.length > 0 && (
+                  <ul className="mt-2 max-h-56 overflow-y-auto overscroll-contain rounded-xl border border-(--mm-line) bg-(--mm-card)" role="listbox" aria-label="Matching stocks">
+                    {searchResults.map((item, idx) => (
+                      <li key={idx} role="option" aria-selected={selectedStock?.symbol === item.symbol} className="border-t border-(--mm-line-2) first:border-t-0">
                         <button
-                          key={idx}
                           type="button"
                           onClick={() => {
                             setSelectedStock(item);
                             setSearchQuery(`${item.name} (${item.symbol})`);
                             setShowDropdown(false);
                           }}
-                          className="w-full text-left px-3.5 py-2.5 hover:bg-[#5E6AD2]/10 text-xs text-slate-200 transition-colors flex justify-between items-center cursor-pointer"
+                          className="mm-focus flex min-h-12 w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-left hover:bg-(--mm-soft)"
                         >
-                          <div>
-                            <div className="font-medium text-white">{item.name}</div>
-                            <div className="text-[10px] text-slate-400 font-mono mt-0.5">{item.type}</div>
-                          </div>
-                          <span className="px-2 py-0.5 bg-white/[0.04] border border-white/[0.06] text-[10px] font-mono text-[#818cf8] rounded">
-                            {item.symbol}
+                          <span className="min-w-0">
+                            <span className="block truncate text-[14px] font-bold text-(--mm-ink)">{item.name}</span>
+                            <span className="mm-lbl block">{item.type}</span>
                           </span>
+                          <Pill tone="brand">{item.symbol}</Pill>
                         </button>
-                      ))}
-                    </div>
-                  )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-                  {/* Selected Stock confirmation badge */}
-                  {selectedStock && (
-                    <div className="mt-2 p-2.5 bg-emerald-500/10 border border-emerald-500/25 rounded-xl flex items-center justify-between">
-                      <span className="text-[11px] font-medium text-emerald-400">
-                        Selected: <strong className="text-white">{selectedStock.name}</strong> ({selectedStock.symbol})
-                      </span>
-                      <span className="text-[9px] font-mono bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded">VERIFIED</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  {/* Quantity Input */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
-                      Quantity
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      placeholder="e.g. 10"
-                      className="w-full px-3.5 py-2.5 bg-[#050506] border border-white/[0.08] rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/40 transition-all font-mono"
-                      required
-                    />
+                {selectedStock && (
+                  <div className="mt-2 flex items-center gap-2 rounded-xl bg-(--mm-green-soft) p-2.5 text-[13px] font-semibold text-(--mm-green-ink)">
+                    <LineIcon name="check" size={16} strokeWidth={2.6} />
+                    <span className="min-w-0 flex-1 truncate">Selected: {selectedStock.name} ({selectedStock.symbol})</span>
                   </div>
+                )}
+              </div>
 
-                  {/* Price Input */}
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1.5">
-                      Buy Price
-                    </label>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="any"
-                      value={buyPrice}
-                      onChange={(e) => setBuyPrice(e.target.value)}
-                      placeholder="e.g. 150.00"
-                      className="w-full px-3.5 py-2.5 bg-[#050506] border border-white/[0.08] rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#5E6AD2] focus:ring-1 focus:ring-[#5E6AD2]/40 transition-all font-mono"
-                      required
-                    />
-                  </div>
-                </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Quantity" htmlFor="stock-qty">
+                  <input
+                    id="stock-qty"
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    step="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder="e.g. 10"
+                    className="mm-field tabular-nums"
+                    required
+                  />
+                </Field>
+                <Field label="Buy price" htmlFor="stock-price">
+                  <input
+                    id="stock-price"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    step="any"
+                    value={buyPrice}
+                    onChange={(e) => setBuyPrice(e.target.value)}
+                    placeholder="e.g. 150.00"
+                    className="mm-field tabular-nums"
+                    required
+                  />
+                </Field>
+              </div>
 
-                {/* Transaction & Salary Balance Options */}
-                <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl space-y-3">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id="recordTransactionCheckbox"
-                      checked={recordTransaction}
-                      onChange={(e) => setRecordTransaction(e.target.checked)}
-                      className="w-4 h-4 accent-[#5E6AD2] cursor-pointer rounded"
-                    />
-                    <label htmlFor="recordTransactionCheckbox" className="text-xs font-medium text-slate-200 cursor-pointer select-none">
-                      Record in Passbook Ledger
-                    </label>
-                  </div>
+              {/* Ledger options */}
+              <div className="space-y-3 rounded-2xl bg-(--mm-soft) p-3.5">
+                <label htmlFor="recordTransactionCheckbox" className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] font-bold text-(--mm-ink)">
+                  <input
+                    type="checkbox"
+                    id="recordTransactionCheckbox"
+                    checked={recordTransaction}
+                    onChange={(e) => setRecordTransaction(e.target.checked)}
+                    className="h-5 w-5 shrink-0 cursor-pointer accent-(--mm-brand)"
+                  />
+                  Record in passbook
+                </label>
 
-                  {recordTransaction && (
-                    <div className="space-y-3 pt-2.5 border-t border-white/[0.06]">
-                      {/* Transaction Type */}
-                      <div>
-                        <label className="block text-slate-400 text-[10px] font-mono uppercase tracking-wider mb-1.5">
-                          Ledger Category
-                        </label>
-                        <div className="grid grid-cols-2 gap-1 p-0.5 bg-[#0a0a0c] border border-white/[0.06] rounded-lg">
-                          <button
-                            type="button"
-                            onClick={() => setTransactionType('SAVINGS')}
-                            className={`py-1.5 text-[10px] font-mono uppercase rounded transition-all cursor-pointer ${
-                              transactionType === 'SAVINGS'
-                                ? 'bg-[#5E6AD2] text-white shadow-sm'
-                                : 'text-slate-400 hover:text-slate-200'
-                            }`}
-                          >
-                            Savings (Invest)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setTransactionType('SPENDING')}
-                            className={`py-1.5 text-[10px] font-mono uppercase rounded transition-all cursor-pointer ${
-                              transactionType === 'SPENDING'
-                                ? 'bg-[#5E6AD2] text-white shadow-sm'
-                                : 'text-slate-400 hover:text-slate-200'
-                            }`}
-                          >
-                            Spending (Cost)
-                          </button>
-                        </div>
+                {recordTransaction && (
+                  <div className="mm-divide space-y-3 pt-3">
+                    <div>
+                      <span className="mm-field-label" id="ledger-cat-label">Ledger category</span>
+                      <div className="mm-seg w-full" role="group" aria-labelledby="ledger-cat-label">
+                        <button
+                          type="button"
+                          aria-pressed={transactionType === 'SAVINGS'}
+                          onClick={() => setTransactionType('SAVINGS')}
+                          className={`mm-focus min-h-11 flex-1 ${transactionType === 'SAVINGS' ? 'is-on' : ''}`}
+                        >
+                          Savings
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={transactionType === 'SPENDING'}
+                          onClick={() => setTransactionType('SPENDING')}
+                          className={`mm-focus min-h-11 flex-1 ${transactionType === 'SPENDING' ? 'is-on' : ''}`}
+                        >
+                          Spending
+                        </button>
                       </div>
-
-                      {/* Deduct from Salary */}
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          id="useSalaryBalanceCheckbox"
-                          checked={useSalaryBalance}
-                          onChange={(e) => setUseSalaryBalance(e.target.checked)}
-                          className="w-4 h-4 accent-[#5E6AD2] cursor-pointer rounded"
-                        />
-                        <label htmlFor="useSalaryBalanceCheckbox" className="text-xs text-slate-300 cursor-pointer select-none">
-                          Deduct from monthly salary balance
-                        </label>
-                      </div>
-
-                      {useSalaryBalance && (
-                        <div className="grid grid-cols-2 gap-2.5 pt-1">
-                          <div>
-                            <label className="block text-slate-400 text-[9px] font-mono uppercase tracking-wider mb-1">
-                              Salary Month
-                            </label>
-                            <select
-                              value={salaryMonth}
-                              onChange={(e) => setSalaryMonth(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-[#0a0a0c] border border-white/[0.08] rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] font-mono"
-                            >
-                              {monthsList.map((m) => (
-                                <option key={m.value} value={m.value}>
-                                  {m.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-slate-400 text-[9px] font-mono uppercase tracking-wider mb-1">
-                              Salary Year
-                            </label>
-                            <input
-                              type="number"
-                              value={salaryYear}
-                              onChange={(e) => setSalaryYear(e.target.value)}
-                              className="w-full px-2.5 py-1.5 bg-[#0a0a0c] border border-white/[0.08] rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] font-mono"
-                            />
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  )}
-                </div>
 
-                <div className="pt-2 flex gap-2.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsModalOpen(false);
-                      resetForm();
-                    }}
-                    className="flex-1 btn-linear-secondary text-xs py-2.5"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={adding || !selectedStock}
-                    className="flex-1 btn-linear-primary text-xs py-2.5 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    <span>Save Holding</span>
-                  </button>
-                </div>
-              </form>
-            </>
-          )}
-        </Sheet>
-    </div>
+                    <label htmlFor="useSalaryBalanceCheckbox" className="flex min-h-11 cursor-pointer items-center gap-3 text-[14px] font-semibold text-(--mm-ink-2)">
+                      <input
+                        type="checkbox"
+                        id="useSalaryBalanceCheckbox"
+                        checked={useSalaryBalance}
+                        onChange={(e) => setUseSalaryBalance(e.target.checked)}
+                        className="h-5 w-5 shrink-0 cursor-pointer accent-(--mm-brand)"
+                      />
+                      Deduct from monthly salary balance
+                    </label>
+
+                    {useSalaryBalance && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <Field label="Salary month" htmlFor="salary-month">
+                          <select
+                            id="salary-month"
+                            value={salaryMonth}
+                            onChange={(e) => setSalaryMonth(e.target.value)}
+                            className="mm-field"
+                          >
+                            {monthsList.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Salary year" htmlFor="salary-year">
+                          <input
+                            id="salary-year"
+                            type="number"
+                            inputMode="numeric"
+                            value={salaryYear}
+                            onChange={(e) => setSalaryYear(e.target.value)}
+                            className="mm-field tabular-nums"
+                          />
+                        </Field>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={closeModal} className="mm-btn mm-btn-ghost flex-1">
+                  Cancel
+                </button>
+                <button type="submit" disabled={adding || !selectedStock} className="mm-btn mm-btn-amber flex-1">
+                  {adding && <LineIcon name="spinner" size={16} className="animate-spin" />}
+                  Save holding
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+      </Sheet>
+    </InvestPage>
   );
 }

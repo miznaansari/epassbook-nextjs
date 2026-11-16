@@ -850,6 +850,16 @@ html.light .divide-white\/\[0\.03\]:not([data-ui="v2"] *) > * + * {
   --mm-red-ink: #B91C1C;
   --mm-savings-ink: #92400E;
 
+  /* Chart series (fixed order; validated with the dataviz validator on the card surface) */
+  --mm-chart-1: #4F46E5;
+  --mm-chart-2: #EA580C;
+  --mm-chart-3: #10B981;
+  --mm-chart-4: #F59E0B;
+  --mm-chart-mute: #C9CEDD;
+  --mm-good: #047857;
+  --mm-bad: #B91C1C;
+  --mm-lift: 0 1px 0 rgb(255 255 255 / 0.9) inset, 0 10px 24px -14px rgb(55 48 163 / 0.35), 0 2px 4px rgb(20 20 43 / 0.04);
+
   /* Passbook: segmented control + filter chips */
   --mm-seg: #EAECF5;
   --mm-seg-shadow: 0 1px 3px #14142B1A;
@@ -899,6 +909,15 @@ html.light .divide-white\/\[0\.03\]:not([data-ui="v2"] *) > * + * {
   --mm-red-soft: rgb(248 113 113 / 0.14);
   --mm-red-ink: #FCA5A5;
   --mm-savings-ink: #FCD34D;
+
+  --mm-chart-1: #727CF0;
+  --mm-chart-2: #D95926;
+  --mm-chart-3: #199E70;
+  --mm-chart-4: #C98500;
+  --mm-chart-mute: #3A4256;
+  --mm-good: #34D399;
+  --mm-bad: #FB7185;
+  --mm-lift: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 14px 28px -16px rgb(0 0 0 / 0.8);
 
   --mm-seg: #1A1F2E;
   --mm-seg-shadow: 0 1px 3px rgb(0 0 0 / 0.5);
@@ -1008,6 +1027,26 @@ html.light .divide-white\/\[0\.03\]:not([data-ui="v2"] *) > * + * {
   .mm-nav:hover { background: var(--mm-soft); color: var(--mm-ink); }
   .mm-nav.is-on { background: var(--mm-brand-soft); color: var(--mm-brand-ink); }
   .mm-divide { border-top: 1px solid var(--mm-line-2); }
+  /* Raised card (stat tiles, 3D icon tiles) and form fields for redesigned pages */
+  .mm-lift { box-shadow: var(--mm-lift); }
+  .mm-field {
+    width: 100%;
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 12px;
+    border: 1px solid var(--mm-line);
+    background: var(--mm-card);
+    color: var(--mm-ink);
+    font-size: 15px;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  textarea.mm-field { padding: 12px 14px; min-height: 84px; resize: vertical; }
+  .mm-field::placeholder { color: var(--mm-ink-3); font-weight: 500; }
+  .mm-field:focus { border-color: var(--mm-brand); box-shadow: 0 0 0 3px var(--mm-brand-soft); }
+  .mm-field:disabled { opacity: 0.6; cursor: not-allowed; }
+  .mm-field-label { display: block; margin-bottom: 6px; font-size: 12px; font-weight: 700; color: var(--mm-ink-2); }
   /* Passbook mockup: .seg (Day wise / Month wise), .ft (type filters), .tr (ledger row) */
   .mm-seg {
     display: inline-flex;

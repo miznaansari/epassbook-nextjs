@@ -3,22 +3,29 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import SpotlightCard from '@/components/ui/SpotlightCard';
-import { motion, AnimatePresence } from 'framer-motion';
 import Sheet from '@/components/ui/Sheet';
+import LineIcon from '@/components/ui/LineIcon';
 import {
-  Coins,
-  Calendar,
-  Clock,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Plus,
-  Trash2,
-  Info,
-  DollarSign,
-  Briefcase
-} from 'lucide-react';
+  InvestPage,
+  PageHead,
+  HeroBand,
+  StatTile,
+  Icon3DTile,
+  Card,
+  Empty,
+  Pill,
+  SheetHead,
+  Field,
+  CardSkeleton,
+  SHEET_CLASS,
+  SHEET_BODY,
+} from '@/components/invest/kit';
+import { StatusTimeline, Meter, RankedBars } from '@/components/invest/charts';
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const fmtDate = (d) =>
+  new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
 export default function SipTracker() {
   const { user, loading, logout } = useAuth();
@@ -198,13 +205,7 @@ export default function SipTracker() {
     }).format(val || 0);
   };
 
-  if (loading || !user) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-[#050506]">
-        <div className="w-8 h-8 border-2 border-white/10 border-t-[#5E6AD2] rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const pageLoading = loading || !user || loadingSips;
 
   const totalMonthlySip = sips
     .filter(s => s.isActive && s.frequency === 'MONTHLY')
@@ -216,445 +217,329 @@ export default function SipTracker() {
 
   const totalActiveSips = sips.filter(s => s.isActive).length;
 
+  // Derived for display only
+  const monthlyEquivalent = (s) => parseFloat(s.amount) * (s.frequency === 'WEEKLY' ? 52 / 12 : 1);
+  const monthlyCommitment = totalMonthlySip + totalWeeklySip * (52 / 12);
+  const allPeriods = sips.flatMap(s => s.periods || []);
+  const paidCount = allPeriods.filter(p => p.status === 'PAID').length;
+  const missedCount = allPeriods.filter(p => p.status === 'MISSED').length;
+  const dueCount = allPeriods.filter(p => p.status === 'PENDING').length;
+  const commitmentRows = sips
+    .filter(s => s.isActive)
+    .map(s => ({
+      key: s.id,
+      label: s.title,
+      sub: s.frequency === 'WEEKLY' ? 'weekly' : 'monthly',
+      value: monthlyEquivalent(s),
+    }));
+
+  const newPlanButton = (
+    <button type="button" onClick={() => setShowAddForm(true)} className="mm-btn mm-btn-amber mm-focus min-h-11 gap-1.5 px-4">
+      <LineIcon name="plus" size={18} strokeWidth={2.4} /> New plan
+    </button>
+  );
+
   return (
-    <div className="relative flex-1 flex flex-col justify-between bg-[#050506] text-[#EDEDEF]">
+    <InvestPage>
+      <PageHead title="SIP plans" sub="Recurring investments and their payment history" actions={newPlanButton} />
 
-      <main className="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 py-8 pb-32 sm:pb-8 text-left">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-semibold text-white tracking-tight flex items-center gap-2.5">
-              <Coins className="w-7 h-7 text-[#818cf8]" /> SIP Tracker
-            </h1>
-            <p className="text-[#8A8F98] text-xs mt-1">
-              Manage Systematic Investment Plans, track recurring payments, and verify savings allocations.
-            </p>
-          </div>
+      <HeroBand
+        icon="sips"
+        label="Monthly commitment"
+        value={formatCurrency(monthlyCommitment)}
+        delta={totalWeeklySip > 0 ? 'Weekly plans counted at 52 weeks / 12' : 'Across your active plans'}
+        loading={pageLoading}
+        tiles={[
+          { label: 'Active plans', value: totalActiveSips },
+          { label: 'Monthly', value: formatCurrency(totalMonthlySip) },
+          { label: 'Weekly', value: formatCurrency(totalWeeklySip) },
+        ]}
+      />
 
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="btn-linear-primary flex items-center justify-center gap-2 px-4 py-2 text-xs self-start md:self-auto cursor-pointer"
-          >
-            <Plus className="w-4 h-4" /> {showAddForm ? 'Close Form' : 'Add New SIP'}
-          </button>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <StatTile icon="check" tone="green" label="Paid" value={paidCount} delta="recent periods" loading={pageLoading} />
+        <StatTile icon="warning" tone="red" label="Missed" value={missedCount} delta="recent periods" good={missedCount === 0} loading={pageLoading} />
+        <div className="col-span-2 sm:col-span-1">
+          <StatTile icon="calendar" tone="gold" label="Due now" value={dueCount} delta="to confirm" loading={pageLoading} />
         </div>
+      </div>
 
-        {/* Stats Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <SpotlightCard className="p-5 flex items-center gap-3.5">
-            <div className="p-2.5 bg-[#5E6AD2]/10 border border-[#5E6AD2]/20 text-[#818cf8] rounded-xl">
-              <Coins className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider">Active SIP Plans</div>
-              <div className="text-2xl font-semibold text-white mt-0.5">{totalActiveSips}</div>
-            </div>
-          </SpotlightCard>
+      {pageLoading ? (
+        <>
+          <CardSkeleton rows={2} />
+          <CardSkeleton rows={2} />
+        </>
+      ) : sips.length === 0 ? (
+        <Card>
+          <Empty
+            icon="sips"
+            title="No SIP plans yet"
+            message="Add a monthly or weekly plan to track each payment."
+            action={newPlanButton}
+          />
+        </Card>
+      ) : (
+        <>
+          {commitmentRows.length > 1 && (
+            <Card title="Commitment by plan" sub="Per month, active plans">
+              <RankedBars rows={commitmentRows} format={formatCurrency} />
+            </Card>
+          )}
 
-          <SpotlightCard className="p-5 flex items-center gap-3.5" spotlightColor="rgba(16, 185, 129, 0.15)">
-            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl">
-              <Calendar className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider">Monthly SIP Target</div>
-              <div className="text-2xl font-semibold text-emerald-400 mt-0.5">{formatCurrency(totalMonthlySip)}</div>
-            </div>
-          </SpotlightCard>
+          <ul className="flex flex-col gap-4">
+            {sips.map((sip) => {
+              const periods = sip.periods || [];
+              const paid = periods.filter(p => p.status === 'PAID').length;
+              const missed = periods.filter(p => p.status === 'MISSED').length;
+              const elapsed = paid + missed;
+              const duePeriod = periods.find(p => p.status === 'PENDING');
+              const items = periods.map((p, idx) => ({
+                key: `${sip.id}-${idx}`,
+                label: p.label,
+                status: p.status === 'PAID' ? 'paid' : p.status === 'MISSED' ? 'missed' : 'due',
+                title: p.status === 'PAID' && p.transaction ? formatCurrency(p.transaction.amount) : formatCurrency(sip.amount),
+                period: p,
+              }));
+              const when = sip.frequency === 'MONTHLY'
+                ? `Day ${sip.dayOfMonth}`
+                : WEEKDAYS[(sip.dayOfWeek || 1) - 1];
 
-          <SpotlightCard className="p-5 flex items-center gap-3.5" spotlightColor="rgba(59, 130, 246, 0.15)">
-            <div className="p-2.5 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="text-[10px] text-[#8A8F98] font-mono uppercase tracking-wider">Weekly SIP Target</div>
-              <div className="text-2xl font-semibold text-blue-400 mt-0.5">{formatCurrency(totalWeeklySip)}</div>
-            </div>
-          </SpotlightCard>
-        </div>
+              return (
+                <li key={sip.id}>
+                  <Card>
+                    <div className="flex items-start gap-3">
+                      <Icon3DTile name="sips" tone={sip.isActive ? 'indigo' : 'gold'} size={48} />
+                      <div className="min-w-0 flex-1">
+                        <h2 className="mm-h2 truncate">{sip.title}</h2>
+                        <p className="mm-lbl mt-0.5">
+                          {sip.frequency === 'WEEKLY' ? 'Weekly' : 'Monthly'} · {when} · {sip.reminderTime}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right text-[17px] font-extrabold tabular-nums text-(--mm-ink)">
+                        {formatCurrency(sip.amount)}
+                      </div>
+                    </div>
 
-        {/* Creator Form */}
-        <AnimatePresence>
-          {showAddForm && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-              className="overflow-hidden mb-8"
-            >
-              <form onSubmit={handleCreateSip} className="bg-[#0a0a0c] p-6 border border-white/10 rounded-2xl shadow-xl space-y-5">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2 border-b border-white/[0.06] pb-3">
-                  Create New Systematic Investment Plan
-                </h3>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      <Pill tone={sip.isActive ? 'good' : 'mute'}>{sip.isActive ? 'Active' : 'Paused'}</Pill>
+                      {missed > 0 && <Pill tone="bad">{missed} missed</Pill>}
+                      {duePeriod && <Pill tone="warn">Due now</Pill>}
+                    </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase text-[#8A8F98] mb-1.5">
-                      SIP Name / Title
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g. Navi Mutual Fund"
-                      className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white placeholder-[#8A8F98]/50 text-xs focus:outline-none focus:border-[#5E6AD2]"
-                    />
-                  </div>
+                    <div className="mt-4">
+                      <div className="mb-1.5 flex items-baseline justify-between gap-3 text-[13px]">
+                        <span className="font-bold text-(--mm-ink)">Paid on time</span>
+                        <span className="font-bold tabular-nums text-(--mm-ink)">
+                          {paid} <span className="mm-lbl font-medium">of {elapsed} periods</span>
+                        </span>
+                      </div>
+                      <Meter value={paid} max={elapsed} label={`${sip.title}: ${paid} of ${elapsed} periods paid`} tone={missed > 0 ? 'warn' : 'good'} />
+                    </div>
 
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase text-[#8A8F98] mb-1.5">
-                      Periodic Amount
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      step="0.01"
-                      min="0.01"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      placeholder="e.g. 5000"
-                      className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white placeholder-[#8A8F98]/50 text-xs focus:outline-none focus:border-[#5E6AD2]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase text-[#8A8F98] mb-1.5">
-                      Frequency
-                    </label>
-                    <select
-                      value={frequency}
-                      onChange={(e) => setFrequency(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] cursor-pointer"
-                    >
-                      <option value="MONTHLY">Monthly</option>
-                      <option value="WEEKLY">Weekly</option>
-                    </select>
-                  </div>
-
-                  {frequency === 'MONTHLY' ? (
-                    <div>
-                      <label className="block text-[10px] font-mono uppercase text-[#8A8F98] mb-1.5">
-                        Day of Month (1 - 31)
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
-                        required
-                        value={dayOfMonth}
-                        onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
-                        className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
+                    <div className="mt-4">
+                      <StatusTimeline
+                        items={items}
+                        label={`${sip.title} payment history`}
+                        onSelect={(item) => (item.status === 'paid' ? triggerPaidTxModal(item.period) : triggerConfirmModal(sip, item.period))}
                       />
+                      <p className="mm-lbl mt-1.5">Tap a period to confirm it or see its transaction.</p>
                     </div>
-                  ) : (
-                    <div>
-                      <label className="block text-[10px] font-mono uppercase text-[#8A8F98] mb-1.5">
-                        Day of Week
-                      </label>
-                      <select
-                        value={dayOfWeek}
-                        onChange={(e) => setDayOfWeek(parseInt(e.target.value))}
-                        className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2] cursor-pointer"
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-2.5 border-t border-(--mm-line) pt-3.5">
+                      {duePeriod ? (
+                        <button type="button" onClick={() => triggerConfirmModal(sip, duePeriod)} className="mm-btn mm-btn-amber mm-focus min-h-11 gap-1.5 px-4">
+                          <LineIcon name="check" size={18} strokeWidth={2.4} /> Confirm payment
+                        </button>
+                      ) : <span />}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSip(sip.id)}
+                        className="mm-btn mm-btn-ghost mm-focus min-h-11 gap-1.5 px-3 text-(--mm-red-ink)"
                       >
-                        <option value="1">Monday</option>
-                        <option value="2">Tuesday</option>
-                        <option value="3">Wednesday</option>
-                        <option value="4">Thursday</option>
-                        <option value="5">Friday</option>
-                        <option value="6">Saturday</option>
-                        <option value="7">Sunday</option>
-                      </select>
+                        <LineIcon name="trash" size={16} /> Delete plan
+                      </button>
                     </div>
-                  )}
+                  </Card>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
 
-                  <div>
-                    <label className="block text-[10px] font-mono uppercase text-[#8A8F98] mb-1.5">
-                      Notification Time
-                    </label>
-                    <input
-                      type="time"
-                      required
-                      value={reminderTime}
-                      onChange={(e) => setReminderTime(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-[#050506] border border-white/10 rounded-lg text-white text-xs focus:outline-none focus:border-[#5E6AD2]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-white/[0.06]">
-                  <button
-                    type="button"
-                    onClick={() => setShowAddForm(false)}
-                    className="btn-linear-secondary px-4 py-2 text-xs cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={submitting}
-                    className="btn-linear-primary px-4 py-2 text-xs cursor-pointer disabled:opacity-50"
-                  >
-                    {submitting ? 'Creating...' : 'Create Plan'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
+      {/* New plan */}
+      <Sheet
+        open={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        label="New SIP plan"
+        zIndex={115}
+        dismissible={!submitting}
+        className={SHEET_CLASS}
+        bodyClassName={SHEET_BODY}
+      >
+        <SheetHead icon="sips" tone="indigo" title="New SIP plan" sub="A recurring investment to track" onClose={() => setShowAddForm(false)} />
+        <form onSubmit={handleCreateSip} className="space-y-4">
+          <Field label="Plan name" htmlFor="sip-title">
+            <input
+              id="sip-title"
+              type="text"
+              required
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Navi Mutual Fund"
+              className="mm-field"
+            />
+          </Field>
+          <Field label="Amount per period" htmlFor="sip-amount">
+            <input
+              id="sip-amount"
+              type="number"
+              inputMode="decimal"
+              required
+              step="0.01"
+              min="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="e.g. 5000"
+              className="mm-field"
+            />
+          </Field>
+          <Field label="Frequency" htmlFor="sip-frequency">
+            <select id="sip-frequency" value={frequency} onChange={(e) => setFrequency(e.target.value)} className="mm-field">
+              <option value="MONTHLY">Monthly</option>
+              <option value="WEEKLY">Weekly</option>
+            </select>
+          </Field>
+          {frequency === 'MONTHLY' ? (
+            <Field label="Day of month (1 - 31)" htmlFor="sip-dom">
+              <input
+                id="sip-dom"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                max="31"
+                required
+                value={dayOfMonth}
+                onChange={(e) => setDayOfMonth(Math.max(1, Math.min(31, parseInt(e.target.value) || 1)))}
+                className="mm-field"
+              />
+            </Field>
+          ) : (
+            <Field label="Day of week" htmlFor="sip-dow">
+              <select id="sip-dow" value={dayOfWeek} onChange={(e) => setDayOfWeek(parseInt(e.target.value))} className="mm-field">
+                <option value="1">Monday</option>
+                <option value="2">Tuesday</option>
+                <option value="3">Wednesday</option>
+                <option value="4">Thursday</option>
+                <option value="5">Friday</option>
+                <option value="6">Saturday</option>
+                <option value="7">Sunday</option>
+              </select>
+            </Field>
           )}
-        </AnimatePresence>
+          <Field label="Reminder time" htmlFor="sip-time">
+            <input id="sip-time" type="time" required value={reminderTime} onChange={(e) => setReminderTime(e.target.value)} className="mm-field" />
+          </Field>
+          <div className="flex gap-2.5 pb-1 pt-1">
+            <button type="button" onClick={() => setShowAddForm(false)} disabled={submitting} className="mm-btn mm-btn-ghost mm-focus min-h-11 flex-1">
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting} className="mm-btn mm-btn-amber mm-focus min-h-11 flex-1 disabled:opacity-50">
+              {submitting ? 'Creating...' : 'Create plan'}
+            </button>
+          </div>
+        </form>
+      </Sheet>
 
-        {/* SIP List */}
-        {loadingSips ? (
-          <div className="space-y-4">
-            {[1, 2].map(n => (
-              <div key={n} className="h-36 bg-white/5 rounded-2xl animate-pulse" />
-            ))}
-          </div>
-        ) : sips.length === 0 ? (
-          <div className="glass-card py-16 text-center border border-white/[0.06] rounded-2xl">
-            <Coins className="w-8 h-8 text-[#8A8F98] mx-auto mb-3 opacity-30" />
-            <h3 className="text-white text-sm font-semibold">No SIP Plans Configured</h3>
-            <p className="text-[#8A8F98] text-xs mt-1 max-w-sm mx-auto">
-              Configure a monthly or weekly savings plan to track matching ledger allocations.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {sips.map((sip) => (
-              <motion.div
-                key={sip.id}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-[#0a0a0c] p-5 border border-white/[0.06] rounded-2xl relative overflow-hidden"
+      {/* Confirm payment */}
+      <Sheet
+        open={confirmModalOpen && !!selectedSip && !!selectedPeriod}
+        onClose={() => setConfirmModalOpen(false)}
+        label="Confirm SIP payment"
+        zIndex={115}
+        dismissible={!submitting}
+        className={SHEET_CLASS}
+        bodyClassName={SHEET_BODY}
+      >
+        {selectedSip && selectedPeriod && (
+          <>
+            <SheetHead icon="sips" tone="indigo" title="Confirm payment" sub="Adds a matching savings entry" onClose={() => setConfirmModalOpen(false)} />
+            <dl className="space-y-2 rounded-xl bg-(--mm-soft) p-3.5 text-[13px]">
+              <div className="flex justify-between gap-3">
+                <dt className="text-(--mm-ink-2)">Plan</dt>
+                <dd className="font-bold text-(--mm-ink)">{selectedSip.title}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-(--mm-ink-2)">Target date</dt>
+                <dd className="font-bold tabular-nums text-(--mm-ink)">{fmtDate(selectedPeriod.targetDate)}</dd>
+              </div>
+              <div className="flex justify-between gap-3 border-t border-(--mm-line) pt-2">
+                <dt className="text-(--mm-ink-2)">Amount</dt>
+                <dd className="text-[15px] font-extrabold tabular-nums text-(--mm-ink)">{formatCurrency(selectedSip.amount)}</dd>
+              </div>
+            </dl>
+            <div className="flex gap-2.5 pb-1">
+              <button
+                type="button"
+                disabled={confirmLoading}
+                onClick={() => {
+                  setConfirmModalOpen(false);
+                  setSelectedSip(null);
+                  setSelectedPeriod(null);
+                }}
+                className="mm-btn mm-btn-ghost mm-focus min-h-11 flex-1"
               >
-                <div className="flex items-start justify-between gap-4 mb-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-white tracking-tight flex items-center gap-2">
-                      {sip.title}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-[#8A8F98]">
-                      <span className="font-mono text-[9px] uppercase px-2 py-0.5 rounded bg-white/[0.05] border border-white/[0.06] text-[#818cf8]">
-                        {sip.frequency}
-                      </span>
-                      <span className="flex items-center gap-1 font-mono text-[11px]">
-                        <Calendar className="w-3 h-3 text-[#818cf8]" />
-                        {sip.frequency === 'MONTHLY' ? `Day ${sip.dayOfMonth}` : `${['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][(sip.dayOfWeek || 1) - 1]}`}
-                      </span>
-                      <span className="flex items-center gap-1 font-mono text-[11px]">
-                        <Clock className="w-3 h-3 text-[#818cf8]" />
-                        {sip.reminderTime}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-semibold text-emerald-400 font-mono">
-                      {formatCurrency(sip.amount)}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteSip(sip.id)}
-                      className="p-1.5 text-[#8A8F98] hover:text-rose-400 rounded-lg transition-colors cursor-pointer"
-                      title="Delete SIP Flow"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Horizontal Scrollable Timeline Tracker */}
-                <div className="border-t border-white/[0.04] pt-3">
-                  <div className="text-[9px] font-mono text-[#8A8F98] uppercase tracking-wider mb-2.5 flex items-center gap-1">
-                    <Info className="w-3 h-3 text-[#818cf8]" /> Tap unpaid cycle to log transaction
-                  </div>
-
-                  <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                    {sip.periods.map((period, idx) => {
-                      const isPaid = period.status === 'PAID';
-                      const isMissed = period.status === 'MISSED';
-
-                      return (
-                        <div
-                          key={idx}
-                          onClick={() => {
-                            if (period.status === 'PAID') {
-                              triggerPaidTxModal(period);
-                            } else {
-                              triggerConfirmModal(sip, period);
-                            }
-                          }}
-                          className={`flex flex-col items-center min-w-[64px] p-2 rounded-xl border transition-all select-none cursor-pointer ${
-                            isPaid
-                              ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-400'
-                              : isMissed
-                              ? 'bg-rose-500/10 border-rose-500/25 text-rose-400'
-                              : 'bg-white/[0.02] border-white/[0.06] text-[#8A8F98] hover:border-white/15'
-                          }`}
-                        >
-                          <span className="text-[9px] font-mono uppercase mb-1">
-                            {period.label}
-                          </span>
-                          <div className="mb-0.5">
-                            {isPaid ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            ) : isMissed ? (
-                              <XCircle className="w-4 h-4 text-rose-400" />
-                            ) : (
-                              <AlertCircle className="w-4 h-4 text-[#8A8F98]" />
-                            )}
-                          </div>
-                          <span className="text-[8px] font-mono uppercase tracking-wider mt-0.5">
-                            {period.status}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                Cancel
+              </button>
+              <button type="button" disabled={confirmLoading} onClick={handleConfirmPayment} className="mm-btn mm-btn-amber mm-focus min-h-11 flex-1 disabled:opacity-50">
+                {confirmLoading ? 'Confirming...' : 'Confirm & log'}
+              </button>
+            </div>
+          </>
         )}
-      </main>
+      </Sheet>
 
-      {/* Confirmation Modal */}
-        <Sheet
-          open={confirmModalOpen && !!selectedSip && !!selectedPeriod}
-          onClose={() => setConfirmModalOpen(false)}
-          label="Confirm SIP payment"
-          zIndex={115}
-          dismissible={!submitting}
-          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
-          bodyClassName="px-6 pt-1 md:pt-6 space-y-4"
-        >
-          {selectedSip && selectedPeriod && (
-            <>
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
-                  <Coins className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-white tracking-tight">Confirm SIP Transaction</h3>
-                  <p className="text-[#8A8F98] text-xs mt-0.5 leading-relaxed">
-                    This creates a matching savings entry in your e-passbook.
-                  </p>
-                </div>
+      {/* Payment details */}
+      <Sheet
+        open={paidTxModalOpen && !!selectedTx}
+        onClose={() => setPaidTxModalOpen(false)}
+        label="SIP payment details"
+        zIndex={115}
+        className={SHEET_CLASS}
+        bodyClassName={SHEET_BODY}
+      >
+        {selectedTx && (
+          <>
+            <SheetHead icon="check" tone="green" title="Payment logged" sub="Saved in your passbook" onClose={() => setPaidTxModalOpen(false)} />
+            <dl className="space-y-2 rounded-xl bg-(--mm-soft) p-3.5 text-[13px]">
+              <div className="flex justify-between gap-3">
+                <dt className="text-(--mm-ink-2)">Title</dt>
+                <dd className="font-bold text-(--mm-ink)">{selectedTx.title}</dd>
               </div>
-
-              <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#8A8F98]">SIP Plan:</span>
-                  <span className="text-white font-medium">{selectedSip.title}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#8A8F98]">Target Date:</span>
-                  <span className="text-white font-mono">
-                    {new Date(selectedPeriod.targetDate).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-white/[0.04]">
-                  <span className="text-[#8A8F98]">Amount:</span>
-                  <span className="text-emerald-400 font-mono font-semibold text-sm">
-                    {formatCurrency(selectedSip.amount)}
-                  </span>
-                </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-(--mm-ink-2)">Date</dt>
+                <dd className="font-bold tabular-nums text-(--mm-ink)">{fmtDate(selectedTx.date)}</dd>
               </div>
-
-              <div className="flex gap-2.5 justify-end pt-2">
-                <button
-                  type="button"
-                  disabled={confirmLoading}
-                  onClick={() => {
-                    setConfirmModalOpen(false);
-                    setSelectedSip(null);
-                    setSelectedPeriod(null);
-                  }}
-                  className="btn-linear-secondary px-4 py-2 text-xs cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={confirmLoading}
-                  onClick={handleConfirmPayment}
-                  className="btn-linear-primary px-4 py-2 text-xs flex items-center gap-1.5 cursor-pointer"
-                >
-                  {confirmLoading ? 'Confirming...' : 'Confirm & Log'}
-                </button>
+              <div className="flex justify-between gap-3 border-t border-(--mm-line) pt-2">
+                <dt className="text-(--mm-ink-2)">Amount</dt>
+                <dd className="text-[15px] font-extrabold tabular-nums text-(--mm-ink)">{formatCurrency(selectedTx.amount)}</dd>
               </div>
-            </>
-          )}
-        </Sheet>
-
-        <Sheet
-          open={paidTxModalOpen && !!selectedTx}
-          onClose={() => setPaidTxModalOpen(false)}
-          label="SIP payment details"
-          zIndex={115}
-          className="bg-[#0a0a0c] border border-white/10 text-left shadow-2xl"
-          bodyClassName="px-6 pt-1 md:pt-6 space-y-4"
-        >
-          {selectedTx && (
-            <>
-              <div className="flex items-start gap-3">
-                <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-semibold text-white tracking-tight">SIP Transaction Detail</h3>
-                  <p className="text-[#8A8F98] text-xs mt-0.5">
-                    This cycle has been logged and synchronized in your passbook.
-                  </p>
-                </div>
-              </div>
-
-              <div className="p-3.5 bg-[#050506] border border-white/[0.06] rounded-xl space-y-2 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-[#8A8F98]">Title:</span>
-                  <span className="text-white font-medium">{selectedTx.title}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-[#8A8F98]">Date:</span>
-                  <span className="text-white font-mono">
-                    {new Date(selectedTx.date).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </div>
-                <div className="flex justify-between pt-2 border-t border-white/[0.04]">
-                  <span className="text-[#8A8F98]">Amount:</span>
-                  <span className="text-emerald-400 font-mono font-semibold text-sm">
-                    {formatCurrency(selectedTx.amount)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPaidTxModalOpen(false);
-                    setSelectedTx(null);
-                  }}
-                  className="btn-linear-primary px-4 py-2 text-xs cursor-pointer"
-                >
-                  Done
-                </button>
-              </div>
-            </>
-          )}
-        </Sheet>
-
-      <footer className="border-t border-white/[0.06] py-6 bg-[#020203]">
-        <div className="max-w-7xl mx-auto px-6 text-[#8A8F98] text-xs text-center font-mono">
-          © {new Date().getFullYear()} MonthlyMoney • SIP & Wealth Management
-        </div>
-      </footer>
-    </div>
+            </dl>
+            <div className="pb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setPaidTxModalOpen(false);
+                  setSelectedTx(null);
+                }}
+                className="mm-btn mm-btn-amber mm-focus min-h-11 w-full"
+              >
+                Done
+              </button>
+            </div>
+          </>
+        )}
+      </Sheet>
+    </InvestPage>
   );
 }

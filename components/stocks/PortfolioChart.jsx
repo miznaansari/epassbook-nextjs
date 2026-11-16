@@ -12,8 +12,8 @@ import {
   ReferenceDot,
   CartesianGrid,
 } from 'recharts';
-import { TrendingUp, TrendingDown, LineChart as LineChartIcon, AlertCircle } from 'lucide-react';
-import { useTheme } from '@/context/ThemeContext';
+import LineIcon from '@/components/ui/LineIcon';
+import { Pill } from '@/components/invest/kit';
 
 export const CHART_RANGES = ['1D', '1W', '1M', '6M', '1Y', 'ALL'];
 
@@ -106,16 +106,18 @@ function formatFullTime(t, intraday) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
+const AXIS_TICK = { fill: 'var(--mm-ink-3)', fontSize: 11, fontWeight: 600 };
+
 function HoverTooltip({ active, payload, markers, intraday, formatCurrency }) {
   if (!active || !payload?.length) return null;
   const pt = payload[0].payload;
   const bought = markers[pt.i];
   return (
-    <div className="bg-[#0a0a0c]/98 border border-white/[0.08] px-2.5 py-1.5 rounded-lg shadow-xl text-left font-mono">
-      <p className="text-[10px] text-slate-400">{formatFullTime(pt.t, intraday)}</p>
-      <p className="text-xs font-semibold text-white">{formatCurrency(pt.value)}</p>
+    <div className="rounded-xl border border-(--mm-line) bg-(--mm-card) px-3 py-2 text-left shadow-pop">
+      <p className="text-[13px] font-extrabold tabular-nums text-(--mm-ink)">{formatCurrency(pt.value)}</p>
+      <p className="text-[12px] font-semibold text-(--mm-ink-3)">{formatFullTime(pt.t, intraday)}</p>
       {bought && bought.map((lot, k) => (
-        <p key={k} className="text-[10px] text-[#818cf8] mt-0.5">
+        <p key={k} className="mt-1 text-[12px] font-semibold text-(--mm-ink-2)">
           Bought {lot.quantity} × {lot.symbol.split('.')[0]} @ {formatCurrency(lot.price)}
         </p>
       ))}
@@ -136,8 +138,6 @@ export default function PortfolioChart({
   formatCurrency,
   formatCompact,
 }) {
-  const { resolvedTheme } = useTheme();
-  const isLight = resolvedTheme === 'light';
   const [selected, setSelected] = useState('PORTFOLIO');
   const [hoverIdx, setHoverIdx] = useState(null);
 
@@ -170,15 +170,12 @@ export default function PortfolioChart({
   const shownValue = hovered ? hovered.value : latest;
   const change = shownValue - baseline;
   const changePct = baseline ? (change / baseline) * 100 : 0;
-  const isUp = latest >= baseline;
   const shownUp = change >= 0;
 
-  const upColor = isLight ? '#059669' : '#10B981';
-  const downColor = isLight ? '#E11D48' : '#F43F5E';
-  const lineColor = isUp ? upColor : downColor;
-  const surface = isLight ? '#FFFFFF' : '#0a0a0c';
-  const muted = isLight ? '#94A3B8' : '#64748B';
-  const grid = isLight ? 'rgba(15, 23, 42, 0.06)' : 'rgba(255, 255, 255, 0.05)';
+  const lineColor = 'var(--mm-chart-1)';
+  const markColor = 'var(--mm-chart-4)';
+  const surface = 'var(--mm-card)';
+  const muted = 'var(--mm-ink-3)';
 
   // Cost reference: invested capital for the basket, average buy price for a single stock
   const refValue = activeSymbol === 'PORTFOLIO' ? data?.invested : symbolInfo?.avgBuy;
@@ -226,17 +223,14 @@ export default function PortfolioChart({
     <div className="flex flex-col gap-4">
       {/* Basket / single stock switcher */}
       {symbolChips.length > 0 && (
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin -mx-1 px-1">
+        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:thin]">
           {['PORTFOLIO', ...symbolChips].map(sym => (
             <button
               key={sym}
               type="button"
+              aria-pressed={activeSymbol === sym}
               onClick={() => setSelected(sym)}
-              className={`px-2.5 py-1 rounded-lg text-[10px] font-mono uppercase tracking-wider whitespace-nowrap border transition-all cursor-pointer ${
-                activeSymbol === sym
-                  ? 'bg-[#5E6AD2] border-[#5E6AD2] text-white'
-                  : 'bg-white/[0.03] border-white/[0.06] text-slate-400 hover:text-white'
-              }`}
+              className={`mm-ft mm-focus ${activeSymbol === sym ? 'is-on' : ''}`}
             >
               {sym === 'PORTFOLIO' ? 'Portfolio' : sym.split('.')[0]}
             </button>
@@ -244,46 +238,45 @@ export default function PortfolioChart({
         </div>
       )}
 
-      {/* Headline value — follows the crosshair like a broker chart */}
-      <div className="flex justify-between items-start gap-3">
+      {/* Headline value, follows the crosshair like a broker chart */}
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-2 truncate">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#5E6AD2] shrink-0"></span>
+          <div className="mm-lbl truncate">
             {activeSymbol === 'PORTFOLIO'
-              ? 'Portfolio Valuation'
+              ? 'Portfolio value'
               : `${symbolInfo.name} · ${symbolInfo.quantity} ${symbolInfo.quantity === 1 ? 'share' : 'shares'}`}
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight mt-2 truncate">
+          </div>
+          <div className="mt-1 truncate text-[30px] font-extrabold leading-tight tabular-nums text-(--mm-ink) md:text-[34px]">
             {formatCurrency(n ? shownValue : summary.totalCurrentValue)}
-          </h2>
+          </div>
           {n > 1 && (
-            <p className={`text-xs sm:text-sm font-mono font-semibold mt-1.5 flex flex-wrap items-center gap-1.5 ${shownUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-              {shownUp ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              {shownUp ? '+' : '-'}{formatCurrency(Math.abs(change))} ({shownUp ? '+' : ''}{changePct.toFixed(2)}%)
-              <span className="text-slate-400 font-normal">{caption}</span>
+            <p className="mt-1 flex flex-wrap items-center gap-x-1.5 text-[13px] font-bold tabular-nums">
+              <span className={shownUp ? 'text-(--mm-good)' : 'text-(--mm-bad)'}>
+                <span aria-hidden="true">{shownUp ? '▲' : '▼'}</span>{' '}
+                {shownUp ? '+' : '−'}{formatCurrency(Math.abs(change))} ({shownUp ? '+' : '−'}{Math.abs(changePct).toFixed(2)}%)
+              </span>
+              <span className="font-semibold text-(--mm-ink-3)">{caption}</span>
             </p>
           )}
           {symbolInfo && (
-            <p className="text-[11px] font-mono text-slate-400 mt-1">
+            <p className="mm-lbl mt-1 tabular-nums">
               Holding value {formatCurrency(symbolInfo.quantity * latest)} · Avg buy {formatCurrency(symbolInfo.avgBuy)}
             </p>
           )}
         </div>
         {liveMode ? (
-          <span className="shrink-0 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono rounded-lg flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE
-          </span>
+          <Pill tone="good">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden="true" /> Live
+          </Pill>
         ) : (
-          <span className="shrink-0 px-2 py-1 bg-white/[0.03] border border-white/[0.06] text-slate-400 text-[10px] font-mono rounded-lg">
-            {inMarketHours ? 'MARKET OPEN' : 'MARKET CLOSED'}
-          </span>
+          <Pill tone="mute">{inMarketHours ? 'Market open' : 'Market closed'}</Pill>
         )}
       </div>
 
       {/* Chart viewport */}
-      <div className={`h-60 sm:h-72 w-full transition-opacity ${isStale && data ? 'opacity-50' : ''}`}>
+      <div className={`h-60 w-full transition-opacity sm:h-72 ${isStale && data ? 'opacity-50' : ''}`}>
         {!data && !error ? (
-          <div className="h-full w-full bg-white/[0.02] border border-white/[0.04] rounded-xl animate-pulse" />
+          <div className="h-full w-full animate-pulse rounded-xl bg-(--mm-soft)" aria-busy="true" />
         ) : n > 1 ? (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
@@ -297,19 +290,18 @@ export default function PortfolioChart({
             >
               <defs>
                 <linearGradient id="portfolioGrowthGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={lineColor} stopOpacity={0.28} />
-                  <stop offset="100%" stopColor={lineColor} stopOpacity={0} />
+                  <stop offset="0%" style={{ stopColor: 'var(--mm-chart-1)', stopOpacity: 0.12 }} />
+                  <stop offset="100%" style={{ stopColor: 'var(--mm-chart-1)', stopOpacity: 0 }} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke={grid} vertical={false} />
+              <CartesianGrid stroke="var(--mm-line-2)" vertical={false} />
               <XAxis
                 dataKey="i"
                 type="number"
                 domain={[0, n - 1]}
                 ticks={ticks}
                 tickFormatter={(i) => formatTick(series[Math.round(i)]?.t, range, data.intraday)}
-                stroke={muted}
-                fontSize={10}
+                tick={AXIS_TICK}
                 tickLine={false}
                 axisLine={false}
                 dy={6}
@@ -319,8 +311,7 @@ export default function PortfolioChart({
                 domain={domain}
                 tickCount={4}
                 tickFormatter={formatCompact}
-                stroke={muted}
-                fontSize={10}
+                tick={AXIS_TICK}
                 tickLine={false}
                 axisLine={false}
                 width={52}
@@ -332,10 +323,10 @@ export default function PortfolioChart({
               {includeRef && (
                 <ReferenceLine
                   y={refValue}
-                  stroke="#818cf8"
+                  stroke={markColor}
                   strokeDasharray="4 4"
                   ifOverflow="hidden"
-                  label={{ value: `${refLabel} ${formatCompact(refValue)}`, position: 'insideBottomLeft', fill: '#818cf8', fontSize: 10 }}
+                  label={{ value: `${refLabel} ${formatCompact(refValue)}`, position: 'insideBottomLeft', fill: 'var(--mm-ink-2)', fontSize: 11, fontWeight: 600 }}
                 />
               )}
               <Area
@@ -354,7 +345,7 @@ export default function PortfolioChart({
                   x={Number(idx)}
                   y={series[idx].value}
                   r={4}
-                  fill="#818cf8"
+                  fill={markColor}
                   stroke={surface}
                   strokeWidth={2}
                   ifOverflow="hidden"
@@ -366,45 +357,42 @@ export default function PortfolioChart({
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center gap-2 text-slate-500 text-xs font-mono border border-dashed border-white/[0.06] rounded-xl">
-            {error ? <AlertCircle className="w-6 h-6 opacity-40" /> : <LineChartIcon className="w-6 h-6 opacity-40" />}
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-(--mm-line) px-4 text-center text-[13px] font-semibold text-(--mm-ink-3)">
+            <LineIcon name={error ? 'alert' : 'trend'} size={24} />
             <span>{error || 'Not enough market data for this range yet.'}</span>
           </div>
         )}
       </div>
 
-      {/* Range chips + legend */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div className="flex items-center bg-[#050506] border border-white/[0.06] rounded-xl p-0.5 self-start">
+      {/* Range switch + legend */}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mm-seg w-full sm:w-auto" role="group" aria-label="Chart range">
           {CHART_RANGES.map(r => (
             <button
               key={r}
               type="button"
+              aria-pressed={range === r}
               onClick={() => onRangeChange(r)}
-              className={`px-2.5 sm:px-3 py-1 text-[11px] font-mono rounded-lg font-medium transition-all cursor-pointer ${
-                range === r
-                  ? 'bg-[#5E6AD2] text-white shadow-sm font-semibold'
-                  : 'text-slate-400 hover:text-white hover:bg-white/[0.04]'
-              }`}
+              className={`mm-focus min-h-10 flex-1 px-0 sm:px-3.5 ${range === r ? 'is-on' : ''}`}
             >
               {r}
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-[10px] font-mono text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold text-(--mm-ink-2)">
           {range === '1D' && (
             <span className="flex items-center gap-1.5">
-              <span className="w-3 border-t border-dashed border-slate-500"></span> Prev close
+              <span className="w-3.5 border-t border-dashed border-(--mm-ink-3)" aria-hidden="true" /> Prev close
             </span>
           )}
           {includeRef && (
             <span className="flex items-center gap-1.5">
-              <span className="w-3 border-t border-dashed border-[#818cf8]"></span> {refLabel}
+              <span className="w-3.5 border-t border-dashed border-(--mm-chart-4)" aria-hidden="true" /> {refLabel}
             </span>
           )}
           {Object.keys(markers).length > 0 && (
             <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-[#818cf8]"></span> Buy
+              <span className="h-2 w-2 rounded-full bg-(--mm-chart-4)" aria-hidden="true" /> Buy
             </span>
           )}
         </div>
