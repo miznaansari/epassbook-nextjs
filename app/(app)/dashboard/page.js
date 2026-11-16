@@ -17,6 +17,7 @@ import CycleChips from '@/components/dashboard/overview/CycleChips';
 import InsightCards from '@/components/dashboard/overview/InsightCards';
 import { WhereItWent, CycleBars, SpendingPace } from '@/components/dashboard/overview/Charts';
 import { TopItems, CategoryBreakdown } from '@/components/dashboard/overview/Lists';
+import CategorySheet from '@/components/dashboard/overview/CategorySheet';
 import {
   VISIBLE_CYCLES,
   categorySlices,
@@ -77,6 +78,7 @@ export default function Dashboard() {
   const [entryToEdit, setEntryToEdit] = useState(null);
   const [salaryModalOpen, setSalaryModalOpen] = useState(false);
   const [focusState, setFocusState] = useState(null);
+  const [sheet, setSheet] = useState(null); // { cycleKey, sliceId } of the open category sheet
 
   useEffect(() => {
     if (!loading && !user) router.push('/login');
@@ -126,6 +128,16 @@ export default function Dashboard() {
   const barCycles = useMemo(() => cycles.slice(0, VISIBLE_CYCLES).reverse(), [cycles]);
   const slices = useMemo(() => categorySlices(focus, previous), [focus, previous]);
 
+  // Category sheet: only open while its cycle is the focused one, so switching cycles closes it.
+  const sheetSlice = sheet && focus && sheet.cycleKey === focus.key ? slices.find(s => s.id === sheet.sliceId) || null : null;
+  const sheetGroups = sheetSlice ? sheetSlice.groupIds.join(',') : null;
+  const category = useCachedFetch(
+    uid && sheetGroups ? `/api/dashboard/category?cycle=${focus.key}&groups=${sheetGroups}` : null,
+    uid && sheetGroups ? `${DASH_CACHE_PREFIX}${uid}:cat:${focus.key}:${sheetGroups}` : null,
+    { group: `${DASH_CACHE_PREFIX}${uid}:cat:`, keep: 6, onUnauthorized: logout },
+  );
+  const closeSheet = useCallback(() => setSheet(null), []);
+
   const kpis = kpi.data?.kpis || null;
   const spent = kpis?.spending ?? current?.total ?? 0;
   const pace = useMemo(() => paceVsLast(current, cycles[1], spent), [current, cycles, spent]);
@@ -138,6 +150,7 @@ export default function Dashboard() {
   const refreshAll = () => {
     overview.refresh();
     kpi.refresh();
+    category.refresh();
   };
 
   const openNewEntry = () => {
@@ -251,7 +264,13 @@ export default function Dashboard() {
                 <TopItems cycle={focus} slices={slices} money={money} />
               </div>
               <div className="order-4 md:order-5 md:col-span-2">
-                <CategoryBreakdown cycle={focus} previous={previous} slices={slices} money={money} />
+                <CategoryBreakdown
+                  cycle={focus}
+                  previous={previous}
+                  slices={slices}
+                  money={money}
+                  onSelect={(s) => setSheet({ cycleKey: focus.key, sliceId: s.id })}
+                />
               </div>
             </>
           )}
@@ -259,6 +278,17 @@ export default function Dashboard() {
       </main>
 
       <div data-ui="v2">
+        <CategorySheet
+          slice={sheetSlice}
+          cycle={focus}
+          data={category.data}
+          loading={category.isRefreshing || category.isFirstLoad}
+          error={category.error}
+          onRetry={category.refresh}
+          money={money}
+          onClose={closeSheet}
+          onEdit={openPrefilled}
+        />
         <SalaryModal
           open={salaryModalOpen}
           onClose={() => setSalaryModalOpen(false)}

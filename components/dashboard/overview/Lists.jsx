@@ -44,7 +44,8 @@ export function TopItems({ cycle, slices, money }) {
   );
 }
 
-export function CategoryBreakdown({ cycle, previous, slices, money }) {
+/** Rows open the category's transactions via `onSelect(slice)`. */
+export function CategoryBreakdown({ cycle, previous, slices, money, onSelect }) {
   return (
     <div className="mm-card p-[22px]">
       <h2 className="mm-h2">Category breakdown</h2>
@@ -63,12 +64,18 @@ export function CategoryBreakdown({ cycle, previous, slices, money }) {
           {slices.map(s => {
             const tag = changeTag(s);
             return (
-              <li key={s.id} className="mm-divide flex items-center gap-3 py-3">
+              <li key={s.id} className="mm-divide">
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(s)}
+                  aria-label={`${s.name}: ${money(s.total)}, ${Math.round(s.share)}% of ${cycle.label}. Show transactions`}
+                  className="mm-focus -mx-2 flex w-[calc(100%+1rem)] cursor-pointer items-center gap-3 rounded-xl px-2 py-3 text-left transition-colors hover:bg-(--mm-soft)"
+                >
                 <span className="mm-in" style={{ background: s.color.soft, color: s.color.mark }}>
                   <LineIcon name={s.icon} />
                 </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex justify-between gap-3 text-[14px] font-bold text-(--mm-ink)">
+                <span className="block min-w-0 flex-1">
+                  <span className="flex justify-between gap-3 text-[14px] font-bold text-(--mm-ink)">
                     <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                       <span className="truncate">{s.name}</span>
                       {tag && (
@@ -76,18 +83,13 @@ export function CategoryBreakdown({ cycle, previous, slices, money }) {
                       )}
                     </span>
                     <span className="shrink-0 tabular-nums">{money(s.total)}</span>
-                  </div>
-                  <div
-                    className="mt-2 h-2 rounded-full bg-(--mm-line-2) md:h-2.5"
-                    role="progressbar"
-                    aria-label={`${s.name} share of ${cycle.label}`}
-                    aria-valuenow={Math.round(s.share)}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  >
-                    <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${s.share}%`, background: s.color.mark }} />
-                  </div>
-                </div>
+                  </span>
+                  <span className="mt-2 block h-2 rounded-full bg-(--mm-line-2) md:h-2.5" aria-hidden="true">
+                    <span className="block h-full rounded-full transition-[width] duration-500" style={{ width: `${s.share}%`, background: s.color.mark }} />
+                  </span>
+                </span>
+                <LineIcon name="chevron" size={16} className="text-(--mm-ink-3)" />
+                </button>
               </li>
             );
           })}

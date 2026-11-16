@@ -76,6 +76,7 @@ export function categorySlices(cycle, previous) {
 
   const slices = head.map((c, i) => ({
     ...groupInfo(c.id),
+    groupIds: [c.id],
     total: c.total,
     topItems: c.topItems,
     prevTotal: previous ? prevById.get(c.id)?.total || 0 : null,
@@ -85,6 +86,7 @@ export function categorySlices(cycle, previous) {
   if (rest.length) {
     slices.push({
       ...OTHER_GROUP,
+      groupIds: rest.map(c => c.id),
       total: sumTotals(rest),
       topItems: rest.flatMap(c => c.topItems).slice(0, 3),
       prevTotal: previous ? sumTotals(previous.categories.filter(c => !headIds.has(c.id))) : null,
@@ -98,6 +100,28 @@ export function categorySlices(cycle, previous) {
     change: s.prevTotal ? pct(s.total, s.prevTotal) : null,
     isNew: s.prevTotal === 0 && s.total > 0,
   }));
+}
+
+/**
+ * Category entries (newest first) grouped by where they were spent (AI merchant tag),
+ * biggest place first. Family & People is one "place", so it is split by person (item).
+ */
+export function groupByPlace(entries) {
+  const places = new Map();
+  for (const e of entries || []) {
+    const byPerson = e.merchantSlug === 'family';
+    const name = (byPerson ? e.item : e.merchant) || 'Miscellaneous';
+    const slug = byPerson ? `family:${name.toLowerCase()}` : e.merchantSlug || name.toLowerCase();
+    let p = places.get(slug);
+    if (!p) {
+      p = { slug, name, total: 0, count: 0, entries: [] };
+      places.set(slug, p);
+    }
+    p.total += Number(e.amount) || 0;
+    p.count += 1;
+    p.entries.push(e);
+  }
+  return [...places.values()].sort((a, b) => b.total - a.total);
 }
 
 /** Colour + icon for an item's category, matching the slices on screen. */
